@@ -8,6 +8,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { ReturningSplashScreen } from './components/ReturningSplashScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
 import { BaselineWelcomeScreen } from './components/BaselineWelcomeScreen';
+import { BaselineAssessmentWidget } from './components/BaselineAssessmentWidget';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthDebugger } from './components/AuthDebugger';
@@ -129,11 +130,17 @@ function AppContent() {
     );
   }
 
-  // ElevenLabs baseline assessment will be integrated here in the future
+  // ElevenLabs baseline assessment widget
   if (appState === 'baseline') {
-    // For now, go directly to dashboard after baseline welcome
-    setAppState('main');
-    return null;
+    return (
+      <BaselineAssessmentWidget 
+        onComplete={() => {
+          // TODO: Save baseline completion to database
+          // TODO: Process assessment results
+          setAppState('main');
+        }}
+      />
+    );
   }
 
   // Main app experience
