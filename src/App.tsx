@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 // Create a wrapper component that uses auth
 function AppContent() {
   const { user, loading } = useAuth();
-  const [appState, setAppState] = useState<'splash' | 'returning-splash' | 'registration' | 'baseline' | 'main'>('splash');
+  const [appState, setAppState] = useState<'splash' | 'returning-splash' | 'registration' | 'baseline-welcome' | 'baseline' | 'main'>('splash');
   const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
 
   // Handle auth state changes
@@ -26,14 +26,14 @@ function AppContent() {
       console.log('User authenticated:', user.email, 'Has baseline:', user.hasCompletedBaseline);
       
       if (!user.hasCompletedBaseline) {
-        // User needs to complete baseline assessment
-        setAppState('baseline');
+        // User needs baseline welcome screen, then assessment
+        setAppState('baseline-welcome');
       } else {
-        // User can access main app
-        setAppState('main');
+        // Returning user - show returning splash, then main app
+        setAppState('returning-splash');
       }
     } else {
-      // User not authenticated - show splash
+      // User not authenticated - show new user splash
       setAppState('splash');
     }
   }, [user, loading]);
@@ -75,13 +75,56 @@ function AppContent() {
         onBack={() => setAppState('splash')}
         onComplete={() => {
           // Registration completed - auth state will handle the transition
-          // User will be automatically moved to baseline or main app based on auth state
+          // User will be automatically moved to baseline-welcome state
         }}
       />
     );
   }
 
-  // Baseline assessment for users who need it
+  // Returning user splash (no authentication needed)
+  if (appState === 'returning-splash') {
+    return (
+      <ReturningSplashScreen 
+        onComplete={() => {
+          // Returning user goes straight to main app
+          setAppState('main');
+        }} 
+      />
+    );
+  }
+
+  // Baseline welcome screen (after registration)
+  if (appState === 'baseline-welcome') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
+        {/* Background glass effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-32 right-10 w-64 h-64 bg-blue-300/20 rounded-full blur-3xl" />
+        <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
+        
+        <div className="relative z-10 h-screen overflow-auto">
+          <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+            <div className="max-w-md mx-auto">
+              <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome to Your Baseline Assessment</h1>
+              <p className="text-lg text-gray-600 mb-8">
+                Your baseline assessment helps us understand your current mental wellness state. 
+                This personalized evaluation will take about 10-15 minutes and uses AI-powered conversation.
+              </p>
+              <button
+                onClick={() => setAppState('baseline')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-12 font-medium rounded-xl"
+              >
+                Start Baseline Assessment
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ElevenLabs baseline assessment
   if (appState === 'baseline') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
@@ -93,8 +136,10 @@ function AppContent() {
         
         <div className="relative z-10 h-screen overflow-auto">
           <BaselineAssessmentScreen 
-            onStartAssessment={() => {
-              // Baseline completed - user can access main app
+            onStartAssessment={async () => {
+              // Mark baseline as completed and go to main app
+              // TODO: Update user profile to mark baseline as completed
+              // TODO: Store baseline assessment results
               setAppState('main');
             }}
           />
