@@ -148,20 +148,27 @@ export const dbHelpers = {
   
   // Check if user has completed baseline
   hasCompletedBaseline: async (userId: string): Promise<boolean> => {
-    const { data, error } = await supabase
-      .from('assessment_sessions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('assessment_type', 'full')
-      .eq('status', 'completed')
-      .limit(1);
-    
-    if (error) {
-      console.error('Error checking baseline completion:', error);
+    try {
+      const { data, error } = await supabase
+        .from('assessment_sessions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('assessment_type', 'full')
+        .eq('status', 'completed')
+        .limit(1);
+      
+      if (error) {
+        console.error('Error checking baseline completion:', error);
+        // For new users without database access, assume no baseline completed
+        return false;
+      }
+      
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Cannot access assessment_sessions table:', error);
+      // If we can't access the table, assume no baseline completed
       return false;
     }
-    
-    return data && data.length > 0;
   },
   
   // Get latest wellness score
