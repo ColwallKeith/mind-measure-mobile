@@ -121,14 +121,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   };
 
   return (
-    <div 
-      className="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden"
-      style={{
-        height: '100svh', // Small viewport height for mobile - prevents keyboard resizing
-        maxHeight: '100svh',
-        position: 'relative'
-      }}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
       <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
@@ -136,8 +129,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
 
       <motion.div 
-        className="relative z-10 h-full flex flex-col"
-        style={{ minHeight: '100%', overflowY: 'auto' }}
+        className="relative z-10 min-h-screen flex flex-col"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
