@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -17,6 +17,7 @@ import {
   EyeOff,
   GraduationCap
 } from 'lucide-react';
+import { Keyboard } from '@capacitor/keyboard';
 import mindMeasureLogo from 'figma:asset/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 
 interface RegistrationScreenProps {
@@ -38,6 +39,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -45,6 +48,37 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     password: '',
     confirmPassword: ''
   });
+
+  // Capacitor keyboard handling
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', (info) => {
+      console.log('Keyboard will show:', info);
+      setIsKeyboardOpen(true);
+      document.body.classList.add('keyboard-open');
+    });
+
+    const keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', () => {
+      console.log('Keyboard will hide');
+      setIsKeyboardOpen(false);
+      document.body.classList.remove('keyboard-open');
+    });
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  // Scroll input into view when focused
+  const scrollToInput = (inputRef: React.RefObject<HTMLInputElement>) => {
+    setTimeout(() => {
+      inputRef?.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center',
+        inline: 'nearest'
+      });
+    }, 300); // Wait for keyboard animation
+  };
 
 
   // Load saved registration data on component mount (keep for form persistence during session)
@@ -201,19 +235,18 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Standard mobile-responsive container */}
-        <div className="flex-1 flex items-center justify-center px-6 pb-8">
-          <div 
-            className="w-full max-w-md"
-            style={{
-              minHeight: 'calc(100dvh - env(keyboard-inset-height, 0px) - 2rem)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}
-          >
-            <motion.div variants={itemVariants}>
-              {/* Header elements moved into body */}
+        {/* Capacitor keyboard-aware scrollable container */}
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto px-6 py-8"
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: isKeyboardOpen ? '50px' : '32px'
+          }}
+        >
+          <div className="min-h-full flex flex-col justify-center">
+            <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
+            {/* Header elements moved into body */}
             <div className="flex items-center justify-between mb-6">
               <Button
                 variant="ghost"
