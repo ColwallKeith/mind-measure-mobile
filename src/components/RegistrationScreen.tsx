@@ -200,14 +200,14 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Header */}
-        <motion.div variants={itemVariants} className="pt-12 pb-6 px-6">
+        {/* Header - moved down to avoid mobile time display */}
+        <motion.div variants={itemVariants} className="pt-20 pb-6 px-6">
           <div className="flex items-center justify-between mb-6">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleBack}
-              className="bg-white/60 border-white/30 backdrop-blur-sm hover:bg-white/80"
+              className="text-gray-700 hover:bg-white/60"
             >
               <ArrowLeft className="w-4 h-4 mr-1" />
               Back
@@ -235,10 +235,10 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           </div>
         </motion.div>
 
-        {/* Main Content */}
-        <div className="flex-1 px-6 pb-6">
-          <motion.div variants={itemVariants}>
-            <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6 max-w-md mx-auto">
+        {/* Main Content - centered on screen */}
+        <div className="flex-1 flex items-center justify-center px-6 pb-6">
+          <motion.div variants={itemVariants} className="w-full max-w-md">
+            <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6">
               {/* Step Header */}
               <div className="text-center mb-8">
                 <motion.div
