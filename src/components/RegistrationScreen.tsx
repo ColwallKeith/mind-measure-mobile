@@ -56,26 +56,23 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
 
     // Try Capacitor keyboard events (mobile)
     try {
-      keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', (info) => {
-        console.log('Capacitor: Keyboard will show:', info);
+      keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', () => {
         setIsKeyboardOpen(true);
         document.body.classList.add('keyboard-open');
       });
 
       keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', () => {
-        console.log('Capacitor: Keyboard will hide');
         setIsKeyboardOpen(false);
         document.body.classList.remove('keyboard-open');
       });
     } catch (e) {
-      console.log('Capacitor keyboard not available, using web fallback');
+      // Capacitor keyboard not available, using web fallback silently
     }
 
     // Web browser fallback using Visual Viewport API
     const handleViewportChange = () => {
       if (window.visualViewport) {
         const isKeyboard = window.visualViewport.height < window.innerHeight * 0.75;
-        console.log('Web: Viewport change, keyboard:', isKeyboard, 'Height:', window.visualViewport.height);
         setIsKeyboardOpen(isKeyboard);
         if (isKeyboard) {
           document.body.classList.add('keyboard-open');
