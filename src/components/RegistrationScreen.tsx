@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card } from './ui/card';
-import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { 
   User, 
@@ -15,9 +14,7 @@ import {
   CheckCircle, 
   Eye, 
   EyeOff,
-  GraduationCap,
-  Shield,
-  Sparkles
+  GraduationCap
 } from 'lucide-react';
 import mindMeasureLogo from 'figma:asset/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 
@@ -124,7 +121,18 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
+    <div 
+      className="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden" 
+      style={{ 
+        height: '100vh',
+        minHeight: '-webkit-fill-available',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+    >
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
       <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
@@ -132,7 +140,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
 
       <motion.div 
-        className="relative z-10 min-h-screen flex flex-col"
+        className="relative z-10 h-full flex flex-col"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -335,22 +343,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
             </Card>
           </motion.div>
 
-          {/* Features Footer */}
-          <motion.div 
-            variants={itemVariants}
-            className="mt-8 max-w-md mx-auto"
-          >
-            <div className="flex justify-center gap-3">
-              <Badge className="bg-white/60 text-gray-700 border-white/30 backdrop-blur-sm px-3 py-1">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Free to use
-              </Badge>
-              <Badge className="bg-white/60 text-gray-700 border-white/30 backdrop-blur-sm px-3 py-1">
-                <Shield className="w-3 h-3 mr-1" />
-                Your data is private
-              </Badge>
-            </div>
-          </motion.div>
         </div>
       </motion.div>
     </div>

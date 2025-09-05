@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Heart, Shield, Clock, ArrowRight, Sparkles } from 'lucide-react';
+import { Heart, ArrowRight } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import mindMeasureLogo from 'figma:asset/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 import student1 from 'figma:asset/09faec71f9d3802be7219825a1035943a576793f.png';
@@ -313,30 +312,12 @@ export function SplashScreen({ onGetStarted }: SplashScreenProps) {
           </p>
         </motion.div>
 
-        {/* Features */}
-        <motion.div 
-          variants={itemVariants}
-          className="flex flex-wrap justify-center gap-3 mb-8"
-        >
-          <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-3 py-1">
-            <Sparkles className="w-3 h-3 mr-1" />
-            Free to use
-          </Badge>
-          <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-3 py-1">
-            <Shield className="w-3 h-3 mr-1" />
-            Private & secure
-          </Badge>
-          <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-3 py-1">
-            <Clock className="w-3 h-3 mr-1" />
-            Takes 3 minutes
-          </Badge>
-        </motion.div>
-
         {/* CTA Button */}
         <motion.div 
           variants={itemVariants}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          className="mt-4"
         >
           <Button 
             onClick={onGetStarted}
