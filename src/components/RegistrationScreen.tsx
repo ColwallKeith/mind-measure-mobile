@@ -188,6 +188,11 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
+      {/* DEBUG: Absolute positioned banner at very top */}
+      <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-4 z-50 font-bold">
+        🚨 DEBUG: Registration Screen Loaded - Changes Should Be Visible 🚨
+      </div>
+      
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
       <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
