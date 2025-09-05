@@ -10,6 +10,7 @@ import { RegistrationScreen } from './components/RegistrationScreen';
 import { BaselineAssessmentScreen } from './components/BaselineAssessmentScreen';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthDebugger } from './components/AuthDebugger';
 
 // Create a wrapper component that uses auth
 function AppContent() {
@@ -19,22 +20,34 @@ function AppContent() {
 
   // Handle auth state changes
   useEffect(() => {
-    if (loading) return; // Wait for auth to initialize
+    console.log('=== AUTH STATE CHECK ===');
+    console.log('Loading:', loading);
+    console.log('User:', user);
+    console.log('User email:', user?.email);
+    console.log('Has baseline:', user?.hasCompletedBaseline);
+    
+    if (loading) {
+      console.log('Still loading auth, waiting...');
+      return; // Wait for auth to initialize
+    }
 
     if (user) {
       // User is authenticated (returning user)
-      console.log('User authenticated:', user.email, 'Has baseline:', user.hasCompletedBaseline);
+      console.log('✅ User authenticated:', user.email, 'Has baseline:', user.hasCompletedBaseline);
       
       if (!user.hasCompletedBaseline) {
         // Returning user who hasn't completed baseline yet - go to baseline welcome
         // (Dashboard would be empty without baseline data)
+        console.log('→ Going to baseline-welcome (no baseline completed)');
         setAppState('baseline-welcome');
       } else {
         // Returning user who has completed baseline - show returning splash, then dashboard
+        console.log('→ Going to returning-splash (has baseline)');
         setAppState('returning-splash');
       }
     } else {
       // User not authenticated - show new user splash for registration
+      console.log('❌ No user authenticated, going to splash');
       setAppState('splash');
     }
   }, [user, loading]);
@@ -174,6 +187,9 @@ function AppContent() {
           onScreenChange={setActiveScreen}
         />
       </div>
+      
+      {/* Temporary debug info */}
+      <AuthDebugger />
     </div>
   );
 }
