@@ -201,13 +201,13 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         animate="visible"
       >
         {/* Minimal safe area spacer for mobile status bar */}
-        <div className="h-8"></div>
+        <div className="h-12"></div>
 
-        {/* Main Content - optimized for keyboard visibility */}
-        <div className="flex-1 flex flex-col justify-start px-6 pb-6 pt-4">
+        {/* Main Content - centered with keyboard-friendly spacing */}
+        <div className="flex-1 flex flex-col justify-center px-6 pb-6">
           <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
             {/* Header elements moved into body */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <Button
                 variant="ghost"
                 size="sm"
@@ -230,8 +230,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               </div>
             </div>
 
-            {/* Progress bar - closer to registration card */}
-            <div className="mb-4">
+            {/* Progress bar - above registration card */}
+            <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
                 <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
