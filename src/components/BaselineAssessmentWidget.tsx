@@ -76,10 +76,10 @@ export function BaselineAssessmentWidget({ onComplete }: BaselineAssessmentWidge
 
   return (
     <div className="h-screen bg-white flex flex-col">
-      {/* Header with Dynamic Island safe area */}
-      <div className="pt-16 pb-6 px-6">
+      {/* Header - positioned 50px below Dynamic Island */}
+      <div style={{ paddingTop: '50px' }} className="px-6 pb-4">
         {/* Mind Measure Branding */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-4xl font-light text-gray-900 mb-2">
             Mind <span className="text-purple-600 font-medium">Measure</span>
           </h1>
@@ -108,7 +108,7 @@ export function BaselineAssessmentWidget({ onComplete }: BaselineAssessmentWidge
       <div className="flex-1"></div>
 
       {/* ElevenLabs Widget Container - Anchored to Bottom */}
-      <div className="p-6">
+      <div className="p-6 pb-8">
         <div 
           ref={widgetRef}
           className="w-full min-h-[400px] rounded-2xl bg-gray-50 border border-gray-200 shadow-lg"
@@ -127,9 +127,6 @@ export function BaselineAssessmentWidget({ onComplete }: BaselineAssessmentWidge
           )}
         </div>
       </div>
-
-      {/* Bottom safe area for home indicator */}
-      <div className="pb-8"></div>
     </div>
   );
 }
