@@ -59,11 +59,17 @@ This document defines the exact user flow for the Mind Measure mobile applicatio
 ## 🔄 Returning User Flow
 
 ### 1. Returning User Splash Screen
-- **Trigger**: App open, user has completed baseline assessment
+- **Trigger**: App open, user has BOTH authenticated AND completed baseline assessment
 - **Content**: "Welcome back" message, quick app reminder
 - **Authentication**: **NO AUTHENTICATION REQUIRED** (session persisted)
 - **Action**: "Continue" or automatic progression
 - **Next**: Dashboard (with historical data)
+
+### 1b. Returning User Without Baseline
+- **Trigger**: App open, user has authenticated but NOT completed baseline
+- **Content**: Same as new user - goes to Baseline Welcome Screen
+- **Reason**: Dashboard would be empty without baseline data
+- **Next**: Baseline Welcome → ElevenLabs Assessment → Dashboard
 
 ### 2. Dashboard (Returning User)
 - **Trigger**: Returning user splash completion
@@ -107,13 +113,16 @@ This document defines the exact user flow for the Mind Measure mobile applicatio
 
 ### State Determination Logic
 ```typescript
-// Simplified logic for app state determination
-if (no_existing_session) {
-  return 'new_user_splash';
-} else if (session_exists && !baseline_completed) {
-  return 'baseline_welcome';
-} else if (session_exists && baseline_completed) {
-  return 'returning_user_splash';
+// Correct logic for app state determination
+if (!user) {
+  // No authentication session
+  return 'new_user_splash'; // → registration
+} else if (user && !user.hasCompletedBaseline) {
+  // User authenticated but no baseline (dashboard would be empty)
+  return 'baseline_welcome'; // → ElevenLabs assessment
+} else if (user && user.hasCompletedBaseline) {
+  // User authenticated AND has baseline data
+  return 'returning_user_splash'; // → dashboard with data
 }
 ```
 

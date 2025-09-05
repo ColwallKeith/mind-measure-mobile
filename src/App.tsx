@@ -22,18 +22,19 @@ function AppContent() {
     if (loading) return; // Wait for auth to initialize
 
     if (user) {
-      // User is authenticated
+      // User is authenticated (returning user)
       console.log('User authenticated:', user.email, 'Has baseline:', user.hasCompletedBaseline);
       
       if (!user.hasCompletedBaseline) {
-        // User needs baseline welcome screen, then assessment
+        // Returning user who hasn't completed baseline yet - go to baseline welcome
+        // (Dashboard would be empty without baseline data)
         setAppState('baseline-welcome');
       } else {
-        // Returning user - show returning splash, then main app
+        // Returning user who has completed baseline - show returning splash, then dashboard
         setAppState('returning-splash');
       }
     } else {
-      // User not authenticated - show new user splash
+      // User not authenticated - show new user splash for registration
       setAppState('splash');
     }
   }, [user, loading]);
