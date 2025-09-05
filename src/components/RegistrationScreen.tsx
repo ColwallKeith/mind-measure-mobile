@@ -57,17 +57,39 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       
       setKeyboardHeight(keyboardHeight);
       setIsKeyboardOpen(keyboardHeight > 100); // Keyboard is open if more than 100px difference
+      
+      console.log('Keyboard detection:', {
+        viewportHeight,
+        windowHeight,
+        keyboardHeight,
+        isOpen: keyboardHeight > 100
+      });
+    };
+
+    const handleFocus = () => {
+      setTimeout(handleResize, 300); // Check after keyboard animation
+    };
+
+    const handleBlur = () => {
+      setTimeout(handleResize, 300); // Check after keyboard hide
     };
 
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', handleResize);
-      handleResize(); // Initial check
     }
+    
+    // Also listen for input focus/blur as backup
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleBlur);
+    
+    handleResize(); // Initial check
 
     return () => {
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', handleResize);
       }
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleBlur);
     };
   }, []);
 
@@ -227,11 +249,16 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       >
         {/* Dynamic content positioning based on keyboard state */}
         <div 
-          className="flex-1 flex flex-col px-6"
+          className="px-6"
           style={{
-            paddingTop: isKeyboardOpen ? '48px' : '80px',
-            paddingBottom: isKeyboardOpen ? '30px' : '24px',
-            justifyContent: isKeyboardOpen ? 'flex-start' : 'center'
+            position: 'absolute',
+            top: isKeyboardOpen ? '20px' : '50%',
+            left: '24px',
+            right: '24px',
+            transform: isKeyboardOpen ? 'none' : 'translateY(-50%)',
+            bottom: isKeyboardOpen ? `${keyboardHeight + 30}px` : 'auto',
+            maxHeight: isKeyboardOpen ? `calc(100vh - 20px - ${keyboardHeight + 30}px)` : 'none',
+            overflow: isKeyboardOpen ? 'auto' : 'visible'
           }}
         >
           <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
