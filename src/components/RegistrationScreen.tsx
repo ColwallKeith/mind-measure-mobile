@@ -279,12 +279,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           className="flex-1 overflow-y-auto px-6"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            paddingTop: isKeyboardOpen ? '100px' : '60px', // More space when keyboard open
-            paddingBottom: isKeyboardOpen ? '350px' : '32px', // Much more space for keyboard
+            paddingTop: isKeyboardOpen ? '60px' : '60px', // Keep consistent top padding
+            paddingBottom: isKeyboardOpen ? '50px' : '32px', // Just enough space above keyboard
             backgroundColor: isKeyboardOpen ? '#fff3cd' : 'transparent' // Visual indicator
           }}
         >
-          <div className="min-h-full flex flex-col justify-center">
+          <div className={`min-h-full flex flex-col ${isKeyboardOpen ? 'justify-start pt-4' : 'justify-center'}`}>
             <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
             {/* Header elements moved into body */}
             <div className="flex items-center justify-between mb-6">
