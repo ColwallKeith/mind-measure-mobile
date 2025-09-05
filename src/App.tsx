@@ -26,6 +26,8 @@ function AppContent() {
     console.log('User:', user);
     console.log('User email:', user?.email);
     console.log('Has baseline:', user?.hasCompletedBaseline);
+    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('Current app state:', appState);
     
     if (loading) {
       console.log('Still loading auth, waiting...');

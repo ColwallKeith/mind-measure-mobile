@@ -41,6 +41,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initializeAuth = async () => {
     try {
       console.log('🔄 Initializing auth state...');
+      console.log('🔧 Environment check - Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+      console.log('🔧 Environment check - Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
       
       // First check if there's an existing session
       const { data: sessionData, error: sessionError } = await authService.getSession();
