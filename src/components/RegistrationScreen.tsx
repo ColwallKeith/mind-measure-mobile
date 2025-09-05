@@ -201,7 +201,10 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         animate="visible"
       >
         {/* Header - moved down to avoid mobile time display */}
-        <motion.div variants={itemVariants} className="pt-32 pb-6 px-6">
+        <div className="h-32 bg-red-500/20 flex items-center justify-center">
+          <span className="text-red-600 font-bold">DEBUG: Header spacing</span>
+        </div>
+        <motion.div variants={itemVariants} className="pb-6 px-6">
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
@@ -231,14 +234,18 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
               <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
             </div>
-            <div className="relative w-full h-3 bg-white/60 rounded-full overflow-hidden">
+            <div className="relative w-full h-4 bg-gray-300 rounded-full overflow-hidden border-2 border-purple-300">
               <div 
                 className="h-full transition-all duration-300 ease-out rounded-full"
                 style={{ 
                   width: `${progressPercentage}%`,
-                  backgroundColor: '#8B5CF6'
+                  backgroundColor: '#8B5CF6',
+                  border: '1px solid #7C3AED'
                 }}
               />
+            </div>
+            <div className="mt-2 text-xs text-purple-600">
+              DEBUG: Progress {progressPercentage}% - Purple: #8B5CF6
             </div>
           </div>
         </motion.div>
