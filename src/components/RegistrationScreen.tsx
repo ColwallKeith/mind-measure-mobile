@@ -38,6 +38,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -45,6 +47,29 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     password: '',
     confirmPassword: ''
   });
+
+  // Keyboard detection
+  useEffect(() => {
+    const handleResize = () => {
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const windowHeight = window.innerHeight;
+      const keyboardHeight = windowHeight - viewportHeight;
+      
+      setKeyboardHeight(keyboardHeight);
+      setIsKeyboardOpen(keyboardHeight > 100); // Keyboard is open if more than 100px difference
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleResize);
+      handleResize(); // Initial check
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+      }
+    };
+  }, []);
 
   // Load saved registration data on component mount (keep for form persistence during session)
   useEffect(() => {
@@ -200,11 +225,15 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Minimal safe area spacer for mobile status bar */}
-        <div className="h-12"></div>
-
-        {/* Main Content - centered with keyboard-friendly spacing */}
-        <div className="flex-1 flex flex-col justify-center px-6 pb-6">
+        {/* Dynamic content positioning based on keyboard state */}
+        <div 
+          className="flex-1 flex flex-col px-6"
+          style={{
+            paddingTop: isKeyboardOpen ? '48px' : '80px',
+            paddingBottom: isKeyboardOpen ? '30px' : '24px',
+            justifyContent: isKeyboardOpen ? 'flex-start' : 'center'
+          }}
+        >
           <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
             {/* Header elements moved into body */}
             <div className="flex items-center justify-between mb-6">
