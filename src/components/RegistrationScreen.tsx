@@ -247,18 +247,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Dynamic content positioning based on keyboard state */}
+        {/* Keyboard-aware content container */}
         <div 
-          className="px-6"
+          className="flex-1 flex items-end px-6"
           style={{
-            position: 'absolute',
-            top: isKeyboardOpen ? '20px' : '50%',
-            left: '24px',
-            right: '24px',
-            transform: isKeyboardOpen ? 'none' : 'translateY(-50%)',
-            bottom: isKeyboardOpen ? `${keyboardHeight + 30}px` : 'auto',
-            maxHeight: isKeyboardOpen ? `calc(100vh - 20px - ${keyboardHeight + 30}px)` : 'none',
-            overflow: isKeyboardOpen ? 'auto' : 'visible'
+            paddingBottom: '30px',
+            minHeight: '100vh'
           }}
         >
           <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
