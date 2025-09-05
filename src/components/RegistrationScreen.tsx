@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -32,9 +33,11 @@ interface FormData {
 }
 
 export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenProps) {
+  const { signUp, loading } = useAuth();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -43,7 +46,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     confirmPassword: ''
   });
 
-  // Load saved registration data on component mount
+  // Load saved registration data on component mount (keep for form persistence during session)
   useEffect(() => {
     const savedData = localStorage.getItem('mindMeasureRegistrationData');
     const savedStep = localStorage.getItem('mindMeasureRegistrationStep');
@@ -65,12 +68,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     }
   }, []);
 
-  // Save registration data whenever it changes
+  // Save registration data whenever it changes (for form persistence)
   useEffect(() => {
     localStorage.setItem('mindMeasureRegistrationData', JSON.stringify(formData));
   }, [formData]);
 
-  // Save current step whenever it changes
+  // Save current step whenever it changes (for form persistence)
   useEffect(() => {
     localStorage.setItem('mindMeasureRegistrationStep', step.toString());
   }, [step]);
@@ -91,15 +94,40 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     }
   };
 
-  const handleNext = () => {
-    if (validateStep()) {
-      if (step < totalSteps) {
-        setStep(step + 1);
-      } else {
+  const handleNext = async () => {
+    if (!validateStep()) {
+      return;
+    }
+
+    if (step < totalSteps) {
+      setStep(step + 1);
+    } else {
+      // Final step - create account with Supabase
+      setRegistrationError(null);
+      
+      try {
+        const { error } = await signUp({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        });
+
+        if (error) {
+          setRegistrationError(error);
+          return;
+        }
+
         // Clear saved registration data on successful completion
         localStorage.removeItem('mindMeasureRegistrationData');
         localStorage.removeItem('mindMeasureRegistrationStep');
+        
+        // Registration successful - the AuthProvider will handle the user state
         onComplete();
+        
+      } catch (error) {
+        console.error('Registration error:', error);
+        setRegistrationError('Registration failed. Please try again.');
       }
     }
   };
@@ -356,15 +384,22 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                 </motion.div>
               )}
 
+              {/* Error Display */}
+              {registrationError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{registrationError}</p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="mt-8">
                 <Button 
                   onClick={handleNext}
-                  disabled={!validateStep()}
+                  disabled={!validateStep() || loading}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-12 font-medium rounded-xl disabled:from-gray-300 disabled:to-gray-400"
                 >
-                  {step === totalSteps ? 'Create Account' : 'Continue'}
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                  {loading ? 'Creating Account...' : (step === totalSteps ? 'Create Account' : 'Continue')}
+                  {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
                 </Button>
               </div>
             </Card>

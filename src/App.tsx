@@ -9,32 +9,40 @@ import { ReturningSplashScreen } from './components/ReturningSplashScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
 import { BaselineAssessmentScreen } from './components/BaselineAssessmentScreen';
 import { BottomNavigation } from './components/BottomNavigation';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-export default function App() {
+// Create a wrapper component that uses auth
+function AppContent() {
+  const { user, loading } = useAuth();
   const [appState, setAppState] = useState<'splash' | 'returning-splash' | 'registration' | 'baseline' | 'main'>('splash');
   const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
-  const [isReturningUser, setIsReturningUser] = useState<boolean | null>(null);
 
-  // Check if user is returning (has completed registration before)
+  // Handle auth state changes
   useEffect(() => {
-    const hasCompletedRegistration = localStorage.getItem('mindMeasureRegistrationCompleted');
-    const hasCompletedBaseline = localStorage.getItem('mindMeasureBaselineCompleted');
-    const returning = hasCompletedRegistration === 'true';
-    setIsReturningUser(returning);
-    
-    if (returning) {
-      setAppState('returning-splash');
+    if (loading) return; // Wait for auth to initialize
+
+    if (user) {
+      // User is authenticated
+      console.log('User authenticated:', user.email, 'Has baseline:', user.hasCompletedBaseline);
+      
+      if (!user.hasCompletedBaseline) {
+        // User needs to complete baseline assessment
+        setAppState('baseline');
+      } else {
+        // User can access main app
+        setAppState('main');
+      }
+    } else {
+      // User not authenticated - show splash
+      setAppState('splash');
     }
-  }, []);
+  }, [user, loading]);
 
   // Development helper: Add keyboard shortcut to reset user state (Ctrl/Cmd + Shift + R)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
-        // Reset user state for testing
-        localStorage.removeItem('mindMeasureRegistrationCompleted');
-        localStorage.removeItem('mindMeasureBaselineCompleted');
-        setIsReturningUser(false);
+        // Reset user state for testing by signing out
         setAppState('splash');
         console.log('User state reset - now showing new user experience');
       }
@@ -44,22 +52,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Handle onboarding flow
-  if (appState === 'splash' && !isReturningUser) {
-    return <SplashScreen onGetStarted={() => setAppState('registration')} />;
+  // Show loading screen while auth initializes
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Handle returning user splash
-  if (appState === 'returning-splash') {
-    return <ReturningSplashScreen onComplete={() => {
-      // Check if baseline is completed for returning users
-      const hasCompletedBaseline = localStorage.getItem('mindMeasureBaselineCompleted');
-      if (hasCompletedBaseline === 'true') {
-        setAppState('main');
-      } else {
-        setAppState('baseline');
-      }
-    }} />;
+  // Handle onboarding flow for new users
+  if (appState === 'splash') {
+    return <SplashScreen onGetStarted={() => setAppState('registration')} />;
   }
 
   if (appState === 'registration') {
@@ -67,22 +74,14 @@ export default function App() {
       <RegistrationScreen 
         onBack={() => setAppState('splash')}
         onComplete={() => {
-          // Mark user as having completed registration
-          localStorage.setItem('mindMeasureRegistrationCompleted', 'true');
-          setIsReturningUser(true);
-          // Check if baseline is completed to decide next step
-          const hasCompletedBaseline = localStorage.getItem('mindMeasureBaselineCompleted');
-          if (hasCompletedBaseline === 'true') {
-            setAppState('main');
-          } else {
-            setAppState('baseline');
-          }
+          // Registration completed - auth state will handle the transition
+          // User will be automatically moved to baseline or main app based on auth state
         }}
       />
     );
   }
 
-  // Baseline assessment for new users
+  // Baseline assessment for users who need it
   if (appState === 'baseline') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
@@ -95,8 +94,7 @@ export default function App() {
         <div className="relative z-10 h-screen overflow-auto">
           <BaselineAssessmentScreen 
             onStartAssessment={() => {
-              // Mark baseline as completed and go to main app
-              localStorage.setItem('mindMeasureBaselineCompleted', 'true');
+              // Baseline completed - user can access main app
               setAppState('main');
             }}
           />
@@ -131,5 +129,14 @@ export default function App() {
         />
       </div>
     </div>
+  );
+}
+
+// Main App component with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
