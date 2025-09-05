@@ -188,11 +188,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
-      {/* DEBUG: Absolute positioned banner at very top */}
-      <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center py-4 z-50 font-bold">
-        🚨 DEBUG: Registration Screen Loaded - Changes Should Be Visible 🚨
-      </div>
-      
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
       <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
@@ -205,55 +200,53 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Header - moved down to avoid mobile time display */}
-        <motion.div variants={itemVariants} className="pt-32 pb-6 px-6">
-          <div className="bg-yellow-300 text-black p-2 text-center mb-4 rounded">
-            DEBUG: Header has pt-32 spacing (128px from top)
-          </div>
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="text-gray-700 hover:bg-white/60"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center">
-                <img 
-                  src={mindMeasureLogo} 
-                  alt="Mind Measure" 
-                  className="w-full h-full object-contain opacity-80"
+        {/* Safe area spacer for mobile status bar */}
+        <div className="h-16"></div>
+
+        {/* Main Content - centered on screen with header elements inside */}
+        <div className="flex-1 flex flex-col justify-center px-6 pb-6">
+          <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
+            {/* Header elements moved into body */}
+            <div className="flex items-center justify-between mb-8">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                className="text-gray-700 hover:bg-white/60"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back
+              </Button>
+              
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <img 
+                    src={mindMeasureLogo} 
+                    alt="Mind Measure" 
+                    className="w-full h-full object-contain opacity-80"
+                  />
+                </div>
+                <span className="text-gray-700 font-medium">Mind Measure</span>
+              </div>
+            </div>
+
+            {/* Progress bar - 30px above registration card */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
+                <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
+              </div>
+              <div className="relative w-full h-3 bg-white/60 rounded-full overflow-hidden">
+                <div 
+                  className="h-full transition-all duration-300 ease-out rounded-full"
+                  style={{ 
+                    width: `${progressPercentage}%`,
+                    backgroundColor: '#8B5CF6'
+                  }}
                 />
               </div>
-              <span className="text-gray-700 font-medium">Mind Measure</span>
             </div>
-          </div>
 
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
-              <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
-            </div>
-            <div className="relative w-full h-3 bg-white/60 rounded-full overflow-hidden">
-              <div 
-                className="h-full transition-all duration-300 ease-out rounded-full"
-                style={{ 
-                  width: `${progressPercentage}%`,
-                  backgroundColor: '#8B5CF6'
-                }}
-              />
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Main Content - centered on screen */}
-        <div className="flex-1 flex items-center justify-center px-6 pb-6">
-          <motion.div variants={itemVariants} className="w-full max-w-md">
             <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6">
               {/* Step Header */}
               <div className="text-center mb-8">
