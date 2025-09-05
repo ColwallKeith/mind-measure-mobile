@@ -202,6 +202,9 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       >
         {/* Header - moved down to avoid mobile time display */}
         <motion.div variants={itemVariants} className="pt-32 pb-6 px-6">
+          <div className="bg-yellow-300 text-black p-2 text-center mb-4 rounded">
+            DEBUG: Header has pt-32 spacing (128px from top)
+          </div>
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
