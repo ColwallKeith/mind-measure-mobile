@@ -201,7 +201,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         animate="visible"
       >
         {/* Header - moved down to avoid mobile time display */}
-        <motion.div variants={itemVariants} className="pt-20 pb-6 px-6">
+        <motion.div variants={itemVariants} className="pt-24 pb-6 px-6">
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
@@ -231,7 +231,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
               <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
             </div>
-            <Progress value={progressPercentage} className="h-2 bg-white/60 [&>div]:bg-purple-600" />
+            <div className="relative w-full h-2 bg-white/60 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-purple-600 transition-all duration-300 ease-out rounded-full"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
           </div>
         </motion.div>
 
