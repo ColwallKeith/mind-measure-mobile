@@ -49,23 +49,56 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     confirmPassword: ''
   });
 
-  // Capacitor keyboard handling
+  // Hybrid keyboard handling (web + Capacitor)
   useEffect(() => {
-    const keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', (info) => {
-      console.log('Keyboard will show:', info);
-      setIsKeyboardOpen(true);
-      document.body.classList.add('keyboard-open');
-    });
+    let keyboardWillShowListener: any;
+    let keyboardWillHideListener: any;
 
-    const keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', () => {
-      console.log('Keyboard will hide');
-      setIsKeyboardOpen(false);
-      document.body.classList.remove('keyboard-open');
-    });
+    // Try Capacitor keyboard events (mobile)
+    try {
+      keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', (info) => {
+        console.log('Capacitor: Keyboard will show:', info);
+        setIsKeyboardOpen(true);
+        document.body.classList.add('keyboard-open');
+      });
+
+      keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', () => {
+        console.log('Capacitor: Keyboard will hide');
+        setIsKeyboardOpen(false);
+        document.body.classList.remove('keyboard-open');
+      });
+    } catch (e) {
+      console.log('Capacitor keyboard not available, using web fallback');
+    }
+
+    // Web browser fallback using Visual Viewport API
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        const isKeyboard = window.visualViewport.height < window.innerHeight * 0.75;
+        console.log('Web: Viewport change, keyboard:', isKeyboard, 'Height:', window.visualViewport.height);
+        setIsKeyboardOpen(isKeyboard);
+        if (isKeyboard) {
+          document.body.classList.add('keyboard-open');
+        } else {
+          document.body.classList.remove('keyboard-open');
+        }
+      }
+    };
+
+    // Add web viewport listener
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+    }
 
     return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
+      // Cleanup Capacitor listeners
+      if (keyboardWillShowListener) keyboardWillShowListener.remove();
+      if (keyboardWillHideListener) keyboardWillHideListener.remove();
+      
+      // Cleanup web listener
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+      }
     };
   }, []);
 
@@ -235,13 +268,20 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
+        {/* Keyboard debug indicator */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm">
+          🔧 DEBUG: Keyboard {isKeyboardOpen ? 'OPEN' : 'CLOSED'} | Capacitor: {!!(window as any).Capacitor ? 'YES' : 'NO'}
+        </div>
+
         {/* Capacitor keyboard-aware scrollable container */}
         <div 
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto px-6 py-8"
+          className="flex-1 overflow-y-auto px-6"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            paddingBottom: isKeyboardOpen ? '50px' : '32px'
+            paddingTop: isKeyboardOpen ? '100px' : '60px', // More space when keyboard open
+            paddingBottom: isKeyboardOpen ? '350px' : '32px', // Much more space for keyboard
+            backgroundColor: isKeyboardOpen ? '#fff3cd' : 'transparent' // Visual indicator
           }}
         >
           <div className="min-h-full flex flex-col justify-center">
