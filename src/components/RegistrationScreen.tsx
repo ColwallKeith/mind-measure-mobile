@@ -231,7 +231,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               <span className="text-sm text-gray-600">Step {step} of {totalSteps}</span>
               <span className="text-sm text-gray-600">{Math.round(progressPercentage)}%</span>
             </div>
-            <Progress value={progressPercentage} className="h-2 bg-white/60" />
+            <Progress value={progressPercentage} className="h-2 bg-white/60 [&>div]:bg-purple-600" />
           </div>
         </motion.div>
 
