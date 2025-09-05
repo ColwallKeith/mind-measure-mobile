@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -43,6 +43,38 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     confirmPassword: ''
   });
 
+  // Load saved registration data on component mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('mindMeasureRegistrationData');
+    const savedStep = localStorage.getItem('mindMeasureRegistrationStep');
+    
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setFormData(parsedData);
+      } catch (error) {
+        console.log('Error loading saved registration data:', error);
+      }
+    }
+    
+    if (savedStep) {
+      const stepNumber = parseInt(savedStep);
+      if (stepNumber >= 1 && stepNumber <= 3) {
+        setStep(stepNumber);
+      }
+    }
+  }, []);
+
+  // Save registration data whenever it changes
+  useEffect(() => {
+    localStorage.setItem('mindMeasureRegistrationData', JSON.stringify(formData));
+  }, [formData]);
+
+  // Save current step whenever it changes
+  useEffect(() => {
+    localStorage.setItem('mindMeasureRegistrationStep', step.toString());
+  }, [step]);
+
   const totalSteps = 3;
   const progressPercentage = (step / totalSteps) * 100;
 
@@ -64,6 +96,9 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       if (step < totalSteps) {
         setStep(step + 1);
       } else {
+        // Clear saved registration data on successful completion
+        localStorage.removeItem('mindMeasureRegistrationData');
+        localStorage.removeItem('mindMeasureRegistrationStep');
         onComplete();
       }
     }
@@ -73,6 +108,9 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     if (step > 1) {
       setStep(step - 1);
     } else {
+      // Clear saved data if user goes back to splash screen
+      localStorage.removeItem('mindMeasureRegistrationData');
+      localStorage.removeItem('mindMeasureRegistrationStep');
       onBack();
     }
   };
