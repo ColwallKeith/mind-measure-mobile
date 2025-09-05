@@ -12,7 +12,6 @@ import { BaselineAssessmentWidget } from './components/BaselineAssessmentWidget'
 import { BottomNavigation } from './components/BottomNavigation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthDebugger } from './components/AuthDebugger';
-import './styles/keyboard.css';
 
 // Create a wrapper component that uses auth
 function AppContent() {

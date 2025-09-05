@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -40,7 +40,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -49,69 +48,20 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     confirmPassword: ''
   });
 
-  // Hybrid keyboard handling (web + Capacitor)
+  // Capacitor keyboard handling
   useEffect(() => {
-    let keyboardWillShowListener: any;
-    let keyboardWillHideListener: any;
-
-    // Try Capacitor keyboard events (mobile)
-    try {
-      keyboardWillShowListener = Keyboard.addListener('keyboardWillShow', () => {
-        setIsKeyboardOpen(true);
-        document.body.classList.add('keyboard-open');
-      });
-
-      keyboardWillHideListener = Keyboard.addListener('keyboardWillHide', () => {
-        setIsKeyboardOpen(false);
-        document.body.classList.remove('keyboard-open');
-      });
-    } catch (e) {
-      // Capacitor keyboard not available, using web fallback silently
-    }
-
-    // Web browser fallback using Visual Viewport API
-    const handleViewportChange = () => {
-      if (window.visualViewport) {
-        const isKeyboard = window.visualViewport.height < window.innerHeight * 0.75;
-        setIsKeyboardOpen(isKeyboard);
-        if (isKeyboard) {
-          document.body.classList.add('keyboard-open');
-        } else {
-          document.body.classList.remove('keyboard-open');
-        }
-      }
-    };
-
-    // Add web viewport listener
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportChange);
-    }
-
+    const showListener = Keyboard.addListener('keyboardWillShow', () => setIsKeyboardOpen(true));
+    const hideListener = Keyboard.addListener('keyboardWillHide', () => setIsKeyboardOpen(false));
+    
     return () => {
-      // Cleanup Capacitor listeners
-      if (keyboardWillShowListener) keyboardWillShowListener.remove();
-      if (keyboardWillHideListener) keyboardWillHideListener.remove();
-      
-      // Cleanup web listener
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleViewportChange);
-      }
+      showListener.remove();
+      hideListener.remove();
     };
   }, []);
 
-  // Scroll input into view when focused
-  const scrollToInput = (inputRef: React.RefObject<HTMLInputElement>) => {
-    setTimeout(() => {
-      inputRef?.current?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center',
-        inline: 'nearest'
-      });
-    }, 300); // Wait for keyboard animation
-  };
 
 
-  // Load saved registration data on component mount (keep for form persistence during session)
+  // Form persistence during session
   useEffect(() => {
     const savedData = localStorage.getItem('mindMeasureRegistrationData');
     const savedStep = localStorage.getItem('mindMeasureRegistrationStep');
@@ -265,12 +215,10 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Capacitor keyboard-aware scrollable container */}
+        {/* Keyboard-aware container */}
         <div 
-          ref={scrollContainerRef}
           className="flex-1 overflow-y-auto px-6"
           style={{ 
-            WebkitOverflowScrolling: 'touch',
             paddingTop: '60px',
             paddingBottom: isKeyboardOpen ? '50px' : '32px'
           }}
