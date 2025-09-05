@@ -38,8 +38,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -48,50 +46,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     confirmPassword: ''
   });
 
-  // Keyboard detection
-  useEffect(() => {
-    const handleResize = () => {
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const windowHeight = window.innerHeight;
-      const keyboardHeight = windowHeight - viewportHeight;
-      
-      setKeyboardHeight(keyboardHeight);
-      setIsKeyboardOpen(keyboardHeight > 100); // Keyboard is open if more than 100px difference
-      
-      console.log('Keyboard detection:', {
-        viewportHeight,
-        windowHeight,
-        keyboardHeight,
-        isOpen: keyboardHeight > 100
-      });
-    };
-
-    const handleFocus = () => {
-      setTimeout(handleResize, 300); // Check after keyboard animation
-    };
-
-    const handleBlur = () => {
-      setTimeout(handleResize, 300); // Check after keyboard hide
-    };
-
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleResize);
-    }
-    
-    // Also listen for input focus/blur as backup
-    document.addEventListener('focusin', handleFocus);
-    document.addEventListener('focusout', handleBlur);
-    
-    handleResize(); // Initial check
-
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleResize);
-      }
-      document.removeEventListener('focusin', handleFocus);
-      document.removeEventListener('focusout', handleBlur);
-    };
-  }, []);
 
   // Load saved registration data on component mount (keep for form persistence during session)
   useEffect(() => {
@@ -247,17 +201,19 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Keyboard-aware content container */}
-        <div 
-          className="flex-1 flex px-6"
-          style={{
-            alignItems: isKeyboardOpen ? 'flex-end' : 'center',
-            paddingBottom: isKeyboardOpen ? '30px' : '0px',
-            minHeight: '100vh'
-          }}
-        >
-          <motion.div variants={itemVariants} className="w-full max-w-md mx-auto">
-            {/* Header elements moved into body */}
+        {/* Standard mobile-responsive container */}
+        <div className="flex-1 flex items-center justify-center px-6 pb-8">
+          <div 
+            className="w-full max-w-md"
+            style={{
+              minHeight: 'calc(100dvh - env(keyboard-inset-height, 0px) - 2rem)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center'
+            }}
+          >
+            <motion.div variants={itemVariants}>
+              {/* Header elements moved into body */}
             <div className="flex items-center justify-between mb-6">
               <Button
                 variant="ghost"
@@ -463,8 +419,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                 </Button>
               </div>
             </Card>
-          </motion.div>
-
+            </motion.div>
+          </div>
         </div>
       </motion.div>
     </div>
