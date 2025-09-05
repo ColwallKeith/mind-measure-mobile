@@ -134,6 +134,22 @@ class AuthService {
   }
 
   /**
+   * Get current session
+   */
+  async getSession(): Promise<{ data: any; error: string | null }> {
+    try {
+      const { data, error } = await authHelpers.getSession();
+      return { data, error: error?.message || null };
+    } catch (error) {
+      console.error('Get session error:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Failed to get session' 
+      };
+    }
+  }
+
+  /**
    * Get current authenticated user
    */
   async getCurrentUser(): Promise<{ user: AuthUser | null; error: string | null }> {

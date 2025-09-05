@@ -22,7 +22,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state
+  // Initialize auth state - check for existing session first
   useEffect(() => {
     initializeAuth();
   }, []);
@@ -40,16 +40,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initializeAuth = async () => {
     try {
-      console.log('Initializing auth state...');
+      console.log('🔄 Initializing auth state...');
+      
+      // First check if there's an existing session
+      const { data: sessionData, error: sessionError } = await authService.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Session check error:', sessionError);
+      }
+      
+      if (sessionData?.session) {
+        console.log('✅ Found existing session for:', sessionData.session.user.email);
+      } else {
+        console.log('ℹ️ No existing session found');
+      }
+      
+      // Get current user (this will use the session if available)
       const { user: currentUser, error } = await authService.getCurrentUser();
       
       if (error) {
-        console.error('Error initializing auth:', error);
+        console.error('❌ Error getting current user:', error);
+      } else if (currentUser) {
+        console.log('✅ Current user restored:', currentUser.email);
+      } else {
+        console.log('ℹ️ No authenticated user found');
       }
       
       setUser(currentUser);
     } catch (error) {
-      console.error('Auth initialization error:', error);
+      console.error('❌ Auth initialization error:', error);
     } finally {
       setLoading(false);
     }
