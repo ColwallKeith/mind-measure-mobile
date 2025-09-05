@@ -3,11 +3,11 @@ import { Card } from './ui/card';
 import { Play, Target, TrendingUp, Brain, Shield, Heart, Clock } from 'lucide-react';
 import mindMeasureLogo from 'figma:asset/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 
-interface BaselineAssessmentScreenProps {
+interface BaselineWelcomeScreenProps {
   onStartAssessment: () => void;
 }
 
-export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessmentScreenProps) {
+export function BaselineWelcomeScreen({ onStartAssessment }: BaselineWelcomeScreenProps) {
   return (
     <div className="px-6 py-8 space-y-8">
       {/* Header */}

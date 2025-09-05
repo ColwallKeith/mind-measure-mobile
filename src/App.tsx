@@ -7,7 +7,7 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { SplashScreen } from './components/SplashScreen';
 import { ReturningSplashScreen } from './components/ReturningSplashScreen';
 import { RegistrationScreen } from './components/RegistrationScreen';
-import { BaselineAssessmentScreen } from './components/BaselineAssessmentScreen';
+import { BaselineWelcomeScreen } from './components/BaselineWelcomeScreen';
 import { BottomNavigation } from './components/BottomNavigation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthDebugger } from './components/AuthDebugger';
@@ -118,48 +118,22 @@ function AppContent() {
         <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
         
         <div className="relative z-10 h-screen overflow-auto">
-          <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-            <div className="max-w-md mx-auto">
-              <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome to Your Baseline Assessment</h1>
-              <p className="text-lg text-gray-600 mb-8">
-                Your baseline assessment helps us understand your current mental wellness state. 
-                This personalized evaluation will take about 10-15 minutes and uses AI-powered conversation.
-              </p>
-              <button
-                onClick={() => setAppState('baseline')}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-12 font-medium rounded-xl"
-              >
-                Start Baseline Assessment
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ElevenLabs baseline assessment
-  if (appState === 'baseline') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 relative overflow-hidden">
-        {/* Background glass effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-100/30 via-blue-100/20 to-pink-100/30" />
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-32 right-10 w-64 h-64 bg-blue-300/20 rounded-full blur-3xl" />
-        <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
-        
-        <div className="relative z-10 h-screen overflow-auto">
-          <BaselineAssessmentScreen 
-            onStartAssessment={async () => {
-              // Mark baseline as completed and go to main app
-              // TODO: Update user profile to mark baseline as completed
-              // TODO: Store baseline assessment results
-              setAppState('main');
+          <BaselineWelcomeScreen 
+            onStartAssessment={() => {
+              // Move to ElevenLabs baseline assessment
+              setAppState('baseline');
             }}
           />
         </div>
       </div>
     );
+  }
+
+  // ElevenLabs baseline assessment will be integrated here in the future
+  if (appState === 'baseline') {
+    // For now, go directly to dashboard after baseline welcome
+    setAppState('main');
+    return null;
   }
 
   // Main app experience
