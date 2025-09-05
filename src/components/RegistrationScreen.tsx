@@ -268,20 +268,14 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         initial="hidden"
         animate="visible"
       >
-        {/* Keyboard debug indicator */}
-        <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 text-sm">
-          🔧 DEBUG: Keyboard {isKeyboardOpen ? 'OPEN' : 'CLOSED'} | Capacitor: {!!(window as any).Capacitor ? 'YES' : 'NO'}
-        </div>
-
         {/* Capacitor keyboard-aware scrollable container */}
         <div 
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto px-6"
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            paddingTop: isKeyboardOpen ? '60px' : '60px', // Keep consistent top padding
-            paddingBottom: isKeyboardOpen ? '50px' : '32px', // Just enough space above keyboard
-            backgroundColor: isKeyboardOpen ? '#fff3cd' : 'transparent' // Visual indicator
+            paddingTop: '60px',
+            paddingBottom: isKeyboardOpen ? '50px' : '32px'
           }}
         >
           <div className={`min-h-full flex flex-col ${isKeyboardOpen ? 'justify-start pt-4' : 'justify-center'}`}>
