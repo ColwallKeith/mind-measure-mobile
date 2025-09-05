@@ -249,9 +249,10 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       >
         {/* Keyboard-aware content container */}
         <div 
-          className="flex-1 flex items-end px-6"
+          className="flex-1 flex px-6"
           style={{
-            paddingBottom: '30px',
+            alignItems: isKeyboardOpen ? 'flex-end' : 'center',
+            paddingBottom: isKeyboardOpen ? '30px' : '0px',
             minHeight: '100vh'
           }}
         >
