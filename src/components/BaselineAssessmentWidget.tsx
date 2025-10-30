@@ -535,10 +535,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       console.log('📸 Frame captured for Rekognition analysis');
       
       // Send to backend for Rekognition analysis
-      const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
-      const backendService = BackendServiceFactory.createService(
-        BackendServiceFactory.getEnvironmentConfig()
-      );
+      const { AWSBrowserService } = await import('../services/database/AWSBrowserService');
+      const backendService = new AWSBrowserService();
       
       try {
         const rekognitionResult = await fetch('/api/rekognition/analyze-frame', {
@@ -675,10 +673,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         console.log('🧠 Starting comprehensive Mind Measure baseline analysis...');
         
         // Import backend service
-        const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
-        const backendService = BackendServiceFactory.createService(
-          BackendServiceFactory.getEnvironmentConfig()
-        );
+        const { AWSBrowserService } = await import('../services/database/AWSBrowserService');
+        const backendService = new AWSBrowserService();
 
         // Step 1: Create assessment session with comprehensive metadata
         const sessionData = {
