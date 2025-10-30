@@ -7,7 +7,7 @@ interface BaselineAssessmentProps {
   onBack?: () => void;
   onComplete?: () => void;
 }
-export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentProps) {
+export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessmentProps) {
   const { user, loading: authLoading } = useAuth();
   const [showConversation, setShowConversation] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
