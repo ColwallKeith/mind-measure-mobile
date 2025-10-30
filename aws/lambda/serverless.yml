@@ -1,0 +1,174 @@
+service: mind-measure-scoring
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: eu-west-2
+  stage: ${opt:stage, 'dev'}
+  
+  # VPC Configuration for HIPAA compliance - ENABLED
+  vpc:
+    securityGroupIds:
+      - sg-0fb35bb5df4944901  # mindmeasure-lambda-sg
+    subnetIds:
+      - subnet-0f353d9954cfaa8b8  # mindmeasure-lambda-subnet-1 (eu-west-2a)
+      - subnet-076f01549b5d991f6  # mindmeasure-lambda-subnet-2 (eu-west-2b)
+  
+  # Environment variables
+  environment:
+    COGNITO_USER_POOL_ID: eu-west-2_ClAG4fQXR
+    COGNITO_CLIENT_ID: 7vu03ppv6alkpphs1ksopll8us
+    RDS_HOST: mindmeasure-aurora.cluster-cz8c8wq4k3ak.eu-west-2.rds.amazonaws.com
+    RDS_PORT: '5432'
+    RDS_DATABASE: mindmeasure
+    RDS_USERNAME: mindmeasure_admin
+    RDS_PASSWORD: ${ssm:/mindmeasure/rds/password}
+  
+  # IAM Role permissions - HIPAA Hardened (Least Privilege)
+  iamRoleStatements:
+    # RDS access - Specific cluster only
+    - Effect: Allow
+      Action:
+        - rds:DescribeDBInstances
+        - rds-data:ExecuteStatement
+        - rds-data:BatchExecuteStatement
+      Resource: 
+        - "arn:aws:rds:eu-west-2:459338929203:cluster:mindmeasure-aurora"
+        - "arn:aws:rds:eu-west-2:459338929203:cluster:mindmeasure-aurora:*"
+    
+    # Rekognition access - Specific actions only
+    - Effect: Allow
+      Action:
+        - rekognition:DetectFaces
+        - rekognition:DetectLabels
+        - rekognition:DetectModerationLabels
+      Resource: '*'  # Rekognition doesn't support resource-level permissions
+    
+    # CloudWatch Logs - Specific log groups
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: 
+        - "arn:aws:logs:eu-west-2:459338929203:log-group:/aws/lambda/mind-measure-scoring-*"
+        - "arn:aws:logs:eu-west-2:459338929203:log-group:/aws/lambda/mind-measure-scoring-*:*"
+    
+    # VPC permissions - Required for Lambda VPC access
+    - Effect: Allow
+      Action:
+        - ec2:CreateNetworkInterface
+        - ec2:DescribeNetworkInterfaces
+        - ec2:DeleteNetworkInterface
+        - ec2:AttachNetworkInterface
+        - ec2:DetachNetworkInterface
+      Resource: '*'  # VPC permissions require wildcard
+    
+    # Systems Manager - Parameter Store access
+    - Effect: Allow
+      Action:
+        - ssm:GetParameter
+        - ssm:GetParameters
+      Resource: 
+        - "arn:aws:ssm:eu-west-2:459338929203:parameter/mindmeasure/*"
+
+# Lambda Functions
+functions:
+  analyzeText:
+    handler: dist/analyze-text/index.handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - http:
+          path: /analyze-text
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoAuthorizer
+
+  analyzeAudio:
+    handler: dist/analyze-audio/index.handler
+    timeout: 60
+    memorySize: 1024
+    events:
+      - http:
+          path: /analyze-audio
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoAuthorizer
+
+  analyzeVisual:
+    handler: dist/analyze-visual/index.handler
+    timeout: 120
+    memorySize: 1024
+    events:
+      - http:
+          path: /analyze-visual
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoAuthorizer
+
+  calculateMindMeasure:
+    handler: dist/calculate-mind-measure/index.handler
+    timeout: 60
+    memorySize: 512
+    events:
+      - http:
+          path: /calculate-mind-measure
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref CognitoAuthorizer
+
+# CloudFormation Resources - HIPAA Compliance Enabled
+resources:
+  Resources:
+    # Cognito User Pool Authorizer
+    CognitoAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoAuthorizer
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/eu-west-2_ClAG4fQXR
+        RestApiId: !Ref ApiGatewayRestApi
+        IdentitySource: method.request.header.Authorization
+
+# Plugins
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+# Custom configuration
+custom:
+  serverless-offline:
+    httpPort: 3000
+    lambdaPort: 3002

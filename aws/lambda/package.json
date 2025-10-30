@@ -1,0 +1,43 @@
+{
+  "name": "mind-measure-lambda-functions",
+  "version": "1.0.0",
+  "description": "HIPAA-compliant AWS Lambda functions for Mind Measure scoring pipeline",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "invoke:local": "serverless invoke local",
+    "logs": "serverless logs",
+    "remove": "serverless remove"
+  },
+  "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.450.0",
+    "aws-jwt-verify": "^4.0.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.126",
+    "@types/node": "^20.8.0",
+    "@types/pg": "^8.10.7",
+    "serverless": "^3.35.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-offline": "^13.2.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "hipaa",
+    "mental-health",
+    "scoring",
+    "rekognition",
+    "cognito"
+  ],
+  "author": "Mind Measure",
+  "license": "PROPRIETARY"
+}
