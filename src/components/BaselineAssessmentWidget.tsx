@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '../ui/button';
+import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
 interface BaselineAssessmentProps {
   onBack?: () => void;
