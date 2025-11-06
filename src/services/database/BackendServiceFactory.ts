@@ -4,7 +4,8 @@
 import { BackendService, DatabaseConfig } from './DatabaseService';
 import { AWSBackendService } from './AWSService';
 import { AWSBrowserBackendService } from './AWSBrowserService';
-export type BackendProvider = 'aurora-serverless' | 'postgresql';
+import { LocalBackendService } from './LocalBackendService';
+export type BackendProvider = 'aurora-serverless' | 'postgresql' | 'local';
 export interface BackendServiceConfig extends DatabaseConfig {
   provider: BackendProvider;
 }
@@ -68,7 +69,12 @@ export class BackendServiceFactory {
    * Create a new backend service instance
    */
   static createService(config: BackendServiceConfig): BackendService {
+    console.log('🔧 BackendServiceFactory.createService called with provider:', config.provider);
     switch (config.provider) {
+      case 'local':
+        console.log('🏠 Using Local Backend Service with Capacitor storage');
+        console.log('🏠 CREATING LOCAL BACKEND SERVICE - NO AWS NEEDED');
+        return new LocalBackendService();
       case 'aurora-serverless':
         // Check if we're in browser environment
         if (typeof window !== 'undefined') {
@@ -91,7 +97,7 @@ export class BackendServiceFactory {
         }
         return new AWSBackendService(config);
       default:
-        throw new Error(`Unsupported backend provider: ${config.provider}`);
+        throw new Error(`Unsupported backend provider: ${config.provider}. Supported providers: local, aurora-serverless, postgresql`);
     }
   }
   /**
@@ -124,12 +130,18 @@ export class BackendServiceFactory {
     // Check localStorage for user preference first, then environment
     const storedProvider = typeof window !== 'undefined' ? localStorage.getItem('backend_provider') : null;
     
-    const backendProvider = (storedProvider as BackendProvider) ||
-                           (this.getEnv('VITE_BACKEND_PROVIDER') as BackendProvider) ||
-                           'aurora-serverless'; // 🚀 Aurora Serverless v2 is the default!
+    // 🏠 FORCE LOCAL BACKEND FOR MOBILE - Override everything
+    console.log('🚨🚨🚨 BACKEND FACTORY: FORCING LOCAL BACKEND - 2024-11-06 🚨🚨🚨');
+    const backendProvider = 'local' as BackendProvider;
+    console.log('🚨🚨🚨 BACKEND PROVIDER SET TO:', backendProvider, '🚨🚨🚨');
     const baseConfig: Partial<BackendServiceConfig> = {
       provider: backendProvider};
     switch (backendProvider) {
+      case 'local':
+        return {
+          ...baseConfig,
+          provider: 'local'
+        } as BackendServiceConfig;
       case 'aurora-serverless':
         return {
           ...baseConfig,
@@ -160,7 +172,7 @@ export class BackendServiceFactory {
           password: this.getEnv('VITE_DB_PASSWORD', ''),
           ssl: environment === 'production'} as BackendServiceConfig;
       default:
-        throw new Error(`Unsupported backend provider: ${backendProvider}. Supported providers: aurora-serverless, postgresql`);
+        throw new Error(`Unsupported backend provider: ${backendProvider}. Supported providers: local, aurora-serverless, postgresql`);
     }
   }
 }
