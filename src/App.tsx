@@ -6,7 +6,7 @@ import { BuddyScreen } from './components/BuddyScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { SplashScreen } from './components/SplashScreen';
 import { ReturningSplashScreen } from './components/ReturningSplashScreen';
-import { RegistrationScreen } from './components/RegistrationScreen';
+import { RegistrationScreen } from './components/mobile/RegistrationScreen';
 import { BaselineWelcomeScreen } from './components/BaselineWelcomeScreen';
 import { BaselineAssessmentWidget } from './components/BaselineAssessmentWidget';
 import { BottomNavigation } from './components/BottomNavigation';
