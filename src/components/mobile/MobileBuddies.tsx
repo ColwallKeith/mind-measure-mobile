@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Users, UserPlus, Phone, Mail, Heart, Shield, CheckCircle, Clock, MessageCircle, Plus, Trash2, Send } from 'lucide-react';
-const mindMeasureLogo = "https://app.mindmeasure.co.uk/images/mind-measure-logo.png";
+import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 interface SupportBuddy {
   id: string;
   name: string;

@@ -1,3 +1,4 @@
+import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
 import {
   User,
   Mail,
@@ -48,7 +49,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     password: '',
     confirmPassword: ''
   });
-  const { signUp } = useAuth();
+  const { signUp } = useSimpleAuth();
   // Prevent iOS zoom on input focus
   useEffect(() => {
     // Add viewport meta tag to prevent zoom
@@ -236,7 +237,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 flex items-center justify-center">
                 <img
-                  src="/images/mind-measure-logo.png"
+                  src={mindMeasureLogo}
                   alt="Mind Measure"
                   className="w-full h-full object-contain opacity-80"
                 />

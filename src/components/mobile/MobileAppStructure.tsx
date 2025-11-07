@@ -10,7 +10,7 @@ import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { SplashScreen } from './LandingPage';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
 import {
   Home,
   Heart,
@@ -30,7 +30,7 @@ export const MobileAppStructure: React.FC = () => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
   }, [onboardingScreen]);
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
-  const { user } = useAuth();
+  const { user } = useSimpleAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
   // SIMPLE FLOW: Always start with new user splash for unauthenticated users
   useEffect(() => {

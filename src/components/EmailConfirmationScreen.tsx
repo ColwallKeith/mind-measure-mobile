@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card } from './ui/card';
 import { Mail, ArrowLeft, RefreshCw, CheckCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 
 interface EmailConfirmationScreenProps {
   email: string;
@@ -21,7 +21,7 @@ export function EmailConfirmationScreen({ email, onBack, onConfirmed }: EmailCon
   const [resendMessage, setResendMessage] = useState('');
   const [isPolling, setIsPolling] = useState(false);
   
-  const { confirmEmail, resendConfirmation, refetchUser } = useAuth();
+  const { confirmEmail, resendConfirmation, refetchUser } = useSimpleAuth();
 
   // Auto-refresh user status every 10 seconds to detect email confirmation
   useEffect(() => {

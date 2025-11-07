@@ -5,14 +5,14 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Settings, Bell, Shield, Moon, Palette, ArrowLeft, LogOut, ExternalLink } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
 import { useToast } from '@/hooks/use-toast';
 interface MobileSettingsProps {
   onNavigateBack: () => void;
 }
 export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
   const { preferences, loading, saving, updatePreference } = useUserPreferences();
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useSimpleAuth();
   const { toast } = useToast();
   const handleSignOut = async () => {
     try {

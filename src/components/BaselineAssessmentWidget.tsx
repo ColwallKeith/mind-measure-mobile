@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useSimpleAuth } from '../contexts/SimpleAuthContext';
 import { Preferences } from '@capacitor/preferences';
 interface BaselineAssessmentProps {
   onBack?: () => void;
   onComplete?: () => void;
 }
 export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessmentProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useSimpleAuth();
   const [showConversation, setShowConversation] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);
@@ -972,7 +972,7 @@ export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessm
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                    <img src="/images/mind-measure-logo.png" alt="Mind Measure" className="w-8 h-8" />
+                    <img src={mindMeasureLogo} alt="Mind Measure" className="w-8 h-8" />
                   </div>
                   <p className="text-gray-600">Loading conversation...</p>
                 </div>
@@ -1002,7 +1002,7 @@ export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessm
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <img src="/images/mind-measure-logo.png" alt="Mind Measure" className="w-8 h-8" />
+            <img src={mindMeasureLogo} alt="Mind Measure" className="w-8 h-8" />
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -1048,7 +1048,7 @@ export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessm
           <div className="w-full max-w-2xl text-center">
             <div className="mb-8 bg-white rounded-2xl shadow-lg p-8 border">
               <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                <img src="/images/mind-measure-logo.png" alt="Mind Measure" className="w-full h-full object-contain" />
+                <img src={mindMeasureLogo} alt="Mind Measure" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-2xl font-semibold text-gray-900 mb-6">What to expect</h3>
               <div className="bg-blue-50 rounded-lg p-6 mb-6">

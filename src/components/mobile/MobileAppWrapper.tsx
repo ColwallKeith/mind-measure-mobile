@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { Preferences } from '@capacitor/preferences';
 import { BottomNavigation } from '@/components/BottomNav';
@@ -93,7 +93,7 @@ export function MobileAppWrapper() {
   const [hasCheckedUserStatus, setHasCheckedUserStatus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useSimpleAuth();
   // Check device preferences for returning user status
   useEffect(() => {
     const checkDeviceUserStatus = async () => {
@@ -193,8 +193,8 @@ export function MobileAppWrapper() {
               onComplete={async (createdUserId?: string) => {
                 console.log('✅ Registration complete - saving user data...');
                 console.log('🔍 Passed user ID from registration:', createdUserId);
-                console.log('🔍 Current AuthContext user state:', { user: !!user, userId: user?.id });
-                // Use the user ID from registration if available, otherwise fall back to AuthContext
+                console.log('🔍 Current SimpleAuthContext user state:', { user: !!user, userId: user?.id });
+                // Use the user ID from registration if available, otherwise fall back to SimpleAuthContext
                 const userIdToSave = createdUserId || user?.id;
                 if (userIdToSave) {
                   console.log('💾 Saving authenticated user ID to device:', userIdToSave);

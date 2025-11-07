@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
 import { Preferences } from '@capacitor/preferences';
 import { Keyboard } from '@capacitor/keyboard';
 import {
@@ -43,7 +43,7 @@ export function SignInScreen({ onBack, onSuccess, onError, onForgotPassword, onC
     password: ''
   });
   
-  const { signIn } = useAuth();
+  const { signIn } = useSimpleAuth();
 
   // Update email when prefilledEmail changes
   useEffect(() => {

@@ -10,12 +10,12 @@ import { RegistrationScreen } from './components/mobile/RegistrationScreen';
 import { BaselineWelcomeScreen } from './components/BaselineWelcomeScreen';
 import { BaselineAssessmentWidget } from './components/BaselineAssessmentWidget';
 import { BottomNavigation } from './components/BottomNavigation';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext';
 // import { AuthDebugger } from .* // Removed - was using Supabase
 
 // Create a wrapper component that uses auth
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading } = useSimpleAuth();
   const [appState, setAppState] = useState<'splash' | 'returning-splash' | 'registration' | 'baseline-welcome' | 'baseline' | 'main'>('splash');
   const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
 
@@ -26,7 +26,6 @@ function AppContent() {
     console.log('User:', user);
     console.log('User email:', user?.email);
     console.log('Has baseline:', user?.hasCompletedBaseline);
-    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
     console.log('Current app state:', appState);
     
     if (loading) {
@@ -180,8 +179,8 @@ function AppContent() {
 // Main App component with AuthProvider
 export default function App() {
   return (
-    <AuthProvider>
+    <SimpleAuthProvider>
       <AppContent />
-    </AuthProvider>
+    </SimpleAuthProvider>
   );
 }

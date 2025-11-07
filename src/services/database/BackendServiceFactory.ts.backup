@@ -71,9 +71,6 @@ export class BackendServiceFactory {
   static createService(config: BackendServiceConfig): BackendService {
     console.log('🔧 BackendServiceFactory.createService called with provider:', config.provider);
     switch (config.provider) {
-      case 'aws':
-        console.log('🔧 Using AWS Browser Service with Cognito and API endpoints');
-        return new AWSBrowserBackendService(config);
       case 'local':
         console.log('🏠 Using Local Backend Service with Capacitor storage');
         console.log('🏠 CREATING LOCAL BACKEND SERVICE - NO AWS NEEDED');
@@ -100,7 +97,7 @@ export class BackendServiceFactory {
         }
         return new AWSBackendService(config);
       default:
-        throw new Error(`Unsupported backend provider: ${config.provider}. Supported providers: aws, local, aurora-serverless, postgresql`);
+        throw new Error(`Unsupported backend provider: ${config.provider}. Supported providers: local, aurora-serverless, postgresql`);
     }
   }
   /**
@@ -134,21 +131,13 @@ export class BackendServiceFactory {
     const storedProvider = typeof window !== 'undefined' ? localStorage.getItem('backend_provider') : null;
     
     // 🏠 FORCE LOCAL BACKEND FOR MOBILE - Override everything
-    console.log('🔧 Backend Factory: Using AWS backend for production');
-    const backendProvider = (storedProvider as BackendProvider) || 'aws' as BackendProvider;
-    console.log('🔧 Backend provider set to:', backendProvider, '');
+    console.log('🚨🚨🚨 BACKEND FACTORY: FORCING LOCAL BACKEND - 2024-11-06 🚨🚨🚨');
+    const backendProvider = 'local' as BackendProvider;
+    console.log('🚨🚨🚨 BACKEND PROVIDER SET TO:', backendProvider, '🚨🚨🚨');
     const baseConfig: Partial<BackendServiceConfig> = {
       provider: backendProvider};
     switch (backendProvider) {
-      case 'aws':
-        return {
-          ...baseConfig,
-          provider: 'aws',
-          awsRegion: this.getEnv('VITE_AWS_REGION', 'eu-west-2'),
-          cognitoUserPoolId: this.getEnv('VITE_AWS_COGNITO_USER_POOL_ID'),
-          cognitoClientId: this.getEnv('VITE_AWS_COGNITO_CLIENT_ID'),
-          apiBaseUrl: this.getEnv('VITE_API_BASE_URL', 'https://api.mindmeasure.co.uk')
-        } as BackendServiceConfig;      case 'local':
+      case 'local':
         return {
           ...baseConfig,
           provider: 'local'
@@ -183,7 +172,7 @@ export class BackendServiceFactory {
           password: this.getEnv('VITE_DB_PASSWORD', ''),
           ssl: environment === 'production'} as BackendServiceConfig;
       default:
-        throw new Error(`Unsupported backend provider: ${backendProvider}. Supported providers: aws, local, aurora-serverless, postgresql`);
+        throw new Error(`Unsupported backend provider: ${backendProvider}. Supported providers: local, aurora-serverless, postgresql`);
     }
   }
 }

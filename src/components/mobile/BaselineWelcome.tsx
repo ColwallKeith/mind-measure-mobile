@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, Target, TrendingUp, Brain, Shield, Heart, Clock } from 'lucide-react';
-const mindMeasureLogo = "https://app.mindmeasure.co.uk/images/mind-measure-logo.png";
+import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 interface BaselineAssessmentScreenProps {
   onStartAssessment: () => void;
 }

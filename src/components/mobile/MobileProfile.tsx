@@ -32,7 +32,7 @@ import {
   BarChart3,
   Heart
 } from 'lucide-react';
-const mindMeasureLogo = "https://app.mindmeasure.co.uk/images/mind-measure-logo.png";
+import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 export function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<'overview' | 'wellness' | 'institutional'>('overview');
   const [isEditing, setIsEditing] = useState(false);
