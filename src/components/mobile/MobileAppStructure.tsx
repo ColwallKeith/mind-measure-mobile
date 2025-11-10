@@ -5,12 +5,12 @@ import { HelpScreen } from './HelpPage';
 import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
 import { MobileSettings } from './MobileSettings';
-import { RegistrationScreen } from './NewUserOnboarding';
+import { RegistrationScreen } from "./RegistrationScreen";
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { SplashScreen } from './LandingPage';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
-import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Home,
   Heart,
@@ -30,7 +30,7 @@ export const MobileAppStructure: React.FC = () => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
   }, [onboardingScreen]);
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
   // SIMPLE FLOW: Always start with new user splash for unauthenticated users
   useEffect(() => {
@@ -76,12 +76,16 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_welcome');
   };
   const handleBaselineStart = () => {
-    console.log('🎯 Starting baseline assessment - transitioning to conversation screen');
-    // Start baseline assessment
-    setOnboardingScreen(null);
-    setCurrentScreen('checkin');
+    console.log('🎯 Starting baseline assessment - transitioning to baseline assessment');
+    // Start baseline assessment - stay in onboarding but show baseline assessment
+    setOnboardingScreen('baseline_assessment');
   };
-  const navItems = [
+  const handleBaselineComplete = () => {
+    console.log('u2705 Baseline assessment completed - going to dashboard');
+    // Baseline completed u2192 Clear onboarding and go to main app
+    setOnboardingScreen(null);
+    setCurrentScreen('dashboard');
+  };  const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
     { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
     { id: 'buddies', icon: Users, label: 'Buddies', screen: 'buddies' as const },
@@ -132,11 +136,18 @@ export const MobileAppStructure: React.FC = () => {
     }
     // Show main app screens after onboarding
     // ENFORCE BASELINE REQUIREMENT: No access to main screens without baseline completion
-    if (hasAssessmentHistory !== true) {
+    // BUT: Only enforce if user is authenticated - don't block unauthenticated users from seeing splash
+    if (user && hasAssessmentHistory !== true) {
       console.log('🚫 Blocking access to main screens - baseline not completed');
       // Force user back to baseline flow
       setOnboardingScreen('baseline_welcome');
       return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
+    }
+    
+    // If no onboarding screen and no user, something is wrong - show splash
+    if (!onboardingScreen && !user) {
+      console.log('⚠️ No onboarding screen and no user - showing splash');
+      return <SplashScreen onGetStarted={handleSplashComplete} />;
     }
     switch (currentScreen) {
       case 'dashboard':
