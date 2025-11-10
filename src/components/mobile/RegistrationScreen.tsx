@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
-import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   User,
   Mail,
@@ -49,7 +49,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     password: '',
     confirmPassword: ''
   });
-  const { signUp } = useSimpleAuth();
+  const { signUp } = useAuth();
   // Prevent iOS zoom on input focus
   useEffect(() => {
     // Add viewport meta tag to prevent zoom

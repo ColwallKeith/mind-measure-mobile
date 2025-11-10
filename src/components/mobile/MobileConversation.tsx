@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, Eye, Mic, MessageCircle, Shield, Heart, Brain, ArrowLeft, Volume2, VolumeX } from 'lucide-react';
-import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useCheckinConversation } from '@/hooks/useCheckinConversation';
 import { useSession } from '@/components/SessionManager';
@@ -13,7 +13,7 @@ interface MobileConversationProps {
   assessmentMode?: 'baseline' | 'checkin';
 }
 export const MobileConversation: React.FC<MobileConversationProps> = ({ onNavigateBack, assessmentMode = 'checkin' }) => {
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const { currentSession, createSession, updateSessionData } = useSession();
   const { endCheckin } = useCheckinConversation(() => handleConversationEnd());
   const { trackElevenLabsUsage } = useCostTracking();

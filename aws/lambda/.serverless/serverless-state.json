@@ -294,7 +294,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/mind-measure-scoring/dev/1761752701103-2025-10-29T15:45:01.103Z/mind-measure-scoring.zip"
+                "S3Key": "serverless/mind-measure-scoring/dev/1762808339405-2025-11-10T20:58:59.405Z/mind-measure-scoring.zip"
               },
               "Handler": "dist/analyze-text/index.handler",
               "Runtime": "nodejs20.x",
@@ -339,7 +339,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/mind-measure-scoring/dev/1761752701103-2025-10-29T15:45:01.103Z/mind-measure-scoring.zip"
+                "S3Key": "serverless/mind-measure-scoring/dev/1762808339405-2025-11-10T20:58:59.405Z/mind-measure-scoring.zip"
               },
               "Handler": "dist/analyze-audio/index.handler",
               "Runtime": "nodejs20.x",
@@ -384,7 +384,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/mind-measure-scoring/dev/1761752701103-2025-10-29T15:45:01.103Z/mind-measure-scoring.zip"
+                "S3Key": "serverless/mind-measure-scoring/dev/1762808339405-2025-11-10T20:58:59.405Z/mind-measure-scoring.zip"
               },
               "Handler": "dist/analyze-visual/index.handler",
               "Runtime": "nodejs20.x",
@@ -429,7 +429,7 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/mind-measure-scoring/dev/1761752701103-2025-10-29T15:45:01.103Z/mind-measure-scoring.zip"
+                "S3Key": "serverless/mind-measure-scoring/dev/1762808339405-2025-11-10T20:58:59.405Z/mind-measure-scoring.zip"
               },
               "Handler": "dist/calculate-mind-measure/index.handler",
               "Runtime": "nodejs20.x",
@@ -467,44 +467,44 @@
               "CalculateMindMeasureLogGroup"
             ]
           },
-          "AnalyzeTextLambdaVersionNrtLNRBMsPRf3eWOn19qL18IIMPWXkbcZywtZVpoUY": {
+          "AnalyzeTextLambdaVersionybL47HDxIEE97UFv1ibK2O9raLAXjbLphtKHw5SF7Q": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AnalyzeTextLambdaFunction"
               },
-              "CodeSha256": "PnU/exjGb0DZXd2QAOBfMJ/FJgJh+7KgmOINiRfJ4Hc="
+              "CodeSha256": "R4LGEgnbwfQnlJnVnmgTDF786R1FGF5DhqpgZcU5h3o="
             }
           },
-          "AnalyzeAudioLambdaVersionOaMQ917MOffWx0KmPS2t47Py5A2ZGyyYjjOQfEjVBig": {
+          "AnalyzeAudioLambdaVersionlthffbVHPKmBo6u7fbWgvnH2P5cyGWSMhhkymqO16Ak": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AnalyzeAudioLambdaFunction"
               },
-              "CodeSha256": "PnU/exjGb0DZXd2QAOBfMJ/FJgJh+7KgmOINiRfJ4Hc="
+              "CodeSha256": "R4LGEgnbwfQnlJnVnmgTDF786R1FGF5DhqpgZcU5h3o="
             }
           },
-          "AnalyzeVisualLambdaVersionVbnmes5bS5ZAkAkSi8OsWiukGBZrtVMxBoSVsqbIqU": {
+          "AnalyzeVisualLambdaVersionmkBcvNHaYWFEhiXUfIOEKtoLCtrNNFFyI0P6eXVdU": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "AnalyzeVisualLambdaFunction"
               },
-              "CodeSha256": "PnU/exjGb0DZXd2QAOBfMJ/FJgJh+7KgmOINiRfJ4Hc="
+              "CodeSha256": "R4LGEgnbwfQnlJnVnmgTDF786R1FGF5DhqpgZcU5h3o="
             }
           },
-          "CalculateMindMeasureLambdaVersion3KsI7q86tp13kbG4SaQ5JEg0I0Or1ryojqWqIar4": {
+          "CalculateMindMeasureLambdaVersion9ePjw3arIzgVPhE1xeWZhrdaB0glnkXYczALowCNls": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "CalculateMindMeasureLambdaFunction"
               },
-              "CodeSha256": "PnU/exjGb0DZXd2QAOBfMJ/FJgJh+7KgmOINiRfJ4Hc="
+              "CodeSha256": "R4LGEgnbwfQnlJnVnmgTDF786R1FGF5DhqpgZcU5h3o="
             }
           },
           "ApiGatewayRestApi": {
@@ -955,7 +955,7 @@
               "CalculateMindMeasureLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1761752697526": {
+          "ApiGatewayDeployment1762808335862": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -1151,7 +1151,7 @@
           "AnalyzeTextLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AnalyzeTextLambdaVersionNrtLNRBMsPRf3eWOn19qL18IIMPWXkbcZywtZVpoUY"
+              "Ref": "AnalyzeTextLambdaVersionybL47HDxIEE97UFv1ibK2O9raLAXjbLphtKHw5SF7Q"
             },
             "Export": {
               "Name": "sls-mind-measure-scoring-dev-AnalyzeTextLambdaFunctionQualifiedArn"
@@ -1160,7 +1160,7 @@
           "AnalyzeAudioLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AnalyzeAudioLambdaVersionOaMQ917MOffWx0KmPS2t47Py5A2ZGyyYjjOQfEjVBig"
+              "Ref": "AnalyzeAudioLambdaVersionlthffbVHPKmBo6u7fbWgvnH2P5cyGWSMhhkymqO16Ak"
             },
             "Export": {
               "Name": "sls-mind-measure-scoring-dev-AnalyzeAudioLambdaFunctionQualifiedArn"
@@ -1169,7 +1169,7 @@
           "AnalyzeVisualLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "AnalyzeVisualLambdaVersionVbnmes5bS5ZAkAkSi8OsWiukGBZrtVMxBoSVsqbIqU"
+              "Ref": "AnalyzeVisualLambdaVersionmkBcvNHaYWFEhiXUfIOEKtoLCtrNNFFyI0P6eXVdU"
             },
             "Export": {
               "Name": "sls-mind-measure-scoring-dev-AnalyzeVisualLambdaFunctionQualifiedArn"
@@ -1178,7 +1178,7 @@
           "CalculateMindMeasureLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "CalculateMindMeasureLambdaVersion3KsI7q86tp13kbG4SaQ5JEg0I0Or1ryojqWqIar4"
+              "Ref": "CalculateMindMeasureLambdaVersion9ePjw3arIzgVPhE1xeWZhrdaB0glnkXYczALowCNls"
             },
             "Export": {
               "Name": "sls-mind-measure-scoring-dev-CalculateMindMeasureLambdaFunctionQualifiedArn"
@@ -1347,7 +1347,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AnalyzeTextLambdaVersionNrtLNRBMsPRf3eWOn19qL18IIMPWXkbcZywtZVpoUY"
+        "versionLogicalId": "AnalyzeTextLambdaVersionybL47HDxIEE97UFv1ibK2O9raLAXjbLphtKHw5SF7Q"
       },
       "analyzeAudio": {
         "handler": "dist/analyze-audio/index.handler",
@@ -1389,7 +1389,7 @@
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AnalyzeAudioLambdaVersionOaMQ917MOffWx0KmPS2t47Py5A2ZGyyYjjOQfEjVBig"
+        "versionLogicalId": "AnalyzeAudioLambdaVersionlthffbVHPKmBo6u7fbWgvnH2P5cyGWSMhhkymqO16Ak"
       },
       "analyzeVisual": {
         "handler": "dist/analyze-visual/index.handler",
@@ -1431,7 +1431,7 @@
         "memory": 1024,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "AnalyzeVisualLambdaVersionVbnmes5bS5ZAkAkSi8OsWiukGBZrtVMxBoSVsqbIqU"
+        "versionLogicalId": "AnalyzeVisualLambdaVersionmkBcvNHaYWFEhiXUfIOEKtoLCtrNNFFyI0P6eXVdU"
       },
       "calculateMindMeasure": {
         "handler": "dist/calculate-mind-measure/index.handler",
@@ -1473,7 +1473,7 @@
         "memory": 512,
         "runtime": "nodejs20.x",
         "vpc": {},
-        "versionLogicalId": "CalculateMindMeasureLambdaVersion3KsI7q86tp13kbG4SaQ5JEg0I0Or1ryojqWqIar4"
+        "versionLogicalId": "CalculateMindMeasureLambdaVersion9ePjw3arIzgVPhE1xeWZhrdaB0glnkXYczALowCNls"
       }
     },
     "resources": {
@@ -1520,10 +1520,10 @@
     },
     "layers": {},
     "isDashboardMonitoringPreconfigured": false,
-    "artifact": "/Users/keithduddy/Desktop/Mind Measure local/mind-measure-core/aws/lambda/.serverless/mind-measure-scoring.zip"
+    "artifact": "/Users/keithduddy/Desktop/Mind Measure local/mind-measure-mobile-final/aws/lambda/.serverless/mind-measure-scoring.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/mind-measure-scoring/dev/1761752701103-2025-10-29T15:45:01.103Z",
+    "artifactDirectoryName": "serverless/mind-measure-scoring/dev/1762808339405-2025-11-10T20:58:59.405Z",
     "artifact": "mind-measure-scoring.zip"
   }
 }

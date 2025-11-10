@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSimpleAuth } from '@/contexts/SimpleAuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Heart, Brain, Shield, Users, CheckCircle } from 'lucide-react';
 export const WelcomeBack: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useSimpleAuth();
+  const { user } = useAuth();
   const [showContent, setShowContent] = useState(false);
   const [showFeatures, setShowFeatures] = useState(false);
   const [redirecting, setRedirecting] = useState(false);

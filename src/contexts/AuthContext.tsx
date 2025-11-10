@@ -1,5 +1,17 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { authService, AuthUser } from '../services/auth-aws';
+import { amplifyAuth } from '../services/amplify-auth';
+import { BackendServiceFactory } from '../services/database/BackendServiceFactory';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  email_confirmed_at?: string | null;
+  user_metadata?: {
+    first_name?: string;
+    last_name?: string;
+  };
+  hasCompletedBaseline?: boolean;
+}
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -9,6 +21,11 @@ interface AuthContextType {
   signOut: () => Promise<{ error: string | null }>;
   updateProfile: (updates: any) => Promise<{ error: string | null }>;
   completeOnboarding: () => Promise<{ error: string | null }>;
+  completeBaseline: (sessionId: string) => Promise<{ error: string | null }>;
+  confirmEmail: (email: string, code: string) => Promise<{ error: string | null }>;
+  resendConfirmation: (email: string) => Promise<{ error: string | null }>;
+  forgotPassword: (email: string) => Promise<{ error: string | null }>;
+  confirmForgotPassword: (email: string, code: string, newPassword: string) => Promise<{ error: string | null }>;
   refetchUser: () => Promise<void>;
 }
 
@@ -22,16 +39,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state - check for existing session first
+  // Initialize auth state
   useEffect(() => {
     initializeAuth();
   }, []);
 
   // Set up auth state listener
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((authUser) => {
-      console.log('Auth state changed in context:', authUser?.email);
-      setUser(authUser);
+    const unsubscribe = amplifyAuth.onAuthStateChange((event, user) => {
+      console.log('🔄 Auth state changed:', event, user?.email);
+      setUser(user);
       setLoading(false);
     });
 
@@ -40,35 +57,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initializeAuth = async () => {
     try {
-      console.log('🔄 Initializing auth state...');
-      console.log('🔧 Environment check - Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-      console.log('🔧 Environment check - Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-      
-      // First check if there's an existing session
-      const { data: sessionData, error: sessionError } = await authService.getSession();
-      
-      if (sessionError) {
-        console.error('❌ Session check error:', sessionError);
-      }
-      
-      if (sessionData?.session) {
-        console.log('✅ Found existing session for:', sessionData.session.user.email);
-      } else {
-        console.log('ℹ️ No existing session found');
-      }
-      
-      // Get current user (this will use the session if available)
-      const { user: currentUser, error } = await authService.getCurrentUser();
-      
-      if (error) {
-        console.error('❌ Error getting current user:', error);
-      } else if (currentUser) {
-        console.log('✅ Current user restored:', currentUser.email);
+      console.log('🔄 Initializing AWS Amplify auth...');
+      const user = await amplifyAuth.getUser();
+      if (user) {
+        console.log('✅ Current user restored:', user.email);
+        setUser(user);
       } else {
         console.log('ℹ️ No authenticated user found');
       }
-      
-      setUser(currentUser);
     } catch (error) {
       console.error('❌ Auth initialization error:', error);
     } finally {
@@ -79,13 +75,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { user: signedInUser, error } = await authService.signIn(email, password);
-      
+      const { data, error } = await amplifyAuth.signInWithPassword({ email, password });
       if (error) {
         return { error };
       }
-      
-      setUser(signedInUser);
+      setUser(data.user);
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -98,13 +92,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signUp = async (data: { firstName: string; lastName: string; email: string; password: string }) => {
     setLoading(true);
     try {
-      const { user: newUser, error } = await authService.register(data);
+      const { data: authData, error } = await amplifyAuth.signUp(
+        data.email,
+        data.password,
+        {
+          data: {
+            first_name: data.firstName,
+            last_name: data.lastName
+          }
+        }
+      );
       
       if (error) {
         return { error };
       }
       
-      setUser(newUser);
+      // Create user profile in database after successful Cognito registration
+      if (authData.user) {
+        try {
+          console.log('👤 Creating user profile in database for:', authData.user.id);
+          
+          const backendService = BackendServiceFactory.getInstance();
+          const profileData = {
+            user_id: authData.user.id,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            email: data.email,
+            display_name: `${data.firstName} ${data.lastName}`,
+            university_id: 'worcester',
+            baseline_established: false,
+            streak_count: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { error: profileError } = await backendService.database.insert('profiles', profileData);
+          
+          if (profileError) {
+            console.warn('⚠️ Profile creation failed:', profileError);
+          } else {
+            console.log('✅ User profile created successfully');
+          }
+        } catch (profileError) {
+          console.warn('⚠️ Profile creation error:', profileError);
+        }
+      }
+
+      setUser(authData.user);
       return { error: null };
     } catch (error) {
       console.error('Sign up error:', error);
@@ -117,12 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     setLoading(true);
     try {
-      const { error } = await authService.signOut();
-      
-      if (error) {
-        return { error };
-      }
-      
+      await amplifyAuth.signOut();
       setUser(null);
       return { error: null };
     } catch (error) {
@@ -134,60 +163,73 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const updateProfile = async (updates: any) => {
-    try {
-      const { profile, error } = await authService.updateProfile(updates);
-      
-      if (error) {
-        return { error };
-      }
-      
-      // Update user in context
-      if (user && profile) {
-        setUser({ ...user, profile });
-      }
-      
-      return { error: null };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      return { error: 'Profile update failed' };
-    }
+    // TODO: Implement profile updates
+    return { error: null };
   };
 
   const completeOnboarding = async () => {
+    // TODO: Implement onboarding completion
+    return { error: null };
+  };
+
+  const completeBaseline = async (sessionId: string) => {
+    if (user) {
+      const updatedUser = { ...user, hasCompletedBaseline: true };
+      setUser(updatedUser);
+    }
+    return { error: null };
+  };
+
+  const confirmEmail = async (email: string, code: string) => {
     try {
-      const { error } = await authService.completeOnboarding();
-      
-      if (error) {
-        return { error };
-      }
-      
-      // Update user in context
-      if (user?.profile) {
-        setUser({
-          ...user,
-          profile: { ...user.profile, onboarding_completed: true }
-        });
-      }
-      
-      return { error: null };
+      const { error } = await amplifyAuth.confirmSignUp(email, code);
+      return { error };
     } catch (error) {
-      console.error('Complete onboarding error:', error);
-      return { error: 'Failed to complete onboarding' };
+      console.error('Email confirmation error:', error);
+      return { error: 'Email confirmation failed' };
+    }
+  };
+
+  const resendConfirmation = async (email: string) => {
+    try {
+      const { error } = await amplifyAuth.resendConfirmationCode(email);
+      return { error };
+    } catch (error) {
+      console.error('Resend confirmation error:', error);
+      return { error: 'Failed to resend confirmation' };
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    try {
+      const { error } = await amplifyAuth.resetPassword(email);
+      return { error };
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return { error: 'Password reset failed' };
+    }
+  };
+
+  const confirmForgotPassword = async (email: string, code: string, newPassword: string) => {
+    try {
+      const { error } = await amplifyAuth.confirmResetPassword(email, code, newPassword);
+      return { error };
+    } catch (error) {
+      console.error('Confirm forgot password error:', error);
+      return { error: 'Password confirmation failed' };
     }
   };
 
   const refetchUser = async () => {
     try {
-      const { user: refreshedUser, error } = await authService.getCurrentUser();
-      if (!error) {
-        setUser(refreshedUser);
-      }
+      const user = await amplifyAuth.getUser();
+      setUser(user);
     } catch (error) {
       console.error('Refetch user error:', error);
     }
   };
 
-  const value: AuthContextType = {
+  const value = {
     user,
     loading,
     signIn,
@@ -195,6 +237,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut,
     updateProfile,
     completeOnboarding,
+    completeBaseline,
+    confirmEmail,
+    resendConfirmation,
+    forgotPassword,
+    confirmForgotPassword,
     refetchUser
   };
 

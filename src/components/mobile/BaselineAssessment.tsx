@@ -2,14 +2,14 @@ import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useSimpleAuth } from '../../contexts/SimpleAuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
 interface BaselineAssessmentProps {
   onBack?: () => void;
   onComplete?: () => void;
 }
 export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentProps) {
-  const { user, loading: authLoading } = useSimpleAuth();
+  const { user, loading: authLoading } = useAuth();
   const [showConversation, setShowConversation] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);

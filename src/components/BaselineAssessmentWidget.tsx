@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useSimpleAuth } from '../contexts/SimpleAuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
 interface BaselineAssessmentProps {
   onBack?: () => void;
   onComplete?: () => void;
 }
 export function BaselineAssessmentWidget({ onBack, onComplete }: BaselineAssessmentProps) {
-  const { user, loading: authLoading } = useSimpleAuth();
+  const { user, loading: authLoading } = useAuth();
   const [showConversation, setShowConversation] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);

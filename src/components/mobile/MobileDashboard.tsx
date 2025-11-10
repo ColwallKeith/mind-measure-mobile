@@ -203,7 +203,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
         >
-          {isPostBaselineView ? 'This is your baseline score, we use this to benchmark your future check-ins' : 'Share how you're feeling today'}
+          {isPostBaselineView ? 'This is your baseline score, we use this to benchmark your future check-ins' : 'Share how you are feeling today'}
         </motion.p>
       </motion.div>
       {/* Mind Measure Themes - Hide in post-baseline view */}

@@ -10,12 +10,12 @@ import { RegistrationScreen } from './components/mobile/RegistrationScreen';
 import { BaselineWelcomeScreen } from './components/BaselineWelcomeScreen';
 import { BaselineAssessmentWidget } from './components/BaselineAssessmentWidget';
 import { BottomNavigation } from './components/BottomNavigation';
-import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext';
+import { SimpleAuthProvider, useAuth } from './contexts/AuthContext';
 // import { AuthDebugger } from .* // Removed - was using Supabase
 
 // Create a wrapper component that uses auth
 function AppContent() {
-  const { user, loading } = useSimpleAuth();
+  const { user, loading } = useAuth();
   const [appState, setAppState] = useState<'splash' | 'returning-splash' | 'registration' | 'baseline-welcome' | 'baseline' | 'main'>('splash');
   const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
 
