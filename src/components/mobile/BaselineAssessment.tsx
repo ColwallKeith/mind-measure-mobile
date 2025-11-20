@@ -677,17 +677,62 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     }
 
     // 🚀 REAL MIND MEASURE ANALYSIS: Process the complete assessment
-    if (userId) {
-      try {
-        console.log('🧠 Starting comprehensive Mind Measure baseline analysis...');
-        
-        // Import backend service
-        const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
-        const backendService = BackendServiceFactory.createService(
-          BackendServiceFactory.getEnvironmentConfig()
-        );
+    if (!userId) {
+      console.error('❌ No user ID available - cannot create assessment session');
+      return;
+    }
 
-        // Step 1: Create assessment session with comprehensive metadata
+    try {
+      console.log('🧠 Starting comprehensive Mind Measure baseline analysis...');
+      
+      // Import backend service
+      const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+
+      // CRITICAL: Ensure user profile exists before creating assessment session
+      // Assessment sessions require a foreign key reference to profiles table
+      console.log('🔍 Checking if user profile exists in database...');
+      const { data: existingProfiles, error: profileCheckError } = await backendService.database.select('profiles', {
+        filters: { user_id: userId }
+      });
+
+      if (profileCheckError) {
+        console.error('❌ Error checking user profile:', profileCheckError);
+        throw new Error('Failed to verify user profile. Please contact support.');
+      }
+
+      if (!existingProfiles || existingProfiles.length === 0) {
+        console.warn('⚠️ User profile not found - creating profile now...');
+        
+        // Create profile with minimal required data
+        const profileData = {
+          user_id: userId,
+          first_name: user?.user_metadata?.first_name || user?.user_metadata?.given_name || 'User',
+          last_name: user?.user_metadata?.last_name || user?.user_metadata?.family_name || '',
+          email: user?.email || '',
+          display_name: user?.user_metadata?.display_name || `${user?.user_metadata?.first_name || 'User'} ${user?.user_metadata?.last_name || ''}`.trim() || 'User',
+          university_id: 'worcester', // Default university
+          baseline_established: false,
+          streak_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: profileCreateError } = await backendService.database.insert('profiles', profileData);
+        
+        if (profileCreateError) {
+          console.error('❌ Failed to create user profile:', profileCreateError);
+          throw new Error('Failed to create user profile. Assessment cannot proceed without a database profile. Please contact support.');
+        }
+        
+        console.log('✅ User profile created successfully');
+      } else {
+        console.log('✅ User profile exists in database');
+      }
+
+      // Step 1: Create assessment session with comprehensive metadata
         const sessionData = {
           user_id: userId,
           assessment_type: 'baseline',

@@ -113,10 +113,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       
       // Create user profile in database after successful Cognito registration
+      // CRITICAL: Profile MUST be created or user cannot save assessment data
       if (authData.user) {
+        console.log('👤 Creating user profile in database for:', authData.user.id);
+        
         try {
-          console.log('👤 Creating user profile in database for:', authData.user.id);
-          
           // Create backend service directly instead of using getInstance()
           const backendService = BackendServiceFactory.createService(
             BackendServiceFactory.getEnvironmentConfig()
@@ -170,17 +171,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const { error: profileError } = await backendService.database.insert('profiles', profileData);
           
           if (profileError) {
-            console.warn('⚠️ Profile creation failed:', profileError);
+            console.error('❌ Profile creation failed:', profileError);
             // If it's a foreign key constraint error, log it specifically
             if (profileError.toString().includes('foreign key constraint')) {
               console.error('❌ Foreign key constraint violation - university_id may not exist in universities table');
             }
+            // CRITICAL: Fail registration if profile creation fails
+            // User cannot save assessment data without a database profile
+            return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
           } else {
             console.log('✅ User profile created successfully');
           }
-        } catch (profileError) {
-          console.warn('⚠️ Profile creation error:', profileError);
+        } catch (profileError: any) {
+          console.error('❌ Profile creation error:', profileError);
+          // CRITICAL: Fail registration if profile creation fails
+          return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError?.message || 'Unknown error'}` };
         }
+      } else {
+        console.error('❌ No user data returned from Cognito signup');
+        return { error: 'Registration failed: No user data received' };
       }
 
       setUser(authData.user);
