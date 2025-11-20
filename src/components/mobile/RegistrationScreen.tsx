@@ -37,8 +37,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [emailExists, setEmailExists] = useState<boolean>(false); // Track if user exists
-  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -103,12 +101,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       case 2:
         return formData.email.trim() !== '' && formData.email.includes('@') && formData.email.includes('.');
       case 3:
-        // For existing users (sign in), just check password exists
-        if (emailExists) {
-          return formData.password.trim() !== '';
-        }
-        
-        // For new users (sign up), check all AWS Cognito password requirements
+        // Always require full password validation (new user creation)
         const hasMinLength = formData.password.length >= 8;
         const hasUppercase = /[A-Z]/.test(formData.password);
         const hasLowercase = /[a-z]/.test(formData.password);
@@ -122,108 +115,61 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   };
   const handleNext = async () => {
     if (validateStep()) {
-      // Step 2: Check if email exists before proceeding to password
-      if (step === 2) {
-        setIsCheckingEmail(true);
+      // Steps 1-2: Just move to next step
+      if (step < totalSteps) {
+        setStep(step + 1);
         setError(null);
-        
-        try {
-          // Try to sign in with dummy password to check if user exists
-          // This is safe - won't create accounts, just checks existence
-          const { error: checkError } = await signIn(formData.email, '__CHECK_USER_EXISTS__');
-          
-          if (checkError && (checkError.includes('Incorrect username or password') || checkError.includes('UserNotFoundException'))) {
-            // User doesn't exist - new registration
-            console.log('✅ Email available - new user registration');
-            setEmailExists(false);
-          } else if (checkError && !checkError.includes('Incorrect username or password')) {
-            // Other error (network, etc)
-            setError(checkError);
-            setIsCheckingEmail(false);
-            return;
-          } else {
-            // This shouldn't happen (successful sign-in with dummy password)
-            // But if it does, treat as new user
-            console.log('✅ Unexpected success - treating as new user');
-            setEmailExists(false);
-          }
-          
-          // If we get UserNotFoundException, user doesn't exist
-          if (checkError && checkError.includes('UserNotFoundException')) {
-            setEmailExists(false);
-          } 
-          // If we get "Incorrect username or password", user EXISTS
-          else if (checkError && checkError.includes('Incorrect username or password')) {
-            setEmailExists(true);
-            console.log('✅ User found - will sign in');
-          }
-          
-          setIsCheckingEmail(false);
-          setStep(step + 1);
-          return;
-        } catch (error) {
-          console.error('❌ Email check error:', error);
-          setError('Failed to verify email. Please try again.');
-          setIsCheckingEmail(false);
-          return;
-        }
+        return;
       }
       
-      // Step 3: Final step - Create account OR Sign in
-      if (step === totalSteps) {
-        setIsLoading(true);
-        setError(null);
+      // Step 3: Try to create account
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        console.log('🔐 Attempting to create new user account...');
+        const { error: signUpError } = await signUp({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        });
         
-        try {
-          if (emailExists) {
-            // SIGN IN - User already exists
-            console.log('🔐 Signing in existing user:', formData.email);
+        if (signUpError) {
+          console.error('❌ Signup error:', signUpError);
+          
+          // If user already exists, try to sign them in with the password they entered
+          if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
+            console.log('🔐 User exists - attempting sign-in with entered password...');
+            
             const { error: signInError } = await signIn(formData.email, formData.password);
             
             if (signInError) {
               console.error('❌ Sign in error:', signInError);
-              setError(signInError);
+              setError(`This email is already registered. ${signInError}`);
               setIsLoading(false);
               return;
             }
             
             console.log('✅ Sign in successful!');
-            // User is now signed in - go directly to baseline
             setTimeout(() => {
               onComplete(formData.email, formData.password);
             }, 50);
           } else {
-            // SIGN UP - New user
-            console.log('🔐 Creating new AWS Cognito user account...');
-            const { error: signUpError } = await signUp({
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              email: formData.email,
-              password: formData.password
-            });
-            
-            if (signUpError) {
-              console.error('❌ AWS signup error:', signUpError);
-              setError(signUpError);
-              setIsLoading(false);
-              return;
-            }
-            
-            console.log('✅ User account created successfully!');
-            setTimeout(() => {
-              onComplete(formData.email, formData.password);
-            }, 50);
+            setError(signUpError);
+            setIsLoading(false);
+            return;
           }
-        } catch (error) {
-          console.error('❌ Registration/Sign-in error:', error);
-          setError('Failed to complete. Please try again.');
-        } finally {
-          setIsLoading(false);
+        } else {
+          console.log('✅ Account created successfully!');
+          setTimeout(() => {
+            onComplete(formData.email, formData.password);
+          }, 50);
         }
-      } else {
-        // Steps 1: Just move to next step
-        setStep(step + 1);
-        setError(null);
+      } catch (error) {
+        console.error('❌ Registration error:', error);
+        setError('Failed to complete registration. Please try again.');
+        setIsLoading(false);
       }
     }
   };
@@ -241,7 +187,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     switch (step) {
       case 1: return "Let's start with your name";
       case 2: return "Your university email";
-      case 3: return emailExists ? "Welcome back" : "Create a secure password";
+      case 3: return "Create a secure password";
       default: return "";
     }
   };
@@ -249,7 +195,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     switch (step) {
       case 1: return "We'll use this to personalise your experience";
       case 2: return "We'll detect your university automatically";
-      case 3: return emailExists ? "Enter your password to sign in" : "Keep your wellness data safe and secure";
+      case 3: return "Keep your wellness data safe and secure";
       default: return "";
     }
   };
@@ -396,9 +342,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
-                  {/* Password Requirements - Only show for NEW users */}
-                  {!emailExists && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  {/* Password Requirements - Always show for new password creation */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                       <h3 className="text-sm font-semibold text-blue-900 mb-3">Password Requirements:</h3>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -434,18 +379,17 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                         </div>
                       </div>
                     </div>
-                  )}
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-gray-700">{emailExists ? "Your Password" : "Password"}</Label>
+                      <Label htmlFor="password" className="text-gray-700">Password</Label>
                       <div className="relative">
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
                           value={formData.password}
                           onChange={(e) => updateFormData('password', e.target.value)}
-                          placeholder={emailExists ? "Enter your password" : "Create a secure password"}
+                          placeholder="Create a secure password"
                           className="bg-white/60 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 pr-10"
                         />
                         <button
@@ -458,9 +402,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                       </div>
                     </div>
                     
-                    {/* Only show confirm password for NEW users */}
-                    {!emailExists && (
-                      <div className="space-y-2">
+                    {/* Always show confirm password */}
+                    <div className="space-y-2">
                         <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
                         <div className="relative">
                         <Input
@@ -480,7 +423,6 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                         </button>
                       </div>
                     </div>
-                    )}
                   </div>
                 </motion.div>
               )}
@@ -494,16 +436,14 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               <div className="mt-8">
                 <Button
                   onClick={handleNext}
-                  disabled={!validateStep() || isLoading || isCheckingEmail}
+                  disabled={!validateStep() || isLoading}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-12 font-medium rounded-xl disabled:from-gray-300 disabled:to-gray-400"
                 >
-                  {isCheckingEmail ? (
-                    'Checking email...'
-                  ) : isLoading ? (
-                    emailExists ? 'Signing in...' : 'Creating Account...'
+                  {isLoading ? (
+                    'Creating Account...'
                   ) : (
                     <>
-                      {step === totalSteps ? (emailExists ? 'Sign In' : 'Create Account') : 'Continue'}
+                      {step === totalSteps ? 'Create Account' : 'Continue'}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}

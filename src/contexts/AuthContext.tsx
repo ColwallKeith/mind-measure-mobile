@@ -80,7 +80,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { data, error } = await amplifyAuth.signInWithPassword({ email, password });
+      // FIX: Pass email and password as separate arguments, not as object
+      const { data, error } = await amplifyAuth.signInWithPassword(email, password);
       if (error) {
         return { error };
       }
