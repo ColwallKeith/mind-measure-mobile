@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { HelpScreen } from './HelpPage';
@@ -36,23 +36,25 @@ export const MobileAppStructure: React.FC = () => {
   const { user } = useAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
   // SIMPLE FLOW: Always start with new user splash for unauthenticated users
+  // Only initialize once when loading completes and onboardingScreen is null
   useEffect(() => {
+    // Don't run if still loading or if onboarding screen is already set
+    if (loading || onboardingScreen !== null) {
+      return;
+    }
+
     console.log('🎯 App start - user state:', {
       hasUser: !!user,
       userId: user?.id,
       hasAssessmentHistory,
-      loading,
-      currentOnboardingScreen: onboardingScreen
+      loading
     });
-    // For debugging - always start with splash if not set
-    if (onboardingScreen === null && !loading) {
-      console.log('🚀 Initializing onboarding - setting to splash');
-      setOnboardingScreen('splash');
-    } else if (!user && !loading && onboardingScreen === null) {
+
+    if (!user) {
       // No authenticated user → Show new user flow
       console.log('🆕 No authenticated user - starting new user flow');
       setOnboardingScreen('splash');
-    } else if (user && !loading && onboardingScreen === null) {
+    } else {
       // User is authenticated - check if they need baseline
       if (hasAssessmentHistory === true) {
         // Has baseline → Dashboard
@@ -64,44 +66,42 @@ export const MobileAppStructure: React.FC = () => {
         setOnboardingScreen('baseline_welcome');
       }
     }
-  }, [user, loading, hasAssessmentHistory, onboardingScreen]);
+  }, [user, loading, hasAssessmentHistory]); // Removed onboardingScreen from dependencies to prevent loop
   // Handle onboarding completion - SIMPLE FLOW
-  const handleSplashComplete = () => {
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleSplashComplete = useCallback(() => {
     console.log('🎯 Splash complete - going to registration');
-    console.log('🔍 Current onboarding screen before:', onboardingScreen);
-    // From new user splash → Always go to registration for now
     setOnboardingScreen('registration');
-    console.log('🔍 Onboarding screen set to registration');
-  };
-  const handleRegistrationComplete = (email: string) => {
+  }, []);
+  
+  const handleRegistrationComplete = useCallback((email: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
-    // After registration → Go to email verification
     setPendingEmail(email);
     setOnboardingScreen('email_verification');
-  };
-  const handleEmailVerified = () => {
+  }, []);
+  
+  const handleEmailVerified = useCallback(() => {
     console.log('✅ Email verified - going to baseline welcome');
-    // After email verification → Go to baseline welcome
     setPendingEmail(null);
     setOnboardingScreen('baseline_welcome');
-  };
-  const handleVerificationBack = () => {
+  }, []);
+  
+  const handleVerificationBack = useCallback(() => {
     console.log('🔙 Going back to registration');
-    // Allow user to go back and re-register
     setPendingEmail(null);
     setOnboardingScreen('registration');
-  };
-  const handleBaselineStart = () => {
-    console.log('🎯 Starting baseline assessment - transitioning to baseline assessment');
-    // Start baseline assessment - stay in onboarding but show baseline assessment
+  }, []);
+  
+  const handleBaselineStart = useCallback(() => {
+    console.log('🎯 Starting baseline assessment');
     setOnboardingScreen('baseline_assessment');
-  };
-  const handleBaselineComplete = () => {
-    console.log('u2705 Baseline assessment completed - going to dashboard');
-    // Baseline completed u2192 Clear onboarding and go to main app
+  }, []);
+  
+  const handleBaselineComplete = useCallback(() => {
+    console.log('✅ Baseline assessment completed - going to dashboard');
     setOnboardingScreen(null);
     setCurrentScreen('dashboard');
-  };  const navItems = [
+  }, []);  const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
     { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
     { id: 'buddies', icon: Users, label: 'Buddies', screen: 'buddies' as const },
