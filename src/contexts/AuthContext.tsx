@@ -58,15 +58,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initializeAuth = async () => {
     try {
       console.log('🔄 Initializing AWS Amplify auth...');
-      const user = await amplifyAuth.getUser();
-      if (user) {
-        console.log('✅ Current user restored:', user.email);
-        setUser(user);
+      const { data, error } = await amplifyAuth.getUser();
+      if (error) {
+        console.log('ℹ️ No authenticated user found:', error);
+        setUser(null);
+      } else if (data?.user && data.user.email) {
+        console.log('✅ Current user restored:', data.user.email);
+        setUser(data.user);
       } else {
         console.log('ℹ️ No authenticated user found');
+        setUser(null);
       }
     } catch (error) {
       console.error('❌ Auth initialization error:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
