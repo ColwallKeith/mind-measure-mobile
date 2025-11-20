@@ -968,11 +968,9 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
           await backendService.database.insert('fusion_outputs', fallbackData);
           console.log('✅ Fallback baseline record created - analysis can be completed later');
         }
-        
-      } catch (error) {
-        console.error('❌ Error in baseline analysis pipeline:', error);
-        // Continue with local storage fallback
-      }
+    } catch (error) {
+      console.error('❌ Error in baseline analysis:', error);
+      // Continue with local storage fallback
     }
 
     // Wait a moment for database operations to complete
