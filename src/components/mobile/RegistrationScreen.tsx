@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   User,
@@ -23,7 +22,7 @@ import {
 } from 'lucide-react';
 interface RegistrationScreenProps {
   onBack: () => void;
-  onComplete: (userId?: string) => void;
+  onComplete: (email: string) => void;
 }
 interface FormData {
   firstName: string;
@@ -33,10 +32,6 @@ interface FormData {
   confirmPassword: string;
 }
 export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenProps) {
-  // AWS Backend Service
-  const backendService = BackendServiceFactory.createService(
-    BackendServiceFactory.getEnvironmentConfig()
-  );
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -49,7 +44,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     password: '',
     confirmPassword: ''
   });
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
   // Prevent iOS zoom on input focus
   useEffect(() => {
     // Add viewport meta tag to prevent zoom
@@ -147,7 +142,28 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           });
           if (signUpError) {
             console.error('❌ AWS signup error:', signUpError);
-            // Use the error message directly from the auth service
+            
+            // If user already exists, try to sign them in automatically
+            if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
+              console.log('🔄 User already exists, attempting sign-in...');
+              setError('Account already exists. Signing you in...');
+              
+              const { error: signInError } = await signIn(formData.email, formData.password);
+              if (signInError) {
+                setError('Account exists but password is incorrect. Please sign in with your existing password.');
+                setIsLoading(false);
+                return;
+              }
+              
+              // Sign-in successful - proceed as if registration completed
+              console.log('✅ Signed in successfully with existing account');
+              setTimeout(() => {
+                onComplete(formData.email);
+              }, 50);
+              return;
+            }
+            
+            // Other errors - show the error message
             setError(signUpError);
             setIsLoading(false);
             return;
@@ -219,13 +235,14 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       <div className="absolute bottom-32 right-10 w-64 h-64 bg-blue-300/20 rounded-full blur-3xl" />
       <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
       <motion.div
-        className="relative z-10 min-h-screen flex flex-col"
+        className="relative z-10 min-h-screen flex flex-col overflow-y-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="pt-20 pb-6 px-6">
+        <motion.div variants={itemVariants} className="pt-20 pb-6 px-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={handleBack}
@@ -246,8 +263,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
             </div>
           </div>
         </motion.div>
-        {/* Main Content */}
-        <div className="flex-1 px-6 pb-6">
+        {/* Main Content - Scrollable */}
+        <div className="flex-1 px-6 pb-8 overflow-y-auto" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom) + 1rem)' }}>
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6 max-w-md mx-auto">
               {/* Step Header */}

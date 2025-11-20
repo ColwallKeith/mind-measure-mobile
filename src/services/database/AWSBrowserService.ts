@@ -468,17 +468,13 @@ export class AWSBrowserFunctionsService {
   private lambdaBaseUrl: string;
   
   constructor(config: DatabaseConfig) {
-    // Determine Lambda API Gateway URL
-    const isCapacitor = window.location.protocol === 'capacitor:' || !!(window as any).Capacitor;
+    // Use environment variable if available, otherwise fallback to hardcoded dev endpoint
+    const envLambdaUrl = import.meta.env.VITE_LAMBDA_BASE_URL;
     
-    if (isCapacitor) {
-      // Capacitor should use HIPAA-compliant production Lambda endpoint
-      this.lambdaBaseUrl = 'https://4xg1jsjh7k.execute-api.eu-west-2.amazonaws.com/dev';
-    } else if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && !isCapacitor) {
-      // Local development - use HIPAA-compliant production Lambda endpoint
-      this.lambdaBaseUrl = 'https://4xg1jsjh7k.execute-api.eu-west-2.amazonaws.com/dev';
+    if (envLambdaUrl) {
+      this.lambdaBaseUrl = envLambdaUrl.trim();
     } else {
-      // Production web - use HIPAA-compliant production Lambda endpoint
+      // Fallback to dev endpoint if env var not set
       this.lambdaBaseUrl = 'https://4xg1jsjh7k.execute-api.eu-west-2.amazonaws.com/dev';
     }
     

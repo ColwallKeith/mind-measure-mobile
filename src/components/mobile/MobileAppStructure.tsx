@@ -6,6 +6,7 @@ import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
+import { EmailVerificationScreen } from "./EmailVerificationScreen";
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessment } from './BaselineAssessment';
@@ -21,11 +22,12 @@ import {
 } from 'lucide-react';
 type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
 type Screen = MobileTab | 'profile' | 'settings';
-type OnboardingScreen = 'splash' | 'registration' | 'baseline_welcome' | 'returning_splash';
+type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null); // Track email for verification
   // Debug onboarding screen changes
   useEffect(() => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
@@ -71,10 +73,23 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
     console.log('🔍 Onboarding screen set to registration');
   };
-  const handleRegistrationComplete = () => {
-    console.log('✅ Registration complete - going to baseline welcome');
-    // After registration → Go to baseline welcome
+  const handleRegistrationComplete = (email: string) => {
+    console.log('✅ Registration complete - going to email verification for:', email);
+    // After registration → Go to email verification
+    setPendingEmail(email);
+    setOnboardingScreen('email_verification');
+  };
+  const handleEmailVerified = () => {
+    console.log('✅ Email verified - going to baseline welcome');
+    // After email verification → Go to baseline welcome
+    setPendingEmail(null);
     setOnboardingScreen('baseline_welcome');
+  };
+  const handleVerificationBack = () => {
+    console.log('🔙 Going back to registration');
+    // Allow user to go back and re-register
+    setPendingEmail(null);
+    setOnboardingScreen('registration');
   };
   const handleBaselineStart = () => {
     console.log('🎯 Starting baseline assessment - transitioning to baseline assessment');
@@ -124,6 +139,14 @@ export const MobileAppStructure: React.FC = () => {
         case 'registration':
           console.log('🎨 Rendering RegistrationScreen');
           return <RegistrationScreen onBack={handleSplashComplete} onComplete={handleRegistrationComplete} />;
+        case 'email_verification':
+          console.log('🎨 Rendering EmailVerificationScreen');
+          if (!pendingEmail) {
+            console.warn('⚠️ No pending email for verification, going back to registration');
+            setOnboardingScreen('registration');
+            return <RegistrationScreen onBack={handleSplashComplete} onComplete={handleRegistrationComplete} />;
+          }
+          return <EmailVerificationScreen email={pendingEmail} onVerified={handleEmailVerified} onBack={handleVerificationBack} />;
         case 'baseline_welcome':
           console.log('🎨 Rendering BaselineAssessmentScreen');
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;

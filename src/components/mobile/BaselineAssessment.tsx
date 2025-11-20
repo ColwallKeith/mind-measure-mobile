@@ -556,10 +556,16 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         if (rekognitionResult.ok) {
           const analysisData = await rekognitionResult.json();
           
+          // Store both the analysis results AND the raw imageData for Lambda function
+          const sampleWithImageData = {
+            ...analysisData,
+            imageData: base64Data // Store raw image data for Lambda visual analysis
+          };
+          
           // Update visual analysis data
           setVisualAnalysisData(prev => ({
             ...prev,
-            rekognitionSamples: [...prev.rekognitionSamples, analysisData],
+            rekognitionSamples: [...prev.rekognitionSamples, sampleWithImageData],
             faceDetectionRate: analysisData.faceDetected ? 
               (prev.faceDetectionRate + 1) / (prev.rekognitionSamples.length + 1) : 
               prev.faceDetectionRate * prev.rekognitionSamples.length / (prev.rekognitionSamples.length + 1),
@@ -733,7 +739,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
                 emotional_tone: audioAnalysisData.emotionalTone,
                 mood_score_1_10: conversationData.moodScore,
                 transcript_length: conversationData.transcript?.length || 0
-              }
+              },
+              conversationDuration: actualDuration * 1000 // Convert to milliseconds
             });
             console.log('✅ Audio analysis completed successfully');
           } catch (error) {
@@ -743,39 +750,54 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
           // Visual Analysis (from camera/Rekognition)
           console.log('📹 Processing visual analysis...');
           
-          // Create a representative base64 image from the latest captured frame
-          let imageData = null;
-          if (canvasRef.current) {
+          // Prepare visual frames array for Lambda function
+          // The Lambda expects an array of { imageData, timestamp } objects
+          const visualFrames = [];
+          
+          // Use captured Rekognition samples if available, otherwise capture current frame
+          if (visualAnalysisData.rekognitionSamples && visualAnalysisData.rekognitionSamples.length > 0) {
+            // Use existing samples
+            visualAnalysisData.rekognitionSamples.forEach((sample: any, index: number) => {
+              if (sample.imageData) {
+                visualFrames.push({
+                  imageData: sample.imageData,
+                  timestamp: sample.timestamp || Date.now() - (visualAnalysisData.rekognitionSamples.length - index) * 1000
+                });
+              }
+            });
+          } else if (canvasRef.current) {
+            // Fallback: capture current frame
             try {
               const canvas = canvasRef.current;
               const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-              imageData = dataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+              const imageData = dataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+              visualFrames.push({
+                imageData: imageData,
+                timestamp: Date.now()
+              });
             } catch (error) {
-              console.warn('⚠️ Could not capture final frame for analysis:', error);
+              console.warn('⚠️ Could not capture frame for analysis:', error);
             }
           }
           
           let visualAnalysisResult = null;
-          try {
-            visualAnalysisResult = await backendService.functions.invoke('analyze-visual', {
-              sessionId: sessionId,
-              imageData: imageData || '', // Send the latest captured frame
-              visualSummary: {
-                samples_captured: visualAnalysisData.rekognitionSamples.length,
-                face_detection_rate: visualAnalysisData.faceDetectionRate,
-                avg_brightness: visualAnalysisData.avgBrightness,
-                quality_score: visualAnalysisData.qualityScore,
-                engagement_level: visualAnalysisData.faceDetectionRate > 0.7 ? 'high' : 'moderate'
-              }
-            });
-            console.log('✅ Visual analysis completed successfully');
-          } catch (error) {
-            console.warn('⚠️ Visual analysis failed, continuing with fallback:', error);
+          if (visualFrames.length > 0) {
+            try {
+              visualAnalysisResult = await backendService.functions.invoke('analyze-visual', {
+                sessionId: sessionId,
+                visualFrames: visualFrames
+              });
+              console.log('✅ Visual analysis completed successfully');
+            } catch (error) {
+              console.warn('⚠️ Visual analysis failed, continuing with fallback:', error);
+            }
+          } else {
+            console.warn('⚠️ No visual frames available for analysis');
           }
 
           // Text Analysis (from conversation transcript)
           console.log('📝 Processing text analysis...');
-          const conversationText = conversationData.transcript || 
+          const conversationTranscript = conversationData.transcript || 
             `Baseline conversation completed. Duration: ${actualDuration} seconds. ` +
             `Mood score: ${conversationData.moodScore || 'not provided'}. ` +
             `PHQ responses: ${Object.keys(conversationData.phqResponses).length} questions answered.`;
@@ -784,7 +806,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
           try {
             textAnalysisResult = await backendService.functions.invoke('analyze-text', {
               sessionId: sessionId,
-              conversationText: conversationText
+              conversationTranscript: conversationTranscript,
+              assessmentType: 'baseline'
             });
             console.log('✅ Text analysis completed successfully');
           } catch (error) {
