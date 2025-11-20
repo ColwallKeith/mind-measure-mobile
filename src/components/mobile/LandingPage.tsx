@@ -54,19 +54,17 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
-    // TEMPORARILY DISABLED - Testing if carousel causes re-renders
-    // const taglineInterval = setInterval(() => {
-    //   setCurrentTaglineIndex((prev) => (prev + 1) % taglineWords.length);
-    // }, 2000);
-    // return () => clearInterval(taglineInterval);
+    const taglineInterval = setInterval(() => {
+      setCurrentTaglineIndex((prev) => (prev + 1) % taglineWords.length);
+    }, 2000);
+    return () => clearInterval(taglineInterval);
   }, []);
 
   useEffect(() => {
-    // TEMPORARILY DISABLED - Testing if carousel causes re-renders  
-    // const imageInterval = setInterval(() => {
-    //   setCurrentImageIndex((prev) => (prev + 1) % studentImages.length);
-    // }, 4500);
-    // return () => clearInterval(imageInterval);
+    const imageInterval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % studentImages.length);
+    }, 4500);
+    return () => clearInterval(imageInterval);
   }, []);
   const containerVariants = {
     hidden: { opacity: 0 },

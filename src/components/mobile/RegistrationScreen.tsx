@@ -37,6 +37,8 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailExists, setEmailExists] = useState<boolean>(false); // Track if user exists
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -101,7 +103,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       case 2:
         return formData.email.trim() !== '' && formData.email.includes('@') && formData.email.includes('.');
       case 3:
-        // AWS Cognito password requirements (CORRECTED - no special chars required)
+        // For existing users (sign in), just check password exists
+        if (emailExists) {
+          return formData.password.trim() !== '';
+        }
+        
+        // For new users (sign up), check all AWS Cognito password requirements
         const hasMinLength = formData.password.length >= 8;
         const hasUppercase = /[A-Z]/.test(formData.password);
         const hasLowercase = /[a-z]/.test(formData.password);
@@ -115,45 +122,108 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   };
   const handleNext = async () => {
     if (validateStep()) {
-      if (step < totalSteps) {
-        setStep(step + 1);
-        setError(null); // Clear any previous errors
-      } else {
-        // Final step - create account with AWS
-        setIsLoading(true);
+      // Step 2: Check if email exists before proceeding to password
+      if (step === 2) {
+        setIsCheckingEmail(true);
         setError(null);
+        
         try {
-          console.log('🔐 Creating AWS Cognito user account...');
-          const { error: signUpError } = await signUp({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            password: formData.password
-          });
+          // Try to sign in with dummy password to check if user exists
+          // This is safe - won't create accounts, just checks existence
+          const { error: checkError } = await signIn(formData.email, '__CHECK_USER_EXISTS__');
           
-          if (signUpError) {
-            console.error('❌ AWS signup error:', signUpError);
-            
-            // If user already exists, show helpful message
-            if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
-              setError('This email is already registered. Please close the app and sign in with your existing account.');
-            } else {
-              setError(signUpError);
-            }
-            setIsLoading(false);
+          if (checkError && (checkError.includes('Incorrect username or password') || checkError.includes('UserNotFoundException'))) {
+            // User doesn't exist - new registration
+            console.log('✅ Email available - new user registration');
+            setEmailExists(false);
+          } else if (checkError && !checkError.includes('Incorrect username or password')) {
+            // Other error (network, etc)
+            setError(checkError);
+            setIsCheckingEmail(false);
             return;
+          } else {
+            // This shouldn't happen (successful sign-in with dummy password)
+            // But if it does, treat as new user
+            console.log('✅ Unexpected success - treating as new user');
+            setEmailExists(false);
           }
           
-          console.log('✅ User account created successfully!');
-          setTimeout(() => {
-            onComplete(formData.email, formData.password);
-          }, 50);
+          // If we get UserNotFoundException, user doesn't exist
+          if (checkError && checkError.includes('UserNotFoundException')) {
+            setEmailExists(false);
+          } 
+          // If we get "Incorrect username or password", user EXISTS
+          else if (checkError && checkError.includes('Incorrect username or password')) {
+            setEmailExists(true);
+            console.log('✅ User found - will sign in');
+          }
+          
+          setIsCheckingEmail(false);
+          setStep(step + 1);
+          return;
         } catch (error) {
-          console.error('❌ Registration error:', error);
-          setError('Failed to create account. Please try again.');
+          console.error('❌ Email check error:', error);
+          setError('Failed to verify email. Please try again.');
+          setIsCheckingEmail(false);
+          return;
+        }
+      }
+      
+      // Step 3: Final step - Create account OR Sign in
+      if (step === totalSteps) {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+          if (emailExists) {
+            // SIGN IN - User already exists
+            console.log('🔐 Signing in existing user:', formData.email);
+            const { error: signInError } = await signIn(formData.email, formData.password);
+            
+            if (signInError) {
+              console.error('❌ Sign in error:', signInError);
+              setError(signInError);
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log('✅ Sign in successful!');
+            // User is now signed in - go directly to baseline
+            setTimeout(() => {
+              onComplete(formData.email, formData.password);
+            }, 50);
+          } else {
+            // SIGN UP - New user
+            console.log('🔐 Creating new AWS Cognito user account...');
+            const { error: signUpError } = await signUp({
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email,
+              password: formData.password
+            });
+            
+            if (signUpError) {
+              console.error('❌ AWS signup error:', signUpError);
+              setError(signUpError);
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log('✅ User account created successfully!');
+            setTimeout(() => {
+              onComplete(formData.email, formData.password);
+            }, 50);
+          }
+        } catch (error) {
+          console.error('❌ Registration/Sign-in error:', error);
+          setError('Failed to complete. Please try again.');
         } finally {
           setIsLoading(false);
         }
+      } else {
+        // Steps 1: Just move to next step
+        setStep(step + 1);
+        setError(null);
       }
     }
   };
@@ -171,7 +241,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     switch (step) {
       case 1: return "Let's start with your name";
       case 2: return "Your university email";
-      case 3: return "Create a secure password";
+      case 3: return emailExists ? "Welcome back" : "Create a secure password";
       default: return "";
     }
   };
@@ -179,7 +249,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
     switch (step) {
       case 1: return "We'll use this to personalise your experience";
       case 2: return "We'll detect your university automatically";
-      case 3: return "Keep your wellness data safe and secure";
+      case 3: return emailExists ? "Enter your password to sign in" : "Keep your wellness data safe and secure";
       default: return "";
     }
   };
@@ -210,7 +280,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
       <div className="absolute bottom-32 right-10 w-64 h-64 bg-blue-300/20 rounded-full blur-3xl" />
       <div className="absolute top-60 right-20 w-48 h-48 bg-pink-300/20 rounded-full blur-2xl" />
       <motion.div
-        className="relative z-10 min-h-screen flex flex-col overflow-y-auto"
+        className="relative z-10 min-h-screen flex flex-col"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -242,7 +312,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           </div>
         </motion.div>
         {/* Main Content - Scrollable */}
-        <div className="flex-1 px-6 pb-8 overflow-y-auto" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom) + 1rem)' }}>
+        <div className="flex-1 px-6 pb-8 overflow-y-auto" style={{ paddingBottom: 'max(6rem, env(safe-area-inset-bottom) + 5rem)' }}>
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6 max-w-md mx-auto">
               {/* Step Header */}
@@ -326,54 +396,56 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
-                  {/* Password Requirements - Show First */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-blue-900 mb-3">Password Requirements:</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className={`w-4 h-4 ${formData.password.length >= 8 ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className={`text-xs ${formData.password.length >= 8 ? 'text-green-700' : 'text-gray-500'}`}>
-                          At least 8 characters
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className={`w-4 h-4 ${/[A-Z]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className={`text-xs ${/[A-Z]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
-                          One uppercase letter (A-Z)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className={`w-4 h-4 ${/[a-z]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className={`text-xs ${/[a-z]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
-                          One lowercase letter (a-z)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className={`w-4 h-4 ${/[0-9]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className={`text-xs ${/[0-9]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
-                          One number (0-9)
-                        </span>
-                      </div>
-                      {/* Removed special character requirement to match AWS Cognito default policy */}
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className={`w-4 h-4 ${formData.password === formData.confirmPassword && formData.confirmPassword !== '' ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className={`text-xs ${formData.password === formData.confirmPassword && formData.confirmPassword !== '' ? 'text-green-700' : 'text-gray-500'}`}>
-                          Passwords match
-                        </span>
+                  {/* Password Requirements - Only show for NEW users */}
+                  {!emailExists && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="text-sm font-semibold text-blue-900 mb-3">Password Requirements:</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${formData.password.length >= 8 ? 'text-green-500' : 'text-gray-300'}`} />
+                          <span className={`text-xs ${formData.password.length >= 8 ? 'text-green-700' : 'text-gray-500'}`}>
+                            At least 8 characters
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${/[A-Z]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
+                          <span className={`text-xs ${/[A-Z]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
+                            One uppercase letter (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${/[a-z]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
+                          <span className={`text-xs ${/[a-z]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
+                            One lowercase letter (a-z)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${/[0-9]/.test(formData.password) ? 'text-green-500' : 'text-gray-300'}`} />
+                          <span className={`text-xs ${/[0-9]/.test(formData.password) ? 'text-green-700' : 'text-gray-500'}`}>
+                            One number (0-9)
+                          </span>
+                        </div>
+                        {/* Removed special character requirement to match AWS Cognito default policy */}
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${formData.password === formData.confirmPassword && formData.confirmPassword !== '' ? 'text-green-500' : 'text-gray-300'}`} />
+                          <span className={`text-xs ${formData.password === formData.confirmPassword && formData.confirmPassword !== '' ? 'text-green-700' : 'text-gray-500'}`}>
+                            Passwords match
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="password" className="text-gray-700">Password</Label>
+                      <Label htmlFor="password" className="text-gray-700">{emailExists ? "Your Password" : "Password"}</Label>
                       <div className="relative">
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
                           value={formData.password}
                           onChange={(e) => updateFormData('password', e.target.value)}
-                          placeholder="Create a secure password"
+                          placeholder={emailExists ? "Enter your password" : "Create a secure password"}
                           className="bg-white/60 border-gray-200 focus:border-purple-400 focus:ring-purple-400/20 pr-10"
                         />
                         <button
@@ -385,9 +457,12 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                         </button>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
-                      <div className="relative">
+                    
+                    {/* Only show confirm password for NEW users */}
+                    {!emailExists && (
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
+                        <div className="relative">
                         <Input
                           id="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
@@ -405,6 +480,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
                         </button>
                       </div>
                     </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -418,14 +494,16 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
               <div className="mt-8">
                 <Button
                   onClick={handleNext}
-                  disabled={!validateStep() || isLoading}
+                  disabled={!validateStep() || isLoading || isCheckingEmail}
                   className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white h-12 font-medium rounded-xl disabled:from-gray-300 disabled:to-gray-400"
                 >
-                  {isLoading ? (
-                    'Creating Account...'
+                  {isCheckingEmail ? (
+                    'Checking email...'
+                  ) : isLoading ? (
+                    emailExists ? 'Signing in...' : 'Creating Account...'
                   ) : (
                     <>
-                      {step === totalSteps ? 'Create Account' : 'Continue'}
+                      {step === totalSteps ? (emailExists ? 'Sign In' : 'Create Account') : 'Continue'}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
