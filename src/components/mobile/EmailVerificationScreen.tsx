@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, Mail, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EmailVerificationScreenProps {
   email: string;
@@ -13,6 +14,8 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  
+  const { signIn } = useAuth();
 
   // Cooldown timer for resend button
   useEffect(() => {
@@ -41,6 +44,10 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
 
       if (isSignUpComplete) {
         console.log('✅ Email verified successfully');
+        
+        // After verification, proceed to baseline - user will sign in there if needed
+        // OR: Take them to a sign-in screen first
+        console.log('📧 Email verified - user can now sign in');
         onVerified();
       } else {
         setError('Verification incomplete. Please try again.');
@@ -111,9 +118,9 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
-      {/* Header */}
-      <div className="safe-area-top bg-white border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 py-4">
+      {/* Header with proper iOS safe area padding */}
+      <div className="bg-white border-b border-gray-100" style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}>
+        <div className="flex items-center justify-between px-6 py-4">
           <button
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -128,7 +135,7 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-6 py-8 overflow-y-auto">
+      <div className="flex-1 px-6 py-8 overflow-y-auto" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         <div className="max-w-md mx-auto">
           {/* Icon */}
           <div className="flex justify-center mb-6">
@@ -150,7 +157,7 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
           </p>
 
           {/* Code Input */}
-          <div className="mb-4">
+          <div className="mb-6">
             <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
               Verification Code
             </label>
@@ -173,22 +180,6 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
             </p>
           </div>
 
-          {/* Verify Button */}
-          <button
-            onClick={handleVerify}
-            disabled={code.length !== 6 || isLoading}
-            className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed hover:from-purple-700 hover:to-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 mb-4"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Verifying...</span>
-              </>
-            ) : (
-              <span>Verify Email</span>
-            )}
-          </button>
-
           {/* Error Message */}
           {error && (
             <div className={`mb-4 p-4 rounded-lg ${
@@ -200,22 +191,41 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
             </div>
           )}
 
-          {/* Resend Code */}
+          {/* Verify Button */}
+          <button
+            onClick={handleVerify}
+            disabled={code.length !== 6 || isLoading}
+            className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed hover:from-purple-700 hover:to-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 mb-6"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-white">Verifying...</span>
+              </>
+            ) : (
+              <span className="text-white">Verify Email</span>
+            )}
+          </button>
+
+          {/* Resend Code Section */}
           <div className="text-center mb-6">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-3">
               Didn't receive the code?
             </p>
             <button
               onClick={handleResend}
               disabled={isResending || resendCooldown > 0}
-              className="text-purple-600 font-semibold hover:text-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-purple-100 text-purple-700 font-semibold rounded-xl hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isResending ? (
-                'Sending...'
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Sending...</span>
+                </>
               ) : resendCooldown > 0 ? (
-                `Resend in ${resendCooldown}s`
+                <span>Resend in {resendCooldown}s</span>
               ) : (
-                'Resend Code'
+                <span>Resend Code</span>
               )}
             </button>
           </div>

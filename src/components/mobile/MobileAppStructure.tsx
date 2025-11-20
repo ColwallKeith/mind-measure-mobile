@@ -7,6 +7,7 @@ import { MobileProfile } from './MobileProfile';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
 import { EmailVerificationScreen } from "./EmailVerificationScreen";
+import { SignInScreen } from "./SignInScreen";
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessment } from './BaselineAssessment';
@@ -22,12 +23,13 @@ import {
 } from 'lucide-react';
 type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
 type Screen = MobileTab | 'profile' | 'settings';
-type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
+type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null); // Track email for verification
+  const [pendingPassword, setPendingPassword] = useState<string | null>(null); // Track password for auto-sign-in
   // Debug onboarding screen changes
   useEffect(() => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
@@ -67,6 +69,22 @@ export const MobileAppStructure: React.FC = () => {
       }
     }
   }, [user, loading, hasAssessmentHistory]); // Removed onboardingScreen from dependencies to prevent loop
+
+  // Handle missing pendingEmail for email verification - move state update out of render
+  useEffect(() => {
+    if (onboardingScreen === 'email_verification' && !pendingEmail) {
+      console.warn('⚠️ No pending email for verification, redirecting to registration');
+      setOnboardingScreen('registration');
+    }
+  }, [onboardingScreen, pendingEmail]);
+
+  // Handle baseline enforcement - move state update out of render
+  useEffect(() => {
+    if (!onboardingScreen && user && hasAssessmentHistory !== true) {
+      console.log('🚫 User authenticated but no baseline - forcing baseline welcome');
+      setOnboardingScreen('baseline_welcome');
+    }
+  }, [onboardingScreen, user, hasAssessmentHistory]);
   // Handle onboarding completion - SIMPLE FLOW
   // Memoize handlers to prevent unnecessary re-renders
   const handleSplashComplete = useCallback(() => {
@@ -74,16 +92,18 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
   }, []);
   
-  const handleRegistrationComplete = useCallback((email: string) => {
+  const handleRegistrationComplete = useCallback((email: string, password: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
     setPendingEmail(email);
+    setPendingPassword(password);
     setOnboardingScreen('email_verification');
   }, []);
   
   const handleEmailVerified = useCallback(() => {
-    console.log('✅ Email verified - going to baseline welcome');
+    console.log('✅ Email verified - going to sign in');
     setPendingEmail(null);
-    setOnboardingScreen('baseline_welcome');
+    setPendingPassword(null);
+    setOnboardingScreen('sign_in');
   }, []);
   
   const handleVerificationBack = useCallback(() => {
@@ -101,7 +121,14 @@ export const MobileAppStructure: React.FC = () => {
     console.log('✅ Baseline assessment completed - going to dashboard');
     setOnboardingScreen(null);
     setCurrentScreen('dashboard');
-  }, []);  const navItems = [
+  }, []);
+  
+  const handleSignInComplete = useCallback(() => {
+    console.log('✅ Sign in successful - going to baseline welcome');
+    setOnboardingScreen('baseline_welcome');
+  }, []);
+
+  const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
     { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
     { id: 'buddies', icon: Users, label: 'Buddies', screen: 'buddies' as const },
@@ -143,10 +170,13 @@ export const MobileAppStructure: React.FC = () => {
           console.log('🎨 Rendering EmailVerificationScreen');
           if (!pendingEmail) {
             console.warn('⚠️ No pending email for verification, going back to registration');
-            setOnboardingScreen('registration');
+            // Don't call setOnboardingScreen here - use useEffect instead
             return <RegistrationScreen onBack={handleSplashComplete} onComplete={handleRegistrationComplete} />;
           }
           return <EmailVerificationScreen email={pendingEmail} onVerified={handleEmailVerified} onBack={handleVerificationBack} />;
+        case 'sign_in':
+          console.log('🎨 Rendering SignInScreen');
+          return <SignInScreen onSignInComplete={handleSignInComplete} onBack={handleVerificationBack} />;
         case 'baseline_welcome':
           console.log('🎨 Rendering BaselineAssessmentScreen');
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
@@ -166,8 +196,8 @@ export const MobileAppStructure: React.FC = () => {
     // BUT: Only enforce if user is authenticated - don't block unauthenticated users from seeing splash
     if (user && hasAssessmentHistory !== true) {
       console.log('🚫 Blocking access to main screens - baseline not completed');
-      // Force user back to baseline flow
-      setOnboardingScreen('baseline_welcome');
+      // Force user back to baseline flow - but don't set state during render
+      // This should be handled by the useEffect that checks hasAssessmentHistory
       return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
     }
     

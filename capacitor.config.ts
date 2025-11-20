@@ -4,8 +4,11 @@ const config: CapacitorConfig = {
   appId: 'com.mindmeasure.mobile',
   appName: 'Mind Measure',
   webDir: 'dist',
-  // NOTE: server.url is NOT used for iOS production builds per DEVELOPMENT_PROTOCOL.md
-  // iOS loads from local webDir files with environment variables baked into the build
+  // iOS loads FROM mobile.mindmeasure.app (Vercel deployment) per DEVELOPMENT_PROTOCOL.md
+  // This ensures the app always has the latest code and can be updated without app store releases
+  server: {
+    url: 'https://mobile.mindmeasure.app'
+  },
   plugins: {
     Keyboard: {
       resize: "none", // We'll handle keyboard layout manually

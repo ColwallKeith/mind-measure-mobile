@@ -1,61 +1,72 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowRight } from 'lucide-react';
 // Using your actual student images from public/images/
 import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+
+// Move constants OUTSIDE component to prevent re-creation on every render
 const student1 = "https://app.mindmeasure.co.uk/images/student1.png";
 const student2 = "https://app.mindmeasure.co.uk/images/student2.png";
 const student3 = "https://app.mindmeasure.co.uk/images/student3.png";
 const student4 = "https://app.mindmeasure.co.uk/images/student4.png";
 const student5 = "https://app.mindmeasure.co.uk/images/student5.png";
 const student6 = "https://app.mindmeasure.co.uk/images/student6.png";
+
+const taglineWords = ['Measure', 'Monitor', 'Manage'];
+
+// Array of authentic Mind Measure student images
+const studentImages = [
+  {
+    src: student1,
+    alt: "Mind Measure student with sunglasses and colorful jacket"
+  },
+  {
+    src: student2,
+    alt: "Mind Measure student with confident pose"
+  },
+  {
+    src: student3,
+    alt: "Mind Measure student looking thoughtful"
+  },
+  {
+    src: student4,
+    alt: "Mind Measure student with pink knit scarf smiling warmly"
+  },
+  {
+    src: student5,
+    alt: "Mind Measure student with glasses and blonde hair"
+  },
+  {
+    src: student6,
+    alt: "Mind Measure student with curly hair in black top"
+  }
+];
+
 interface SplashScreenProps {
   onGetStarted: () => void;
 }
-export function SplashScreen({ onGetStarted }: SplashScreenProps) {
+
+// Component definition - memoized to prevent unnecessary re-renders
+function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
   console.log('🎨 SplashScreen rendering with onGetStarted:', typeof onGetStarted);
   const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const taglineWords = ['Measure', 'Monitor', 'Manage'];
-  // Array of authentic Mind Measure student images
-  const studentImages = [
-    {
-      src: student1,
-      alt: "Mind Measure student with sunglasses and colorful jacket"
-    },
-    {
-      src: student2,
-      alt: "Mind Measure student with confident pose"
-    },
-    {
-      src: student3,
-      alt: "Mind Measure student looking thoughtful"
-    },
-    {
-      src: student4,
-      alt: "Mind Measure student with pink knit scarf smiling warmly"
-    },
-    {
-      src: student5,
-      alt: "Mind Measure student with glasses and blonde hair"
-    },
-    {
-      src: student6,
-      alt: "Mind Measure student with curly hair in black top"
-    }
-  ];
+
   useEffect(() => {
-    const taglineInterval = setInterval(() => {
-      setCurrentTaglineIndex((prev) => (prev + 1) % taglineWords.length);
-    }, 2000);
-    return () => clearInterval(taglineInterval);
+    // TEMPORARILY DISABLED - Testing if carousel causes re-renders
+    // const taglineInterval = setInterval(() => {
+    //   setCurrentTaglineIndex((prev) => (prev + 1) % taglineWords.length);
+    // }, 2000);
+    // return () => clearInterval(taglineInterval);
   }, []);
+
   useEffect(() => {
-    const imageInterval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % studentImages.length);
-    }, 4500); // Change image every 4.5 seconds for 6 students (27 second full cycle)
-    return () => clearInterval(imageInterval);
+    // TEMPORARILY DISABLED - Testing if carousel causes re-renders  
+    // const imageInterval = setInterval(() => {
+    //   setCurrentImageIndex((prev) => (prev + 1) % studentImages.length);
+    // }, 4500);
+    // return () => clearInterval(imageInterval);
   }, []);
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -364,3 +375,6 @@ export function SplashScreen({ onGetStarted }: SplashScreenProps) {
     </div>
   );
 }
+
+// Export memoized version to prevent unnecessary re-renders
+export const SplashScreen = memo(SplashScreenComponent);

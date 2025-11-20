@@ -172,13 +172,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           if (profileError) {
             console.error('❌ Profile creation failed:', profileError);
-            // If it's a foreign key constraint error, log it specifically
-            if (profileError.toString().includes('foreign key constraint')) {
+            
+            // Check if it's a duplicate key error (user profile already exists)
+            if (profileError.toString().includes('duplicate key') || profileError.toString().includes('profiles_email_key')) {
+              console.warn('⚠️ Profile already exists for this user - continuing with existing profile');
+              // Profile already exists, this is OK - continue with sign up
+            } else if (profileError.toString().includes('foreign key constraint')) {
               console.error('❌ Foreign key constraint violation - university_id may not exist in universities table');
+              // CRITICAL: Fail registration if profile creation fails
+              return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
+            } else {
+              // Other database errors should fail registration
+              return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
             }
-            // CRITICAL: Fail registration if profile creation fails
-            // User cannot save assessment data without a database profile
-            return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
           } else {
             console.log('✅ User profile created successfully');
           }

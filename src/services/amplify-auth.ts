@@ -1,4 +1,6 @@
 import { Amplify } from 'aws-amplify';
+import { Hub, ResourcesConfig } from '@aws-amplify/core';
+import { cognitoUserPoolsTokenProvider } from 'aws-amplify/auth/cognito';
 import { 
   signUp, 
   signIn, 
@@ -10,23 +12,65 @@ import {
   getCurrentUser,
   fetchAuthSession
 } from 'aws-amplify/auth';
+import { Preferences } from '@capacitor/preferences';
 
-// Configure Amplify with our existing Cognito User Pool
-Amplify.configure({
-  Auth: {
-    Cognito: {
-      userPoolId: import.meta.env.VITE_AWS_COGNITO_USER_POOL_ID?.trim() || '',
-      userPoolClientId: import.meta.env.VITE_AWS_COGNITO_CLIENT_ID?.trim() || '',
-      region: import.meta.env.VITE_AWS_REGION?.trim() || 'eu-west-2',
-    }
+// Create Capacitor storage adapter for AWS Amplify Auth tokens
+const capacitorStorage = {
+  async setItem(key: string, value: string): Promise<void> {
+    console.log('💾 Storing auth token:', key.substring(0, 20) + '...');
+    await Preferences.set({ key, value });
+  },
+  async getItem(key: string): Promise<string | null> {
+    const { value } = await Preferences.get({ key });
+    console.log('📖 Retrieved auth token:', key.substring(0, 20) + '...', value ? 'found' : 'not found');
+    return value;
+  },
+  async removeItem(key: string): Promise<void> {
+    console.log('🗑️ Removing auth token:', key.substring(0, 20) + '...');
+    await Preferences.remove({ key });
+  },
+  async clear(): Promise<void> {
+    console.log('🧹 Clearing all auth tokens');
+    await Preferences.clear();
   }
-});
+};
 
-console.log('🔧 AWS Amplify configured with:', {
-  userPoolId: import.meta.env.VITE_AWS_COGNITO_USER_POOL_ID?.trim(),
-  clientId: import.meta.env.VITE_AWS_COGNITO_CLIENT_ID?.trim(),
-  region: import.meta.env.VITE_AWS_REGION?.trim()
-});
+// Track if Amplify has been initialized
+let isAmplifyConfigured = false;
+
+// Initialize Amplify - call this before any auth operations
+function initializeAmplify() {
+  if (isAmplifyConfigured) {
+    return; // Already configured
+  }
+  
+  console.log('🚀 Initializing AWS Amplify...');
+  
+  // Configure token provider to use Capacitor storage
+  cognitoUserPoolsTokenProvider.setKeyValueStorage(capacitorStorage);
+  console.log('✅ Configured Capacitor storage for AWS Cognito tokens');
+
+  // Configure Amplify with our existing Cognito User Pool
+  const authConfig: ResourcesConfig = {
+    Auth: {
+      Cognito: {
+        userPoolId: import.meta.env.VITE_AWS_COGNITO_USER_POOL_ID?.trim() || '',
+        userPoolClientId: import.meta.env.VITE_AWS_COGNITO_CLIENT_ID?.trim() || '',
+        region: import.meta.env.VITE_AWS_REGION?.trim() || 'eu-west-2',
+      }
+    }
+  };
+
+  Amplify.configure(authConfig);
+
+  console.log('🔧 AWS Amplify configured with:', {
+    userPoolId: import.meta.env.VITE_AWS_COGNITO_USER_POOL_ID?.trim(),
+    clientId: import.meta.env.VITE_AWS_COGNITO_CLIENT_ID?.trim(),
+    region: import.meta.env.VITE_AWS_REGION?.trim()
+  });
+  
+  isAmplifyConfigured = true;
+}
 
 export interface AuthUser {
   id: string;
@@ -284,10 +328,18 @@ export const amplifyAuth = {
   // Get current user
   async getUser() {
     try {
+      console.log('🔍 Checking for authenticated user...');
       const currentUser = await getCurrentUser();
+      console.log('📱 getCurrentUser result:', currentUser);
+      
       const session = await fetchAuthSession();
+      console.log('🔐 fetchAuthSession result:', { 
+        hasTokens: !!session.tokens,
+        isValid: session.tokens?.accessToken ? 'yes' : 'no'
+      });
 
       if (!currentUser || !session.tokens) {
+        console.log('❌ No valid session - user not authenticated');
         return { data: { user: null }, error: null };
       }
 
@@ -297,19 +349,60 @@ export const amplifyAuth = {
         email_confirmed_at: new Date().toISOString(),
       };
 
+      console.log('✅ User session restored:', user.email);
       return { data: { user }, error: null };
 
     } catch (error: any) {
-      console.log('ℹ️ No authenticated user found');
+      console.error('❌ Error checking authenticated user:', error);
+      console.error('❌ Error details:', { name: error.name, message: error.message, code: error.code });
       return { data: { user: null }, error: null };
     }
   },
 
   // Auth state change listener (simplified for now)
   onAuthStateChange(callback: (event: string, user: AuthUser | null) => void) {
-    // For now, return a no-op unsubscribe function
-    // In a full implementation, we'd set up proper listeners
-    return () => {};
+    // Listen to Amplify Hub auth events
+    const hubListener = Hub.listen('auth', async ({ payload }) => {
+      const { event, data } = payload;
+      console.log('🔔 Auth Hub event:', event);
+      
+      try {
+        // Map Amplify events to our callback
+        switch (event) {
+          case 'signedIn':
+          case 'signIn':
+          case 'tokenRefresh':
+            // User signed in or token refreshed - get current user
+            const { data: userData } = await amplifyAuth.getUser();
+            callback(event, userData?.user || null);
+            break;
+            
+          case 'signedOut':
+          case 'signOut':
+            // User signed out
+            callback(event, null);
+            break;
+            
+          case 'tokenRefresh_failure':
+            // Token refresh failed - treat as signed out
+            callback('signOut', null);
+            break;
+            
+          default:
+            // Other events - check current auth state
+            const { data: currentUserData } = await amplifyAuth.getUser();
+            callback(event, currentUserData?.user || null);
+        }
+      } catch (error) {
+        console.error('❌ Error in auth state change handler:', error);
+        callback(event, null);
+      }
+    });
+    
+    // Return unsubscribe function
+    return () => {
+      hubListener();
+    };
   },
 
   // Additional methods for AuthContext compatibility

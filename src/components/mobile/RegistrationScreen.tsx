@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 interface RegistrationScreenProps {
   onBack: () => void;
-  onComplete: (email: string) => void;
+  onComplete: (email: string, password: string) => void;
 }
 interface FormData {
   firstName: string;
@@ -124,54 +124,29 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         setError(null);
         try {
           console.log('🔐 Creating AWS Cognito user account...');
-          console.log('🌐 Network status check...');
-          // Test network connectivity first
-          try {
-            const response = await fetch('https://api.mindmeasure.co.uk/health', {
-              method: 'HEAD'
-            });
-            console.log('✅ Network connectivity test passed:', response.status);
-          } catch (networkError) {
-            console.error('❌ Network connectivity test failed:', networkError);
-          }
           const { error: signUpError } = await signUp({
             firstName: formData.firstName,
             lastName: formData.lastName,
             email: formData.email,
             password: formData.password
           });
+          
           if (signUpError) {
             console.error('❌ AWS signup error:', signUpError);
             
-            // If user already exists, try to sign them in automatically
+            // If user already exists, show helpful message
             if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
-              console.log('🔄 User already exists, attempting sign-in...');
-              setError('Account already exists. Signing you in...');
-              
-              const { error: signInError } = await signIn(formData.email, formData.password);
-              if (signInError) {
-                setError('Account exists but password is incorrect. Please sign in with your existing password.');
-                setIsLoading(false);
-                return;
-              }
-              
-              // Sign-in successful - proceed as if registration completed
-              console.log('✅ Signed in successfully with existing account');
-              setTimeout(() => {
-                onComplete(formData.email);
-              }, 50);
-              return;
+              setError('This email is already registered. Please close the app and sign in with your existing account.');
+            } else {
+              setError(signUpError);
             }
-            
-            // Other errors - show the error message
-            setError(signUpError);
             setIsLoading(false);
             return;
           }
+          
           console.log('✅ User account created successfully!');
-          // Pass the email to the parent so it can be used for confirmation
           setTimeout(() => {
-            onComplete(formData.email);
+            onComplete(formData.email, formData.password);
           }, 50);
         } catch (error) {
           console.error('❌ Registration error:', error);
@@ -239,10 +214,13 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        style={{ 
+          paddingTop: 'max(3rem, env(safe-area-inset-top))',
+          paddingBottom: 'env(safe-area-inset-bottom)' 
+        }}
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="pt-20 pb-6 px-6 flex-shrink-0">
+        <motion.div variants={itemVariants} className="pb-6 px-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={handleBack}

@@ -111,6 +111,12 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         ]);
       };
     }
+    // Save references to any legacy APIs BEFORE installing polyfill to prevent circular references
+    const legacyGetUserMedia = (navigator as any).getUserMedia ||
+                              (navigator as any).webkitGetUserMedia ||
+                              (navigator as any).mozGetUserMedia ||
+                              (navigator as any).msGetUserMedia;
+    
     // Enhanced getUserMedia polyfill - only if not already available
     if (!navigator.mediaDevices.getUserMedia) {
       console.log('🔧 Adding getUserMedia polyfill...');
@@ -123,11 +129,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     }
     
     function tryLegacyOrMock(constraints: any) {
-        // Try legacy APIs
-        const legacyGetUserMedia = (navigator as any).getUserMedia ||
-                                  (navigator as any).webkitGetUserMedia ||
-                                  (navigator as any).mozGetUserMedia ||
-                                  (navigator as any).msGetUserMedia;
+        // Use the saved legacy API reference (from before polyfill was installed)
         if (legacyGetUserMedia) {
           console.log('🎤 Trying legacy getUserMedia...');
           return new Promise((resolve, reject) => {
@@ -138,13 +140,13 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
               },
               (error: any) => {
                 console.warn('⚠️ Legacy getUserMedia failed:', error);
-                resolve(createMockAudioStream());
+                reject(error); // Reject instead of mock for proper error handling
               }
             );
           });
         } else {
-          console.log('🎤 No legacy getUserMedia available, using mock stream');
-          return Promise.resolve(createMockAudioStream());
+          console.log('❌ No getUserMedia available (neither modern nor legacy)');
+          return Promise.reject(new Error('getUserMedia is not supported in this browser'));
         }
       }
     // Helper function to create mock audio stream
@@ -1009,8 +1011,15 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
               <div className="flex-1" />
             </div>
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
-                <span className="bg-gradient-to-r from-gray-900 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
+                <span 
+                  className="bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent"
+                  style={{ 
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
+                >
                   Mind Measure
                 </span>
               </h1>
@@ -1105,8 +1114,15 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
               <div className="flex-1" />
             </div>
             <div className="text-center">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
-                <span className="bg-gradient-to-r from-gray-900 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
+                <span 
+                  className="bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent"
+                  style={{ 
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}
+                >
                   Mind Measure
                 </span>
               </h1>
