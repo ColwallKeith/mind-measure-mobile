@@ -135,6 +135,7 @@ export const amplifyAuth = {
   // Sign in existing user
   async signInWithPassword(email: string, password: string) {
     try {
+      console.log('🟢 signInWithPassword called with', email);
       console.log('🔐 AWS Amplify sign in for:', email);
 
       const { isSignedIn, nextStep } = await signIn({

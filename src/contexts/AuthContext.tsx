@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { amplifyAuth } from '../services/amplify-auth';
-import { BackendServiceFactory } from '../services/database/BackendServiceFactory';
 
 export interface AuthUser {
   id: string;
@@ -57,8 +56,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initializeAuth = async () => {
     try {
+      console.log('🔐 initializeAuth: checking current user');
       console.log('🔄 Initializing AWS Amplify auth...');
       const { data, error } = await amplifyAuth.getUser();
+      console.log('👤 Current user:', data);
       if (error) {
         console.log('ℹ️ No authenticated user found:', error);
         setUser(null);
@@ -113,91 +114,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return { error };
       }
       
-      // Create user profile in database after successful Cognito registration
-      // CRITICAL: Profile MUST be created or user cannot save assessment data
-      if (authData.user) {
-        console.log('👤 Creating user profile in database for:', authData.user.id);
-        
-        try {
-          // Create backend service directly instead of using getInstance()
-          const backendService = BackendServiceFactory.createService(
-            BackendServiceFactory.getEnvironmentConfig()
-          );
-          
-          // Ensure 'worcester' university exists before creating profile
-          const universityId = 'worcester';
-          try {
-            // Check if university exists
-            const { data: existingUniversity } = await backendService.database.select('universities', {
-              filters: { id: universityId }
-            });
-            
-            if (!existingUniversity || existingUniversity.length === 0) {
-              console.log('🏫 Creating Worcester university record...');
-              // Create the university if it doesn't exist
-              const { error: universityError } = await backendService.database.insert('universities', {
-                id: universityId,
-                name: 'University of Worcester',
-                short_name: 'Worcester',
-                contact_email: 'support@worcester.ac.uk',
-                status: 'active',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-              
-              if (universityError) {
-                console.warn('⚠️ University creation failed (may already exist):', universityError);
-              } else {
-                console.log('✅ Worcester university created successfully');
-              }
-            }
-          } catch (universityCheckError) {
-            console.warn('⚠️ Error checking/creating university:', universityCheckError);
-            // Continue with profile creation anyway - the database constraint will catch it if needed
-          }
-          
-          const profileData = {
-            user_id: authData.user.id,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            email: data.email,
-            display_name: `${data.firstName} ${data.lastName}`,
-            university_id: universityId,
-            baseline_established: false,
-            streak_count: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          const { error: profileError } = await backendService.database.insert('profiles', profileData);
-          
-          if (profileError) {
-            console.error('❌ Profile creation failed:', profileError);
-            
-            // Check if it's a duplicate key error (user profile already exists)
-            if (profileError.toString().includes('duplicate key') || profileError.toString().includes('profiles_email_key')) {
-              console.warn('⚠️ Profile already exists for this user - continuing with existing profile');
-              // Profile already exists, this is OK - continue with sign up
-            } else if (profileError.toString().includes('foreign key constraint')) {
-              console.error('❌ Foreign key constraint violation - university_id may not exist in universities table');
-              // CRITICAL: Fail registration if profile creation fails
-              return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
-            } else {
-              // Other database errors should fail registration
-              return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError}` };
-            }
-          } else {
-            console.log('✅ User profile created successfully');
-          }
-        } catch (profileError: any) {
-          console.error('❌ Profile creation error:', profileError);
-          // CRITICAL: Fail registration if profile creation fails
-          return { error: `Registration incomplete: Failed to create user profile. Please contact support. Error: ${profileError?.message || 'Unknown error'}` };
-        }
-      } else {
-        console.error('❌ No user data returned from Cognito signup');
-        return { error: 'Registration failed: No user data received' };
-      }
+      // Phase 1: Auth only handles Cognito signup
+      // Profile creation will be moved to BaselineAssessment in Phase 2
+      console.log('✅ Cognito user created:', authData.user?.id);
 
       setUser(authData.user);
       return { error: null };
