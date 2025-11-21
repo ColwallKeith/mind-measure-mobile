@@ -52,148 +52,15 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     // No redirects - trust that user presence on screen = authentication
     console.log('✅ User reached baseline screen - assuming authenticated');
   }, [user, authLoading]);
-  // Add comprehensive media devices polyfill for iOS WKWebView
+  // Check media devices availability (iOS WKWebView has native support)
   useEffect(() => {
-    console.log('🔧 Adding comprehensive media devices polyfill for iOS...');
-    // Create mediaDevices if it doesn't exist
-    if (!navigator.mediaDevices) {
-      (navigator as any).mediaDevices = {};
-    }
-    // Polyfill getSupportedConstraints
-    if (!navigator.mediaDevices.getSupportedConstraints) {
-      navigator.mediaDevices.getSupportedConstraints = function() {
-        console.log('📱 getSupportedConstraints polyfill called');
-        return {
-          audio: true,
-          video: true,
-          width: true,
-          height: true,
-          aspectRatio: true,
-          frameRate: true,
-          facingMode: true,
-          resizeMode: true,
-          volume: true,
-          sampleRate: true,
-          sampleSize: true,
-          echoCancellation: true,
-          autoGainControl: true,
-          noiseSuppression: true,
-          latency: true,
-          channelCount: true,
-          deviceId: true,
-          groupId: true
-        };
-      };
-    }
-    // Polyfill enumerateDevices
-    if (!navigator.mediaDevices.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices = function() {
-        console.log('📱 enumerateDevices polyfill called');
-        return Promise.resolve([
-          {
-            deviceId: 'default-audio-input',
-            kind: 'audioinput' as MediaDeviceKind,
-            label: 'Default Audio Input',
-            groupId: 'default-group'
-          },
-          {
-            deviceId: 'default-video-input',
-            kind: 'videoinput' as MediaDeviceKind,
-            label: 'Default Video Input',
-            groupId: 'default-group'
-          },
-          {
-            deviceId: 'default-audio-output',
-            kind: 'audiooutput' as MediaDeviceKind,
-            label: 'Default Audio Output',
-            groupId: 'default-group'
-          }
-        ]);
-      };
-    }
-    // Save references to any legacy APIs BEFORE installing polyfill to prevent circular references
-    const legacyGetUserMedia = (navigator as any).getUserMedia ||
-                              (navigator as any).webkitGetUserMedia ||
-                              (navigator as any).mozGetUserMedia ||
-                              (navigator as any).msGetUserMedia;
-    
-    // Enhanced getUserMedia polyfill - only if not already available
-    if (!navigator.mediaDevices.getUserMedia) {
-      console.log('🔧 Adding getUserMedia polyfill...');
-      navigator.mediaDevices.getUserMedia = function(constraints: any) {
-        console.log('📱 Polyfill getUserMedia called with constraints:', constraints);
-        return tryLegacyOrMock(constraints);
-      };
-    } else {
-      console.log('✅ Native getUserMedia already available');
-    }
-    
-    function tryLegacyOrMock(constraints: any) {
-        // Use the saved legacy API reference (from before polyfill was installed)
-        if (legacyGetUserMedia) {
-          console.log('🎤 Trying legacy getUserMedia...');
-          return new Promise((resolve, reject) => {
-            legacyGetUserMedia.call(navigator, constraints,
-              (stream: any) => {
-                console.log('✅ Legacy getUserMedia succeeded:', stream);
-                resolve(stream);
-              },
-              (error: any) => {
-                console.warn('⚠️ Legacy getUserMedia failed:', error);
-                reject(error); // Reject instead of mock for proper error handling
-              }
-            );
-          });
-        } else {
-          console.log('❌ No getUserMedia available (neither modern nor legacy)');
-          return Promise.reject(new Error('getUserMedia is not supported in this browser'));
-        }
-      }
-    // Helper function to create mock audio stream
-    function createMockAudioStream() {
-      console.log('🎤 Creating enhanced mock audio stream...');
-      try {
-        // Create audio context
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        // Create microphone simulation with noise
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        const noiseNode = audioContext.createScriptProcessor(4096, 1, 1);
-        const destination = audioContext.createMediaStreamDestination();
-        // Generate white noise for more realistic audio simulation
-        noiseNode.onaudioprocess = function(e) {
-          const output = e.outputBuffer.getChannelData(0);
-          for (let i = 0; i < output.length; i++) {
-            output[i] = (Math.random() * 2 - 1) * 0.01; // Very quiet white noise
-          }
-        };
-        // Connect audio nodes
-        noiseNode.connect(gainNode);
-        gainNode.connect(destination);
-        // Very low volume to simulate background
-        gainNode.gain.setValueAtTime(0.001, audioContext.currentTime);
-        console.log('✅ Enhanced mock audio stream created with simulated microphone input');
-        return destination.stream;
-      } catch (error) {
-        console.warn('⚠️ Could not create enhanced audio context, using basic mock stream');
-        return new MediaStream();
-      }
-    }
-    // Also ensure MediaRecorder is available
-    if (!window.MediaRecorder) {
-      console.log('🔧 MediaRecorder not available, creating mock...');
-      (window as any).MediaRecorder = class MockMediaRecorder {
-        constructor() {
-          console.log('📼 Mock MediaRecorder created');
-        }
-        start() { console.log('📼 Mock MediaRecorder start'); }
-        stop() { console.log('📼 Mock MediaRecorder stop'); }
-        addEventListener() {}
-        removeEventListener() {}
-      };
-    }
-    console.log('✅ Comprehensive media devices polyfill installed');
+    console.log('🔧 Checking media devices availability...');
+    console.log('📱 navigator.mediaDevices exists:', !!navigator.mediaDevices);
+    console.log('📱 getUserMedia exists:', !!(navigator.mediaDevices?.getUserMedia));
+    // Modern iOS (11+) has native getUserMedia - no polyfill needed
+    // ElevenLabs widget will handle permissions internally
   }, []);
+  
   // Load ElevenLabs script
   useEffect(() => {
     const id = 'elevenlabs-convai-embed';
