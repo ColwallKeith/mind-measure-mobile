@@ -563,9 +563,11 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       // CRITICAL: Ensure user profile exists before creating assessment session
       // Assessment sessions require a foreign key reference to profiles table
       console.log('[Baseline] Checking if user profile exists in database...');
-      const { data: existingProfiles, error: profileCheckError } = await backendService.database.select('profiles', {
-        filters: { user_id: userId }
-      });
+      const { data: existingProfiles, error: profileCheckError} = await backendService.database.select(
+        'profiles',
+        ['id', 'email', 'user_id'],
+        { user_id: userId }
+      );
 
       if (profileCheckError) {
         console.error('[Baseline] ❌ Error checking user profile:', profileCheckError);

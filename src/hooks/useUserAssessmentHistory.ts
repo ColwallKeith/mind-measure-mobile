@@ -41,6 +41,7 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
 
       if (error) {
         console.error('[useUserAssessmentHistory] Error checking assessments:', error);
+        // On error, assume needs baseline (safe default)
         setNeedsBaseline(true);
         setHasAssessmentHistory(false);
       } else if (assessments && assessments.length > 0) {
@@ -54,6 +55,12 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
       }
     } catch (error) {
       console.error('[useUserAssessmentHistory] Error checking assessment history:', error);
+      // Log the full error for debugging
+      if (error instanceof Error) {
+        console.error('[useUserAssessmentHistory] Error message:', error.message);
+        console.error('[useUserAssessmentHistory] Error stack:', error.stack);
+      }
+      // On error, assume needs baseline (safe default)
       setNeedsBaseline(true);
       setHasAssessmentHistory(false);
     } finally {
