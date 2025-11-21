@@ -45,5 +45,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Mind Measure needs camera access for visual emotion analysis during your baseline assessment.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mind Measure needs microphone access to have a conversation with you during your baseline assessment.</string>
 </dict>
 </plist>
