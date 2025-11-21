@@ -12,6 +12,7 @@ import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessment } from './BaselineAssessment';
 import { SplashScreen } from './LandingPage';
+import { AuthenticatedApp } from './AuthenticatedApp';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -25,16 +26,17 @@ type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
 type Screen = MobileTab | 'profile' | 'settings';
 type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
-  // Phase 1 debug logging
-  console.log('👤 MobileAppStructure sees user:', user, 'loading:', loading);
+  console.log('👤 MobileAppStructure - Auth Gate:', { user: user?.email, authLoading });
 
   // ========================================================================
-  // TODO: Phase 1 Testing Only - Replace with proper onboarding in Phase 2
+  // Phase 2A: Clean Gate Architecture
+  // Auth Gate → Baseline Gate (in AuthenticatedApp) → Main App
   // ========================================================================
   
-  if (loading) {
+  // Gate 1: Auth Loading
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="text-center">
@@ -45,37 +47,31 @@ export const MobileAppStructure: React.FC = () => {
     );
   }
 
+  // Gate 2: Not Authenticated - Show sign-in flow
   if (!user) {
+    console.log('🚫 No user - showing sign-in flow');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <SignInScreen 
           onSignInComplete={() => {
-            console.log('✅ Sign in complete - user should now be set in context');
+            console.log('✅ Sign in complete - AuthContext will update user state');
           }} 
           onBack={() => {
             console.log('⬅️ Back pressed on sign-in');
+            // TODO Phase 2B: Navigate to splash screen or onboarding
           }} 
         />
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">✅ Authenticated!</h1>
-        <p className="text-lg text-gray-600 mb-2">User: {user.email || user.id}</p>
-        <p className="text-sm text-gray-500">Phase 1 authentication test successful.</p>
-        <p className="text-sm text-gray-500 mt-4">
-          Phase 2 will add: Onboarding → Baseline → Dashboard
-        </p>
-      </div>
-    </div>
-  );
+  // Gate 3: Authenticated - Pass to AuthenticatedApp for baseline check
+  console.log('✅ User authenticated - passing to AuthenticatedApp');
+  return <AuthenticatedApp />;
 
   // ========================================================================
-  // ORIGINAL ONBOARDING LOGIC - COMMENTED OUT FOR PHASE 1
-  // This will be restored and refactored in Phase 2
+  // ORIGINAL ONBOARDING LOGIC - COMMENTED OUT FOR PHASE 1/2A
+  // This will be restored and refactored in Phase 2C (full onboarding flow)
   // ========================================================================
   /*
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
