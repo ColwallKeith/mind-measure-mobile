@@ -11,7 +11,7 @@ import { DashboardScreen } from './MobileDashboard';
  * Phase 2A: Structure only, no profile creation yet (Phase 2B).
  */
 export const AuthenticatedApp: React.FC = () => {
-  const { hasAssessmentHistory, needsBaseline, loading } = useUserAssessmentHistory();
+  const { hasAssessmentHistory, needsBaseline, loading, refetch } = useUserAssessmentHistory();
   const [showBaselineWelcome, setShowBaselineWelcome] = useState(true);
 
   console.log('🔐 AuthenticatedApp gate:', { hasAssessmentHistory, needsBaseline, loading, showBaselineWelcome });
@@ -47,11 +47,11 @@ export const AuthenticatedApp: React.FC = () => {
     // Then show the actual assessment
     return (
       <BaselineAssessment
-        onComplete={() => {
-          console.log('✅ Baseline completed');
-          // Phase 2A: No DB logic yet - will add profile creation in Phase 2B
-          // For now, just trigger a re-fetch of assessment history
-          window.location.reload(); // Temporary: force refresh to update hasAssessmentHistory
+        onComplete={async () => {
+          console.log('✅ Baseline completed - refreshing assessment history');
+          // Phase 2B: Refetch assessment history to check if baseline is now complete
+          await refetch();
+          console.log('✅ Assessment history refreshed');
         }}
       />
     );

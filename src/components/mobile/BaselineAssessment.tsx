@@ -562,27 +562,54 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
 
       // CRITICAL: Ensure user profile exists before creating assessment session
       // Assessment sessions require a foreign key reference to profiles table
-      console.log('🔍 Checking if user profile exists in database...');
+      console.log('[Baseline] Checking if user profile exists in database...');
       const { data: existingProfiles, error: profileCheckError } = await backendService.database.select('profiles', {
         filters: { user_id: userId }
       });
 
       if (profileCheckError) {
-        console.error('❌ Error checking user profile:', profileCheckError);
+        console.error('[Baseline] ❌ Error checking user profile:', profileCheckError);
         throw new Error('Failed to verify user profile. Please contact support.');
       }
 
       if (!existingProfiles || existingProfiles.length === 0) {
-        console.warn('⚠️ User profile not found - creating profile now...');
+        console.warn('[Baseline] ⚠️ User profile not found - creating profile now...');
         
-        // Create profile with minimal required data
+        // Extract university from email domain
+        const userEmail = user?.email || '';
+        console.log('[Baseline] User email:', userEmail);
+        
+        let universityId = 'worcester'; // Default fallback
+        
+        if (userEmail) {
+          const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+          console.log('[Baseline] Email domain:', emailDomain);
+          
+          // Look up university by domain
+          if (emailDomain) {
+            const { data: universities, error: uniError } = await backendService.database.select(
+              'universities',
+              ['id', 'domain'],
+              { domain: emailDomain }
+            );
+            
+            if (!uniError && universities && universities.length > 0) {
+              universityId = universities[0].id;
+              console.log('[Baseline] University resolved from domain:', universityId);
+            } else {
+              console.log('[Baseline] No university found for domain, using default:', universityId);
+            }
+          }
+        }
+        
+        // Create profile with resolved university
         const profileData = {
           user_id: userId,
           first_name: user?.user_metadata?.first_name || user?.user_metadata?.given_name || 'User',
           last_name: user?.user_metadata?.last_name || user?.user_metadata?.family_name || '',
-          email: user?.email || '',
+          email: userEmail,
           display_name: user?.user_metadata?.display_name || `${user?.user_metadata?.first_name || 'User'} ${user?.user_metadata?.last_name || ''}`.trim() || 'User',
-          university_id: 'worcester', // Default university
+          university_id: universityId,
           baseline_established: false,
           streak_count: 0,
           created_at: new Date().toISOString(),
@@ -592,13 +619,19 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         const { error: profileCreateError } = await backendService.database.insert('profiles', profileData);
         
         if (profileCreateError) {
-          console.error('❌ Failed to create user profile:', profileCreateError);
-          throw new Error('Failed to create user profile. Assessment cannot proceed without a database profile. Please contact support.');
+          // Check if error is due to duplicate email constraint
+          if (profileCreateError.includes('duplicate key') && profileCreateError.includes('profiles_email_key')) {
+            console.warn('[Baseline] ⚠️ Profile with this email already exists - this is OK, continuing...');
+            // Profile already exists with this email, which is fine - proceed
+          } else {
+            console.error('[Baseline] ❌ Failed to create user profile:', profileCreateError);
+            throw new Error('Failed to create user profile. Assessment cannot proceed without a database profile. Please contact support.');
+          }
+        } else {
+          console.log('[Baseline] ✅ User profile created successfully');
         }
-        
-        console.log('✅ User profile created successfully');
       } else {
-        console.log('✅ User profile exists in database');
+        console.log('[Baseline] ✅ User profile exists in database');
       }
 
       // Step 1: Create assessment session with comprehensive metadata
