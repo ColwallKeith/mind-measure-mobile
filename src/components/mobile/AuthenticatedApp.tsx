@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
+import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessment } from './BaselineAssessment';
 import { DashboardScreen } from './MobileDashboard';
 
@@ -11,8 +12,9 @@ import { DashboardScreen } from './MobileDashboard';
  */
 export const AuthenticatedApp: React.FC = () => {
   const { hasAssessmentHistory, needsBaseline, loading } = useUserAssessmentHistory();
+  const [showBaselineWelcome, setShowBaselineWelcome] = useState(true);
 
-  console.log('🔐 AuthenticatedApp gate:', { hasAssessmentHistory, needsBaseline, loading });
+  console.log('🔐 AuthenticatedApp gate:', { hasAssessmentHistory, needsBaseline, loading, showBaselineWelcome });
 
   // Loading state - checking baseline status
   if (loading) {
@@ -28,7 +30,21 @@ export const AuthenticatedApp: React.FC = () => {
 
   // Baseline Gate - enforce baseline requirement
   if (needsBaseline || !hasAssessmentHistory) {
-    console.log('🎯 No baseline - showing BaselineAssessment');
+    console.log('🎯 No baseline - showing baseline flow');
+    
+    // First show the welcome screen
+    if (showBaselineWelcome) {
+      return (
+        <BaselineAssessmentScreen
+          onStartAssessment={() => {
+            console.log('🎯 Starting baseline assessment from welcome screen');
+            setShowBaselineWelcome(false);
+          }}
+        />
+      );
+    }
+    
+    // Then show the actual assessment
     return (
       <BaselineAssessment
         onComplete={() => {
