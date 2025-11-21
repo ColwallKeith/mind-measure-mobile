@@ -13,6 +13,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
   const [showConversation, setShowConversation] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);
+  const [baselineSubmitted, setBaselineSubmitted] = useState(false); // Prevent duplicate submissions
   const widgetRef = useRef<HTMLDivElement>(null);
   
   // Real assessment data collection
@@ -510,7 +511,14 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
   }, []);
 
   const handleConversationEnd = async () => {
+    // Prevent duplicate submissions
+    if (baselineSubmitted) {
+      console.log('🚫 Baseline already submitted - ignoring duplicate conversation end');
+      return;
+    }
+    
     console.log('✅ Baseline conversation completed');
+    setBaselineSubmitted(true); // Mark as submitted immediately
     
     // Record conversation end time
     setConversationData(prev => ({
@@ -636,38 +644,11 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         console.log('[Baseline] ✅ User profile exists in database');
       }
 
-      // Step 1: Create assessment session with comprehensive metadata
-        const sessionData = {
-          user_id: userId,
-          assessment_type: 'baseline',
-          session_data: JSON.stringify({
-            conversation_completed: true,
-            assessment_mode: 'baseline',
-            platform: 'mobile',
-            widget_type: 'elevenlabs',
-            conversation_duration: Date.now() - (Date.now() - 300000), // Approximate 5 min
-            permissions_granted: {
-              microphone: true,
-              camera: true
-            }
-          }),
-          topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment']),
-          created_at: new Date().toISOString(),
-          created_at_end: new Date().toISOString(),
-          status: 'processing' // Will be updated after analysis
-        };
+      // NOTE: assessment_sessions creation disabled - FK constraint issue (sessions require users table entry)
+      // For now, we only create fusion_outputs which links directly to Cognito user_id
+      const sessionId = null; // Will be null until we fix the users/profiles FK issue
 
-        const { data: sessionResult, error: sessionError } = await backendService.database.insert('assessment_sessions', sessionData);
-        
-        if (sessionError) {
-          console.error('❌ Error creating assessment session:', sessionError);
-          throw new Error('Failed to create assessment session');
-        }
-
-        const sessionId = sessionResult?.data?.id;
-        console.log('✅ Assessment session created:', sessionId);
-
-        // Step 2: Trigger comprehensive analysis pipeline
+      // Step 2: Trigger comprehensive analysis pipeline
         console.log('🔬 Initiating multi-modal analysis pipeline...');
         
         try {
@@ -819,17 +800,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             console.log('✅ Mind Measure fusion calculation completed successfully');
           }
 
-          // Step 4: Update session status to completed
-          await backendService.database.update(
-            'assessment_sessions',
-            { 
-              status: 'completed',
-              updated_at: new Date().toISOString()
-            },
-            { id: sessionId }
-          );
-
-          // Step 5: Update user profile to mark baseline as established
+          // Step 4: Update user profile to mark baseline as established
           const { error: profileError } = await backendService.database.update(
             'profiles',
             { baseline_established: true },

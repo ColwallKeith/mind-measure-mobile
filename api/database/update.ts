@@ -66,11 +66,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let sql = `UPDATE ${table} SET ${setClause} WHERE ${whereConditions.join(' AND ')}`;
     
-    // Add RETURNING clause if specified
-    if (options?.returning) {
-      sql += ` RETURNING ${options.returning}`;
-    } else {
-      sql += ` RETURNING *`;
+    // NOTE: RETURNING clause disabled by default for Aurora MySQL compatibility
+    // Aurora MySQL does not support RETURNING (PostgreSQL-only feature)
+    // If you need RETURNING, set AWS_ENABLE_RETURNING=true environment variable
+    const enableReturning = process.env.AWS_ENABLE_RETURNING === 'true';
+    
+    if (enableReturning) {
+      // Add RETURNING clause for PostgreSQL-compatible mode
+      if (options?.returning) {
+        sql += ` RETURNING ${options.returning}`;
+      } else {
+        sql += ` RETURNING *`;
+      }
     }
 
     console.log('Executing SQL:', sql, 'with params:', allParams);
@@ -78,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = await client.query(sql, allParams);
 
     res.status(200).json({
-      data: result.rows[0] || null,
+      data: enableReturning ? (result.rows[0] || null) : null,
       error: null
     });
 

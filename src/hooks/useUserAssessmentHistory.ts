@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 
 export interface UserAssessmentHistory {
   needsBaseline: boolean;
@@ -18,51 +17,69 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
   const [hasAssessmentHistory, setHasAssessmentHistory] = useState(false);
 
   const checkAssessmentHistory = useCallback(async () => {
-    if (!user?.id) {
-      console.log('[useUserAssessmentHistory] No user ID - assuming needs baseline');
+    const userId = user?.id;
+    
+    // Early return if no userId
+    if (!userId) {
+      console.log('[useUserAssessmentHistory] No user ID - needs baseline');
       setNeedsBaseline(true);
       setHasAssessmentHistory(false);
+      setNeedsCheckin(false);
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log('[useUserAssessmentHistory] Checking assessment history for user:', user.id);
+      console.log('[useUserAssessmentHistory] Checking assessment history for user:', userId);
       
-      const backendService = await BackendServiceFactory.createService();
+      // Import and create backend service using same pattern as BaselineAssessment
+      const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
       
-      // Check for any fusion_outputs (baseline assessment records) for this user
+      // Query fusion_outputs table for baseline assessments - same signature as BaselineAssessment uses
       const { data: assessments, error } = await backendService.database.select(
         'fusion_outputs',
-        ['id', 'score', 'created_at'],
-        { user_id: user.id }
+        ['id', 'score', 'created_at', 'analysis'],
+        { user_id: userId }
       );
 
       if (error) {
-        console.error('[useUserAssessmentHistory] Error checking assessments:', error);
+        console.error('[useUserAssessmentHistory] Database error:', error);
+        console.error('[useUserAssessmentHistory] Error type:', typeof error);
+        console.error('[useUserAssessmentHistory] Error details:', JSON.stringify(error, null, 2));
         // On error, assume needs baseline (safe default)
-        setNeedsBaseline(true);
         setHasAssessmentHistory(false);
+        setNeedsBaseline(true);
+        setNeedsCheckin(false);
       } else if (assessments && assessments.length > 0) {
         console.log('[useUserAssessmentHistory] Found', assessments.length, 'assessment(s) - baseline complete');
         setHasAssessmentHistory(true);
         setNeedsBaseline(false);
+        // Check if needs check-in (future feature)
+        setNeedsCheckin(false);
       } else {
         console.log('[useUserAssessmentHistory] No assessments found - needs baseline');
         setHasAssessmentHistory(false);
         setNeedsBaseline(true);
+        setNeedsCheckin(false);
       }
     } catch (error) {
-      console.error('[useUserAssessmentHistory] Error checking assessment history:', error);
-      // Log the full error for debugging
+      console.error('[useUserAssessmentHistory] Exception caught:', error);
+      // Log full error details
       if (error instanceof Error) {
+        console.error('[useUserAssessmentHistory] Error name:', error.name);
         console.error('[useUserAssessmentHistory] Error message:', error.message);
         console.error('[useUserAssessmentHistory] Error stack:', error.stack);
+      } else {
+        console.error('[useUserAssessmentHistory] Non-Error object:', JSON.stringify(error));
       }
       // On error, assume needs baseline (safe default)
-      setNeedsBaseline(true);
       setHasAssessmentHistory(false);
+      setNeedsBaseline(true);
+      setNeedsCheckin(false);
     } finally {
       setLoading(false);
     }
