@@ -575,6 +575,60 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     };
   }, []);
 
+  // Function to properly stop the conversation and trigger the conversation-ended event
+  const stopConversation = () => {
+    console.log('🛑 Finish button clicked - stopping widget conversation...');
+    
+    const widget = widgetRef.current?.querySelector('elevenlabs-convai') as any;
+    if (widget) {
+      try {
+        // Try to end the conversation properly so the widget fires conversation-ended event
+        if (typeof widget.endConversation === 'function') {
+          console.log('📞 Calling widget.endConversation()');
+          widget.endConversation();
+        } else if (typeof widget.end === 'function') {
+          console.log('📞 Calling widget.end()');
+          widget.end();
+        } else if (typeof widget.stop === 'function') {
+          console.log('📞 Calling widget.stop()');
+          widget.stop();
+        } else {
+          console.warn('⚠️ No widget stop method found - manually triggering conversation end');
+          // If widget doesn't have a stop method, manually get transcript and call handler
+          const transcript = widget.transcript || widget.getTranscript?.() || '';
+          const messages = widget.messages || widget.getMessages?.() || [];
+          const duration = widget.duration || widget.getDuration?.() || 0;
+          
+          const manualData = {
+            transcript: transcript,
+            messages: messages,
+            durationMs: duration,
+            endTime: Date.now(),
+            startTime: conversationData.startTime || Date.now(),
+            phqResponses: conversationData.phqResponses || {},
+            moodScore: conversationData.moodScore
+          };
+          
+          console.log('[Baseline] Manual transcript extraction:', {
+            transcriptLength: transcript.length,
+            messageCount: messages.length,
+            duration: duration
+          });
+          
+          // Call handler directly with manual data
+          handleConversationEnd(manualData);
+        }
+      } catch (error) {
+        console.error('❌ Error stopping widget:', error);
+        // Fallback: call handler with whatever data we have
+        handleConversationEnd();
+      }
+    } else {
+      console.warn('⚠️ Widget not found - calling handler with existing data');
+      handleConversationEnd();
+    }
+  };
+
   const handleConversationEnd = async (freshConversationData?: any) => {
     // Prevent duplicate submissions
     if (baselineSubmitted) {
@@ -1180,7 +1234,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
           <div className="flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm">
             {/* Finish button - left */}
             <Button
-              onClick={handleConversationEnd}
+              onClick={stopConversation}
               className="bg-white text-purple-600 hover:bg-purple-50 font-semibold px-6 py-2 rounded-xl shadow-md hover:shadow-lg transition-all border-2 border-purple-600"
             >
               Finish
