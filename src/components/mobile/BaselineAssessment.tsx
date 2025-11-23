@@ -663,34 +663,31 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       if (!existingProfiles || existingProfiles.length === 0) {
         console.warn('[Baseline] ⚠️ User profile not found - creating profile now...');
         
-        // Extract university from email domain
+        // For this phase: All users are assigned to University of Worcester
+        // Multi-tenant domain-mapping will be implemented in a future phase
+        const WORCESTER_UNIVERSITY_ID = 'worcester';
+        
         const userEmail = user?.email || '';
         console.log('[Baseline] User email:', userEmail);
         
-        let universityId = 'worcester'; // Default fallback
+        // Verify Worcester university exists in database
+        const { data: worcesterUni, error: uniError } = await backendService.database.select(
+          'universities',
+          ['id', 'name', 'status'],
+          { id: WORCESTER_UNIVERSITY_ID }
+        );
         
-        if (userEmail) {
-          const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-          console.log('[Baseline] Email domain:', emailDomain);
-          
-          // Look up university by domain
-          if (emailDomain) {
-            const { data: universities, error: uniError } = await backendService.database.select(
-              'universities',
-              ['id', 'domain'],
-              { domain: emailDomain }
-            );
-            
-            if (!uniError && universities && universities.length > 0) {
-              universityId = universities[0].id;
-              console.log('[Baseline] University resolved from domain:', universityId);
-            } else {
-              console.log('[Baseline] No university found for domain, using default:', universityId);
-            }
-          }
+        if (uniError || !worcesterUni || worcesterUni.length === 0) {
+          console.error('[Baseline] ❌ Worcester university record not found in database', { uniError });
+          // Continue with Worcester ID anyway - profile creation should not fail
+        } else {
+          console.log('[Baseline] ✅ Worcester university verified:', worcesterUni[0]);
         }
         
-        // Create profile with resolved university
+        const universityId = WORCESTER_UNIVERSITY_ID;
+        console.log('[Baseline] University resolved (forced Worcester):', { universityId });
+        
+        // Create profile with Worcester university
         const profileData = {
           user_id: userId,
           first_name: user?.user_metadata?.first_name || user?.user_metadata?.given_name || 'User',
@@ -908,36 +905,121 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             
             console.log('✅ Baseline validation passed - sufficient data for assessment');
             
-            // Provisional scoring based on available data
-            const provisionalScore = Math.floor(Math.random() * 20) + 65; // 65-85 range for baseline
+            // ==================================================================================
+            // CLINICAL SCORING - Validated Instruments
+            // ==================================================================================
+            // Extract raw scores from validated clinical instruments
+            const phq2_q1 = phqResponses['question_1'] || 0; // Little interest/pleasure (0-3)
+            const phq2_q2 = phqResponses['question_2'] || 0; // Down/depressed/hopeless (0-3)
+            const gad2_q1 = phqResponses['question_3'] || 0; // Nervous/anxious/on edge (0-3)
+            const gad2_q2 = phqResponses['question_4'] || 0; // Unable to stop worrying (0-3)
+            const mood_1_10 = dataToUse.moodScore || 5; // Self-reported mood (1-10)
+            
+            // Calculate standard clinical totals (used by healthcare professionals)
+            const phq2_total = phq2_q1 + phq2_q2; // Range: 0-6 (≥3 = positive screen)
+            const gad2_total = gad2_q1 + gad2_q2; // Range: 0-6 (≥3 = positive screen)
+            
+            // Clinical interpretation flags (standard practice)
+            const phq2_positive_screen = phq2_total >= 3; // Depression screening threshold
+            const gad2_positive_screen = gad2_total >= 3; // Anxiety screening threshold
+            
+            // ==================================================================================
+            // MIND MEASURE COMPOSITE - Proprietary Algorithm
+            // ==================================================================================
+            // Convert clinical scores to 0-100 wellbeing scale for UX
+            // NOTE: This is a proprietary composite, NOT a clinical standard
+            const phq2Score = Math.max(0, 100 - (phq2_total / 6) * 100);
+            const gad2Score = Math.max(0, 100 - (gad2_total / 6) * 100);
+            const moodScore = (mood_1_10 / 10) * 100;
+            
+            // Weighted fusion for Mind Measure composite score
+            // Weights determined by Mind Measure algorithm (not clinically validated)
+            const mindMeasureScore = Math.round(
+              (phq2Score * 0.35) + (gad2Score * 0.35) + (moodScore * 0.30)
+            );
+            
+            console.log('📊 Baseline scoring (clinical + composite):', {
+              // Clinical scores (validated)
+              clinical: {
+                phq2_total: phq2_total,
+                gad2_total: gad2_total,
+                mood_scale: mood_1_10,
+                phq2_positive_screen: phq2_positive_screen,
+                gad2_positive_screen: gad2_positive_screen
+              },
+              // Mind Measure composite (proprietary)
+              composite: {
+                mind_measure_score: mindMeasureScore,
+                phq2_component: Math.round(phq2Score * 0.35),
+                gad2_component: Math.round(gad2Score * 0.35),
+                mood_component: Math.round(moodScore * 0.30)
+              }
+            });
             
             const provisionalFusionData = {
               session_id: sessionId,
               user_id: userId,
-              score: provisionalScore,
-              score_smoothed: provisionalScore,
-              final_score: provisionalScore,
-              p_worse_fused: (100 - provisionalScore) / 100,
-              uncertainty: 0.3,
-              qc_overall: 0.8, // Numeric value for provisional quality (0.8 = good provisional)
+              score: mindMeasureScore, // Mind Measure composite for UX
+              score_smoothed: mindMeasureScore,
+              final_score: mindMeasureScore,
+              p_worse_fused: (100 - mindMeasureScore) / 100,
+              uncertainty: 0.15, // Lower uncertainty - based on validated clinical instruments
+              qc_overall: 0.85, // High quality - PHQ-2/GAD-2/Mood are validated measures
               public_state: 'report',
-              model_version: 'provisional_v1.0',
+              model_version: 'clinical_baseline_v1.0',
               analysis: JSON.stringify({
+                // ===== VALIDATED CLINICAL SCORES (Standard Practice) =====
+                clinical_scores: {
+                  phq2_total: phq2_total,              // 0-6 (depression screening)
+                  phq2_q1: phq2_q1,                    // Question 1: Little interest/pleasure
+                  phq2_q2: phq2_q2,                    // Question 2: Down/depressed/hopeless
+                  phq2_positive_screen: phq2_positive_screen, // ≥3 indicates positive screen
+                  
+                  gad2_total: gad2_total,              // 0-6 (anxiety screening)
+                  gad2_q1: gad2_q1,                    // Question 3: Nervous/anxious/on edge
+                  gad2_q2: gad2_q2,                    // Question 4: Unable to stop worrying
+                  gad2_positive_screen: gad2_positive_screen, // ≥3 indicates positive screen
+                  
+                  mood_scale: mood_1_10,               // 1-10 (self-reported mood)
+                },
+                
+                // ===== MIND MEASURE COMPOSITE (Proprietary) =====
+                mind_measure_composite: {
+                  score: mindMeasureScore,             // 0-100 proprietary composite
+                  phq2_component: Math.round(phq2Score * 0.35),
+                  gad2_component: Math.round(gad2Score * 0.35),
+                  mood_component: Math.round(moodScore * 0.30),
+                  weighting: 'PHQ-2: 35%, GAD-2: 35%, Mood: 30%',
+                  note: 'Proprietary composite for user experience - not a clinical diagnosis'
+                },
+                
+                // General metadata
                 mood: 'baseline_established',
                 assessment_type: 'baseline',
-                conversation_quality: 'good',
-                wellbeing_score: provisionalScore
+                conversation_quality: 'complete',
+                wellbeing_score: mindMeasureScore
               }),
-              topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment']),
+              topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment', 'phq2', 'gad2']),
               created_at: new Date().toISOString()
             };
 
             const { error: fusionError } = await backendService.database.insert('fusion_outputs', provisionalFusionData);
             
             if (fusionError) {
-              console.error('❌ Error saving provisional fusion output:', fusionError);
+              console.error('❌ Error saving clinical baseline score:', fusionError);
             } else {
-              console.log('✅ Provisional fusion output saved with score:', provisionalScore);
+              console.log('✅ Clinical baseline score saved:', {
+                mind_measure_score: mindMeasureScore,
+                clinical_scores: {
+                  phq2_total: phq2_total,
+                  gad2_total: gad2_total,
+                  mood_scale: mood_1_10
+                },
+                screening_flags: {
+                  phq2_positive: phq2_positive_screen,
+                  gad2_positive: gad2_positive_screen
+                }
+              });
             }
           } else {
             console.log('✅ Mind Measure fusion calculation completed successfully');
@@ -961,8 +1043,34 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         } catch (analysisError) {
           console.error('❌ Analysis pipeline error:', analysisError);
           
-          // Fallback: Create a basic record so user can proceed
-          const fallbackScore = Math.floor(Math.random() * 20) + 60; // 60-80 range
+          // Fallback: Calculate clinical score from available PHQ-2/GAD-2/mood data
+          // Even if the pipeline fails, we have valid clinical responses
+          const phqResponses = dataToUse.phqResponses || {};
+          
+          // Clinical scores (validated)
+          const phq2_q1 = phqResponses['question_1'] || 0;
+          const phq2_q2 = phqResponses['question_2'] || 0;
+          const gad2_q1 = phqResponses['question_3'] || 0;
+          const gad2_q2 = phqResponses['question_4'] || 0;
+          const mood_1_10 = dataToUse.moodScore || 5;
+          
+          const phq2_total = phq2_q1 + phq2_q2;
+          const gad2_total = gad2_q1 + gad2_q2;
+          const phq2_positive_screen = phq2_total >= 3;
+          const gad2_positive_screen = gad2_total >= 3;
+          
+          // Calculate Mind Measure composite (same algorithm as provisional)
+          const phq2Score = Math.max(0, 100 - (phq2_total / 6) * 100);
+          const gad2Score = Math.max(0, 100 - (gad2_total / 6) * 100);
+          const moodScore = (mood_1_10 / 10) * 100;
+          const fallbackScore = Math.round(
+            (phq2Score * 0.35) + (gad2Score * 0.35) + (moodScore * 0.30)
+          );
+          
+          console.log('📊 Fallback clinical scoring:', {
+            clinical: { phq2_total, gad2_total, mood_1_10 },
+            composite: fallbackScore
+          });
           
           const fallbackData = {
             session_id: sessionId,
@@ -971,20 +1079,43 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             final_score: fallbackScore,
             score_smoothed: fallbackScore,
             analysis: JSON.stringify({
+              // ===== VALIDATED CLINICAL SCORES =====
+              clinical_scores: {
+                phq2_total: phq2_total,
+                phq2_q1: phq2_q1,
+                phq2_q2: phq2_q2,
+                phq2_positive_screen: phq2_positive_screen,
+                gad2_total: gad2_total,
+                gad2_q1: gad2_q1,
+                gad2_q2: gad2_q2,
+                gad2_positive_screen: gad2_positive_screen,
+                mood_scale: mood_1_10
+              },
+              
+              // ===== MIND MEASURE COMPOSITE =====
+              mind_measure_composite: {
+                score: fallbackScore,
+                note: 'Proprietary composite (pipeline fallback)'
+              },
+              
               mood: 'baseline_conversation_completed',
               assessment_type: 'baseline',
               conversation_quality: 'completed',
               wellbeing_score: fallbackScore,
-              note: 'Baseline established - full analysis pending'
+              note: 'Clinical baseline score (pipeline error fallback)'
             }),
-            topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment']),
-            uncertainty: 0.5,
-            qc_overall: 0.6, // Numeric value for pending analysis (0.6 = moderate quality)
+            topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment', 'phq2', 'gad2']),
+            uncertainty: 0.2, // Slightly higher uncertainty due to pipeline failure
+            qc_overall: 0.75, // Good quality - still based on validated instruments
             created_at: new Date().toISOString()
           };
 
           await backendService.database.insert('fusion_outputs', fallbackData);
-          console.log('✅ Fallback baseline record created - analysis can be completed later');
+          console.log('✅ Fallback clinical baseline score saved:', {
+            score: fallbackScore,
+            phq2: phq2_total,
+            gad2: gad2_total
+          });
         }
     } catch (error) {
       console.error('❌ Error in baseline analysis:', error);
