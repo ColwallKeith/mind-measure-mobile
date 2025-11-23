@@ -154,27 +154,54 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       }
       
       console.log('🔚 Conversation ended with data:', event);
+      console.log('[Baseline] Raw conversation-ended detail:', event.detail);
       
       // Extract real conversation data from ElevenLabs event
       if (event.detail) {
-        const { transcript, duration, metadata } = event.detail;
+        const detail = event.detail;
+        const transcript = detail.transcript || '';
+        const messages = detail.messages || [];
+        const durationMs = detail.duration_ms || detail.duration || 0;
+        
+        console.log('[Baseline] Extracted from event:', {
+          transcriptLength: transcript.length,
+          durationMs: durationMs,
+          messageCount: messages.length,
+          hasTranscript: !!transcript
+        });
+        
+        // Update conversation data with captured transcript and metadata
+        const updatedConversationData = {
+          transcript: transcript,
+          messages: messages,
+          durationMs: durationMs,
+          duration: durationMs / 1000, // Convert to seconds for compatibility
+          endTime: Date.now(),
+          startTime: conversationData.startTime || Date.now()
+        };
+        
         setConversationData(prev => ({
           ...prev,
-          transcript: transcript || prev.transcript,
-          duration: duration || prev.duration,
-          endTime: Date.now()
+          ...updatedConversationData
         }));
-        console.log('📝 Real conversation data captured:', {
-          transcriptLength: transcript?.length || 0,
-          duration: duration,
-          metadata: metadata
+        
+        console.log('[Baseline] Stored conversation data:', {
+          transcriptLength: transcript.length,
+          durationMs: durationMs,
+          messageCount: messages.length
         });
+        
+        // Pass the fresh data directly to handleConversationEnd
+        // Don't rely on state update timing
+        setTimeout(() => {
+          handleConversationEnd(updatedConversationData);
+        }, 1000);
+      } else {
+        console.error('[Baseline] ❌ No event.detail - cannot capture conversation data');
+        setTimeout(() => {
+          handleConversationEnd();
+        }, 1000);
       }
-      
-      // Add delay to ensure widget is stable before processing
-      setTimeout(() => {
-        handleConversationEnd();
-      }, 1000);
     });
     
     widget.addEventListener('conversation-started', (event) => {
@@ -548,7 +575,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     };
   }, []);
 
-  const handleConversationEnd = async () => {
+  const handleConversationEnd = async (freshConversationData?: any) => {
     // Prevent duplicate submissions
     if (baselineSubmitted) {
       console.log('🚫 Baseline already submitted - ignoring duplicate conversation end');
@@ -558,10 +585,23 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
     setBaselineSubmitted(true); // Mark as submitted immediately
     console.log('✅ Baseline conversation completed');
     
-    // Record conversation end time
+    // Use fresh data if provided, otherwise fall back to state
+    const dataToUse = freshConversationData || conversationData;
+    
+    // Add validation snapshot logs
+    console.log('[Baseline] Validation input snapshot:', {
+      hasTranscript: !!dataToUse.transcript,
+      transcriptLength: dataToUse.transcript?.length || 0,
+      durationMs: dataToUse.durationMs || 0,
+      duration: dataToUse.duration || 0,
+      hasMessages: !!dataToUse.messages
+    });
+    
+    // Record conversation end time if not already set
     setConversationData(prev => ({
       ...prev,
-      endTime: Date.now()
+      ...dataToUse,
+      endTime: dataToUse.endTime || Date.now()
     }));
     
     // Clean up permission stream
@@ -692,9 +732,11 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
         try {
           // Audio Analysis (from ElevenLabs conversation)
           console.log('🎤 Processing audio analysis...');
-          const actualDuration = conversationData.endTime && conversationData.startTime 
-            ? (conversationData.endTime - conversationData.startTime) / 1000 
-            : 300;
+          const actualDuration = dataToUse.endTime && dataToUse.startTime 
+            ? (dataToUse.endTime - dataToUse.startTime) / 1000 
+            : dataToUse.durationMs 
+              ? dataToUse.durationMs / 1000
+              : 300;
             
           let audioAnalysisResult = null;
           try {
@@ -705,8 +747,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
                 speech_rate: audioAnalysisData.speechRate,
                 voice_quality: audioAnalysisData.voiceQuality,
                 emotional_tone: audioAnalysisData.emotionalTone,
-                mood_score_1_10: conversationData.moodScore,
-                transcript_length: conversationData.transcript?.length || 0
+                mood_score_1_10: dataToUse.moodScore,
+                transcript_length: dataToUse.transcript?.length || 0
               },
               conversationDuration: actualDuration * 1000 // Convert to milliseconds
             });
@@ -765,10 +807,10 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
 
           // Text Analysis (from conversation transcript)
           console.log('📝 Processing text analysis...');
-          const conversationTranscript = conversationData.transcript || 
+          const conversationTranscript = dataToUse.transcript || 
             `Baseline conversation completed. Duration: ${actualDuration} seconds. ` +
-            `Mood score: ${conversationData.moodScore || 'not provided'}. ` +
-            `PHQ responses: ${Object.keys(conversationData.phqResponses).length} questions answered.`;
+            `Mood score: ${dataToUse.moodScore || 'not provided'}. ` +
+            `PHQ responses: ${Object.keys(dataToUse.phqResponses || {}).length} questions answered.`;
             
           let textAnalysisResult = null;
           try {
@@ -804,7 +846,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             console.warn('⚠️ Fusion calculation failed, using provisional scoring');
             
             // CRITICAL VALIDATION: Check if we have answers to questions 1-5 (mandatory for valid baseline)
-            const phqResponses = conversationData.phqResponses || {};
+            const phqResponses = dataToUse.phqResponses || {};
             const answeredQuestions = Object.keys(phqResponses).filter(key => 
               key.match(/question_[1-5]$/) && phqResponses[key] !== undefined
             );
@@ -818,11 +860,22 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             });
             
             // Also check for minimum conversation data as fallback
-            const actualDuration = conversationData.endTime && conversationData.startTime 
-              ? (conversationData.endTime - conversationData.startTime) / 1000 
-              : 0;
-            const hasTranscript = conversationData.transcript && conversationData.transcript.length > 100;
+            const actualDuration = dataToUse.endTime && dataToUse.startTime 
+              ? (dataToUse.endTime - dataToUse.startTime) / 1000 
+              : dataToUse.durationMs 
+                ? dataToUse.durationMs / 1000
+                : 0;
+            const hasTranscript = dataToUse.transcript && dataToUse.transcript.length > 100;
             const hasDuration = actualDuration > 60; // At least 60 seconds for 5 questions
+            
+            console.log('[Baseline] Validation checks:', {
+              hasRequiredQuestions,
+              answeredCount: answeredQuestions.length,
+              hasTranscript,
+              transcriptLength: dataToUse.transcript?.length || 0,
+              hasDuration,
+              actualDuration
+            });
             
             // Require either: 5 PHQ questions answered OR (sufficient transcript AND duration)
             const hasValidData = hasRequiredQuestions || (hasTranscript && hasDuration);
@@ -832,7 +885,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
               console.error('❌ Missing required data:', {
                 hasRequiredQuestions,
                 answeredCount: answeredQuestions.length,
-                hasTranscript: conversationData.transcript?.length || 0,
+                hasTranscript: dataToUse.transcript?.length || 0,
                 actualDuration
               });
               
