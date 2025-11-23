@@ -1,5 +1,5 @@
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -145,14 +145,13 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       display: block !important;
     `;
     // Add comprehensive event listeners with real data capture and error handling
-    let conversationEnded = false; // Flag to prevent multiple conversation-ended events
+    // Use state flag (baselineSubmitted) to prevent multiple conversation-ended events
     
     widget.addEventListener('conversation-ended', (event) => {
-      if (conversationEnded) {
+      if (baselineSubmitted) {
         console.log('🚫 Conversation already ended, ignoring duplicate event');
         return;
       }
-      conversationEnded = true;
       
       console.log('🔚 Conversation ended with data:', event);
       
@@ -458,41 +457,80 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
   const extractAssessmentData = (transcript: string) => {
     console.log('🔍 Extracting assessment data from transcript...');
     
-    // Extract mood score (1-10 scale)
-    const moodMatch = transcript.match(/(?:mood|feeling).*?(\d+)(?:\s*out of\s*10)?/i);
+    // Define baseline questions for matching
+    const baselineQuestions = [
+      { id: 'question_1', keywords: ['little interest', 'pleasure', 'doing things'], context: 'past two weeks' },
+      { id: 'question_2', keywords: ['down', 'depressed', 'hopeless'], context: 'past two weeks' },
+      { id: 'question_3', keywords: ['nervous', 'anxious', 'on edge'], context: 'past two weeks' },
+      { id: 'question_4', keywords: ['unable to stop', 'control worrying'], context: 'past two weeks' },
+      { id: 'question_5', keywords: ['scale', 'one to ten', 'current mood', 'rate your'], context: 'mood' }
+    ];
+    
+    // Extract mood score (Question 5 - numeric 1-10)
+    const moodMatch = transcript.match(/(?:mood|feeling|rate).*?(\d+)(?:\s*out of\s*10)?/i);
+    const phqResponses: Record<string, number> = { ...conversationData.phqResponses };
+    
     if (moodMatch) {
       const moodScore = parseInt(moodMatch[1]);
       if (moodScore >= 1 && moodScore <= 10) {
+        phqResponses['question_5'] = moodScore;
         setConversationData(prev => ({
           ...prev,
-          moodScore: moodScore
+          moodScore: moodScore,
+          phqResponses
         }));
-        console.log('📊 Mood score extracted:', moodScore);
+        console.log('📊 Question 5 (Mood score) extracted:', moodScore);
       }
     }
     
-    // Extract PHQ-2 responses (looking for "not at all", "several days", etc.)
-    const phqResponses: Record<string, number> = {};
-    const phqPattern = /(not at all|several days|more than half the days|nearly every day)/gi;
-    const matches = transcript.match(phqPattern);
+    // Extract PHQ-2/GAD-2 responses (Questions 1-4) by matching question context
+    const responsePattern = /(not at all|several days|more than half the days|nearly every day)/gi;
+    const lowerTranscript = transcript.toLowerCase();
     
-    if (matches) {
-      matches.forEach((match, index) => {
-        const score = match.toLowerCase() === 'not at all' ? 0 :
-                     match.toLowerCase() === 'several days' ? 1 :
-                     match.toLowerCase() === 'more than half the days' ? 2 :
-                     match.toLowerCase() === 'nearly every day' ? 3 : 0;
+    // For each question, look for its keywords nearby the response
+    baselineQuestions.slice(0, 4).forEach((question) => {
+      // Check if this question appears in the transcript
+      const hasKeywords = question.keywords.some(keyword => lowerTranscript.includes(keyword.toLowerCase()));
+      
+      if (hasKeywords && !phqResponses[question.id]) {
+        // Find the response after the question keywords
+        const questionIndex = question.keywords.reduce((idx, keyword) => {
+          const keywordIdx = lowerTranscript.indexOf(keyword.toLowerCase());
+          return keywordIdx !== -1 && (idx === -1 || keywordIdx < idx) ? keywordIdx : idx;
+        }, -1);
         
-        phqResponses[`question_${index + 1}`] = score;
-      });
-      
-      setConversationData(prev => ({
-        ...prev,
-        phqResponses: { ...prev.phqResponses, ...phqResponses }
-      }));
-      
-      console.log('📋 PHQ responses extracted:', phqResponses);
-    }
+        if (questionIndex !== -1) {
+          // Look for response within next 200 characters
+          const searchWindow = transcript.slice(questionIndex, questionIndex + 200);
+          const responseMatch = searchWindow.match(responsePattern);
+          
+          if (responseMatch) {
+            const response = responseMatch[0].toLowerCase();
+            const score = response === 'not at all' ? 0 :
+                         response === 'several days' ? 1 :
+                         response === 'more than half the days' ? 2 :
+                         response === 'nearly every day' ? 3 : 0;
+            
+            phqResponses[question.id] = score;
+            console.log(`📋 ${question.id} detected and answered: "${responseMatch[0]}" (score: ${score})`);
+          }
+        }
+      }
+    });
+    
+    // Update state with all extracted responses
+    setConversationData(prev => ({
+      ...prev,
+      phqResponses
+    }));
+    
+    console.log('📊 Current baseline progress:', {
+      totalAnswered: Object.keys(phqResponses).length,
+      questions: Object.keys(phqResponses),
+      needsQuestions: ['question_1', 'question_2', 'question_3', 'question_4', 'question_5'].filter(
+        q => !phqResponses[q]
+      )
+    });
   };
 
   // Cleanup visual analysis on component unmount
@@ -517,8 +555,8 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
       return;
     }
     
-    console.log('✅ Baseline conversation completed');
     setBaselineSubmitted(true); // Mark as submitted immediately
+    console.log('✅ Baseline conversation completed');
     
     // Record conversation end time
     setConversationData(prev => ({
@@ -765,6 +803,58 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
           if (!fusionResult) {
             console.warn('⚠️ Fusion calculation failed, using provisional scoring');
             
+            // CRITICAL VALIDATION: Check if we have answers to questions 1-5 (mandatory for valid baseline)
+            const phqResponses = conversationData.phqResponses || {};
+            const answeredQuestions = Object.keys(phqResponses).filter(key => 
+              key.match(/question_[1-5]$/) && phqResponses[key] !== undefined
+            );
+            const hasRequiredQuestions = answeredQuestions.length >= 5;
+            
+            console.log('📊 Baseline validation:', {
+              phqResponses,
+              answeredQuestions,
+              hasRequiredQuestions,
+              count: answeredQuestions.length
+            });
+            
+            // Also check for minimum conversation data as fallback
+            const actualDuration = conversationData.endTime && conversationData.startTime 
+              ? (conversationData.endTime - conversationData.startTime) / 1000 
+              : 0;
+            const hasTranscript = conversationData.transcript && conversationData.transcript.length > 100;
+            const hasDuration = actualDuration > 60; // At least 60 seconds for 5 questions
+            
+            // Require either: 5 PHQ questions answered OR (sufficient transcript AND duration)
+            const hasValidData = hasRequiredQuestions || (hasTranscript && hasDuration);
+            
+            if (!hasValidData) {
+              console.error('❌ Insufficient conversation data - cannot create baseline assessment');
+              console.error('❌ Missing required data:', {
+                hasRequiredQuestions,
+                answeredCount: answeredQuestions.length,
+                hasTranscript: conversationData.transcript?.length || 0,
+                actualDuration
+              });
+              
+              alert(
+                'Unable to Complete Baseline\n\n' +
+                'We didn\'t capture enough data to create your baseline assessment. ' +
+                'This can happen if you pressed Finish before answering enough questions.\n\n' +
+                'Please try again.'
+              );
+              
+              // Reset the flag so user can try again
+              setBaselineSubmitted(false);
+              
+              // Navigate back to welcome screen
+              if (onBack) {
+                onBack();
+              }
+              return;
+            }
+            
+            console.log('✅ Baseline validation passed - sufficient data for assessment');
+            
             // Provisional scoring based on available data
             const provisionalScore = Math.floor(Math.random() * 20) + 65; // 65-85 range for baseline
             
@@ -907,9 +997,7 @@ export function BaselineAssessment({ onBack, onComplete }: BaselineAssessmentPro
             {/* Finish button - left */}
             <Button
               onClick={handleConversationEnd}
-              variant="ghost"
-              size="sm"
-              className="text-purple-600 hover:bg-purple-50"
+              className="bg-white text-purple-600 hover:bg-purple-50 font-semibold px-6 py-2 rounded-xl shadow-md hover:shadow-lg transition-all border-2 border-purple-600"
             >
               Finish
             </Button>

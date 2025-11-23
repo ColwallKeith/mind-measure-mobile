@@ -5,15 +5,14 @@ import { Card } from '@/components/ui/card';
 import { MessageCircle, Activity, Shield, Phone, Loader2, GraduationCap } from 'lucide-react';
 import { ScoreCard } from './ScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { useNavigate } from 'react-router-dom';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect } from 'react';
+import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 interface DashboardScreenProps {
   onNeedHelp?: () => void;
   onCheckIn?: () => void;
 }
 export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps) {
-  const navigate = useNavigate();
   const {
     profile,
     latestScore,
@@ -23,13 +22,9 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
     loading,
     error
   } = useDashboardData();
-  // Redirect to baseline welcome if user hasn't established baseline
-  useEffect(() => {
-    if (!loading && !profile.baselineEstablished && !hasData) {
-      console.log('🎯 User has no baseline data - redirecting to baseline welcome');
-      navigate('/baseline-welcome');
-    }
-  }, [loading, profile.baselineEstablished, hasData, navigate]);
+  
+  // NOTE: Baseline requirement is now handled by AuthenticatedApp component
+  // This screen will only render if user has baseline data
 
   // Detect if this is the special post-baseline view
   // This happens when: user has baseline data but only baseline assessments (no check-ins)
@@ -102,14 +97,17 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
       animate="visible"
     >
       {/* University Branding */}
-      <motion.div variants={itemVariants} className="pt-4">
+      <motion.div variants={itemVariants} style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center shadow-lg">
-            <GraduationCap className="w-5 h-5 text-white" />
+          <div className="w-12 h-12 flex items-center justify-center">
+            <img
+              src={mindMeasureLogo}
+              alt="Mind Measure"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="text-center">
             <h2 className="text-lg font-semibold text-gray-900">{getDemoUniversity().name}</h2>
-            <p className="text-sm text-gray-600">Mind Measure Wellbeing Platform</p>
           </div>
         </div>
       </motion.div>
@@ -127,19 +125,19 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
             : `${getGreeting()}, ${profile.firstName ? profile.firstName.charAt(0).toUpperCase() + profile.firstName.slice(1).toLowerCase() : 'there'}`
           }
         </motion.h1>
-        <motion.p
-          className="text-gray-600"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          {isPostBaselineView
-            ? "Here is the result of your baseline assessment"
-            : hasData
-            ? "Here's your latest mental health snapshot"
-            : "Complete your first assessment to see your dashboard"
-          }
-        </motion.p>
+        {!isPostBaselineView && (
+          <motion.p
+            className="text-gray-600"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            {hasData
+              ? "Here's your latest mental health snapshot"
+              : "Complete your first assessment to see your dashboard"
+            }
+          </motion.p>
+        )}
         {profile.streakCount > 0 && (
           <motion.div
             className="mt-2"
@@ -178,34 +176,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
           </Card>
         </motion.div>
       )}
-      {/* Quick Check-in Button */}
-      <motion.div variants={itemVariants} className="text-center space-y-4">
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Button
-            onClick={onCheckIn}
-            className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg shadow-lg rounded-2xl"
-          >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <MessageCircle className="w-6 h-6 mr-3" />
-            </motion.div>
-{isPostBaselineView ? 'Check-In' : "Start Today's Check-in"}
-          </Button>
-        </motion.div>
-        <motion.p
-          className="text-gray-500 text-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          {isPostBaselineView ? 'This is your baseline score, we use this to benchmark your future check-ins' : 'Share how you are feeling today'}
-        </motion.p>
-      </motion.div>
       {/* Mind Measure Themes - Hide in post-baseline view */}
       {!isPostBaselineView && latestSession?.themes && latestSession.themes.length > 0 && (
         <motion.div variants={itemVariants} className="space-y-4">
@@ -265,6 +235,37 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
           </div>
         </Card>
       </motion.div>
+
+      {/* Quick Check-in Button - NOW AFTER Recent Activity */}
+      <motion.div variants={itemVariants} className="text-center space-y-4">
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button
+            onClick={onCheckIn}
+            className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg shadow-lg rounded-2xl"
+          >
+            <motion.div
+              className="flex items-center justify-center gap-3"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <MessageCircle className="w-6 h-6" />
+              <span>Check-In</span>
+            </motion.div>
+          </Button>
+        </motion.div>
+        <motion.p
+          className="text-gray-600 text-sm px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          Check-in with Jodie to get your current score
+        </motion.p>
+      </motion.div>
+
       {/* Topics Discussed - Hide in post-baseline view */}
       {!isPostBaselineView && latestSession && latestSession.summary && (latestSession.driverPositive.length > 0 || latestSession.driverNegative.length > 0) && (
         <motion.div variants={itemVariants} className="space-y-4">

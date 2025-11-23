@@ -10,7 +10,8 @@ import {
   resetPassword,
   confirmResetPassword,
   getCurrentUser,
-  fetchAuthSession
+  fetchAuthSession,
+  fetchUserAttributes
 } from 'aws-amplify/auth';
 import { Preferences } from '@capacitor/preferences';
 
@@ -344,10 +345,23 @@ export const amplifyAuth = {
         return { data: { user: null }, error: null };
       }
 
+      // Fetch user attributes from Cognito to get first_name and last_name
+      let userAttributes;
+      try {
+        userAttributes = await fetchUserAttributes();
+        console.log('📋 User attributes from Cognito:', userAttributes);
+      } catch (attrError) {
+        console.warn('⚠️ Could not fetch user attributes:', attrError);
+      }
+
       const user: AuthUser = {
         id: currentUser.userId,
-        email: currentUser.signInDetails?.loginId || '',
+        email: currentUser.signInDetails?.loginId || userAttributes?.email || '',
         email_confirmed_at: new Date().toISOString(),
+        user_metadata: {
+          first_name: userAttributes?.given_name || userAttributes?.name?.split(' ')[0],
+          last_name: userAttributes?.family_name || userAttributes?.name?.split(' ')[1],
+        }
       };
 
       console.log('✅ User session restored:', user.email);

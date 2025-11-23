@@ -453,6 +453,28 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   };
   const handleConversationEnd = async () => {
     if (!currentSession) return;
+    
+    // CRITICAL VALIDATION: Check if we have actual conversation data for check-in
+    const sessionData = currentSession.text_data || {};
+    const transcripts = sessionData.transcripts || [];
+    const conversationHistory = sessionData.conversationData || [];
+    
+    const hasTranscript = transcripts.length > 0 && transcripts.join(' ').length > 50; // At least 50 characters total
+    const hasConversation = conversationHistory.length >= 4; // At least 2 user messages + 2 AI responses
+    
+    if (!hasTranscript || !hasConversation) {
+      console.error('❌ Insufficient conversation data - cannot create check-in assessment');
+      alert(
+        'Unable to Complete Check-in\n\n' +
+        'We didn\'t capture enough conversation data to create a new wellbeing score.\n\n' +
+        'Please try again and spend a little more time talking with Jodie.'
+      );
+      
+      // Navigate back to allow retry
+      onNavigateBack();
+      return;
+    }
+    
     setIsProcessing(true);
     setCameraActive(false); // Turn off camera indicator immediately
     try {

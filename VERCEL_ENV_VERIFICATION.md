@@ -87,3 +87,4 @@ The app is ready for end-to-end testing:
 - [ ] Verify scores are calculated and stored
 - [ ] Check dashboard displays calculated scores
 
+

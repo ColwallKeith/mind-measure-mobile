@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useAuth } from '@/contexts/AuthContext';
+
 interface DashboardData {
   profile: {
     firstName: string;
@@ -33,11 +34,13 @@ interface DashboardData {
   loading: boolean;
   error: string | null;
 }
+
 export function useDashboardData(): DashboardData {
   const { user } = useAuth();
   const backendService = BackendServiceFactory.createService(
     BackendServiceFactory.getEnvironmentConfig()
   );
+  
   const [data, setData] = useState<DashboardData>({
     profile: {
       firstName: 'User',
@@ -53,6 +56,7 @@ export function useDashboardData(): DashboardData {
     loading: true,
     error: null,
   });
+
   useEffect(() => {
     if (!user?.id) {
       setData(prev => ({ ...prev, loading: false }));
@@ -61,6 +65,7 @@ export function useDashboardData(): DashboardData {
     
     fetchDashboardData();
   }, [user?.id]);
+
   const fetchDashboardData = async () => {
     if (!user?.id) return;
     
@@ -82,7 +87,9 @@ export function useDashboardData(): DashboardData {
         filters: { user_id: user.id },
         columns: 'first_name, last_name, display_name, streak_count, baseline_established'
       });
+      
       const profile = profiles && profiles.length > 0 ? profiles[0] : null;
+      
       if (profileError) {
         console.error('❌ Error fetching profile:', profileError);
         // Profile might not exist yet, create it
@@ -98,26 +105,28 @@ export function useDashboardData(): DashboardData {
           streak_count: 0,
           baseline_established: false,
         });
+        
         if (createError) {
           throw new Error(`Failed to create profile: ${createError.message}`);
         }
         console.log('✅ Created new profile:', newProfile);
       }
-      // Fetch latest assessment sessions with scores
-      const { data: sessions, error: sessionsError } = await backendService.database.select('assessment_sessions', {
-        filters: {
-          user_id: user.id,
-          status: 'completed' 
-        },
-        columns: 'id, created_at, status, conversation_summary, assessment_type, final_score',
-        orderBy: [{ column: 'created_at', ascending: false }],
-        limit: 10
-      });
+
+      // Fetch latest assessment data from fusion_outputs (where baseline scores are stored)
+      // DO NOT query assessment_sessions - it has FK constraints and missing columns (conversation_summary) for baseline
+      const { data: sessions, error: sessionsError } = await backendService.database.select(
+        'fusion_outputs',
+        ['id', 'score', 'final_score', 'analysis', 'created_at'],
+        { user_id: user.id }
+      );
+      
       if (sessionsError) {
-        console.error('❌ Error fetching sessions:', sessionsError);
-        throw new Error(`Failed to fetch sessions: ${sessionsError.message}`);
+        console.warn('⚠️ Database select failed (failing silently for baseline):', sessionsError);
+        // Don't throw - fail gracefully for baseline users who might not have sessions yet
       }
+      
       console.log('📋 Fetched sessions:', sessions?.length || 0);
+
       // Process the data
       const firstName = user.user_metadata?.given_name || user.user_metadata?.first_name || 'User';
       const lastName = user.user_metadata?.family_name || user.user_metadata?.last_name || '';
@@ -130,23 +139,25 @@ export function useDashboardData(): DashboardData {
         streak_count: 0,
         baseline_established: false,
       };
-      // Debug: Log all sessions data
+
+      // Debug: Log all sessions data (fusion_outputs format: has score/final_score, analysis JSON)
       console.log('🔍 All sessions data:', sessions?.map(s => ({
         id: s.id,
         created_at: s.created_at,
+        score: s.score,
         final_score: s.final_score,
-        assessment_type: s.assessment_type,
-        status: s.status
+        analysis: s.analysis
       })));
 
-      // Get latest session with score
-      const latestSessionWithScore = sessions?.find(s => s.final_score);
+      // Get latest session with score (use score or final_score from fusion_outputs)
+      const latestSessionWithScore = sessions?.find(s => s.final_score || s.score);
       let latestScore = null;
       let latestSession = null;
       
       console.log('🎯 Latest session with score:', latestSessionWithScore ? {
         id: latestSessionWithScore.id,
         created_at: latestSessionWithScore.created_at,
+        score: latestSessionWithScore.score,
         final_score: latestSessionWithScore.final_score,
         raw_date: latestSessionWithScore.created_at,
         parsed_date: new Date(latestSessionWithScore.created_at),
@@ -154,13 +165,14 @@ export function useDashboardData(): DashboardData {
       } : 'No session with score found');
       
       if (latestSessionWithScore) {
-        const currentScore = latestSessionWithScore.final_score;
+        const currentScore = latestSessionWithScore.final_score || latestSessionWithScore.score;
         const previousSession = sessions?.find((s, index) =>
-          index > 0 && s.final_score
+          index > 0 && (s.final_score || s.score)
         );
+        
         let trend: 'up' | 'down' | 'stable' = 'stable';
-        if (previousSession?.final_score) {
-          const previousScore = previousSession.final_score;
+        if (previousSession) {
+          const previousScore = previousSession.final_score || previousSession.score;
           if (currentScore > previousScore + 5) trend = 'up';
           else if (currentScore < previousScore - 5) trend = 'down';
         }
@@ -175,26 +187,50 @@ export function useDashboardData(): DashboardData {
           trend,
           label: getScoreLabel(currentScore),
         };
-        // Create session data with available information
+        
+        // Parse analysis field to determine if baseline or check-in
+        let analysisData: any = {};
+        try {
+          analysisData = typeof latestSessionWithScore.analysis === 'string' 
+            ? JSON.parse(latestSessionWithScore.analysis) 
+            : latestSessionWithScore.analysis || {};
+        } catch (e) {
+          console.warn('Failed to parse analysis field:', e);
+        }
+        
         // Only include detailed conversation data for check-ins, not baseline assessments
-        const isBaselineOnly = latestSessionWithScore.assessment_type === 'baseline';
+        const isBaselineOnly = analysisData.assessment_type === 'baseline';
         latestSession = {
           id: latestSessionWithScore.id,
           createdAt: new Date(latestSessionWithScore.created_at).toLocaleDateString('en-GB'),
-          summary: isBaselineOnly ? null : (latestSessionWithScore.session_data ? JSON.parse(latestSessionWithScore.session_data).summary : 'Assessment completed successfully.'),
+          summary: isBaselineOnly ? null : 'Assessment completed successfully.', // conversation_summary doesn't exist for baseline
           themes: isBaselineOnly ? [] : ['wellbeing', 'mood', 'energy'], // No themes for baseline
           moodScore: Math.round(currentScore / 10), // Convert 0-100 to 0-10
           driverPositive: isBaselineOnly ? [] : ['positive outlook', 'good energy'],
           driverNegative: isBaselineOnly ? [] : ['stress', 'fatigue'],
         };
       }
-      // Recent activity from all completed sessions
-      const recentActivity = sessions?.slice(0, 5).map(session => ({
-        type: session.assessment_type === 'baseline' ? 'baseline' : 'checkin' as const,
-        score: session.final_score || 0,
-        createdAt: session.created_at,
-      })) || [];
+      
+      // Recent activity from all sessions (parse analysis to get assessment_type)
+      const recentActivity = sessions?.slice(0, 5).map(session => {
+        let analysisData: any = {};
+        try {
+          analysisData = typeof session.analysis === 'string' 
+            ? JSON.parse(session.analysis) 
+            : session.analysis || {};
+        } catch (e) {
+          // Ignore parse errors
+        }
+        
+        return {
+          type: analysisData.assessment_type === 'baseline' ? 'baseline' : 'checkin' as const,
+          score: session.final_score || session.score || 0,
+          createdAt: session.created_at,
+        };
+      }) || [];
+      
       const hasData = sessions && sessions.length > 0;
+      
       setData({
         profile: {
           firstName: (profileData.first_name || 'User').charAt(0).toUpperCase() + (profileData.first_name || 'User').slice(1).toLowerCase(),
@@ -210,6 +246,7 @@ export function useDashboardData(): DashboardData {
         loading: false,
         error: null,
       });
+      
       console.log('✅ Dashboard data loaded:', { hasData, sessionsCount: sessions?.length });
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
@@ -220,11 +257,15 @@ export function useDashboardData(): DashboardData {
       }));
     }
   };
+  
   return data;
 }
+
 function getScoreLabel(score: number): string {
   if (score >= 80) return 'Excellent';
   if (score >= 60) return 'Good';
   if (score >= 40) return 'Fair';
   return 'Needs Attention';
 }
+
+

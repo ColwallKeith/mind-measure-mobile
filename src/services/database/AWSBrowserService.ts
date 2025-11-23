@@ -503,10 +503,18 @@ export class AWSBrowserFunctionsService {
 
   async invoke(functionName: string, data: any): Promise<any> {
     console.log(`🚀 Invoking Lambda function: ${functionName}`);
+    const endpoint = `${this.lambdaBaseUrl}/${functionName}`;
     
     try {
-      const endpoint = `${this.lambdaBaseUrl}/${functionName}`;
       const accessToken = await this.getAccessToken();
+      
+      console.log(`📡 Lambda request details:`, {
+        functionName,
+        endpoint,
+        method: 'POST',
+        hasAuth: !!accessToken,
+        payloadSize: JSON.stringify(data).length
+      });
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -517,22 +525,56 @@ export class AWSBrowserFunctionsService {
         body: JSON.stringify(data)
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Lambda function ${functionName} failed: ${response.statusText} - ${errorText}`);
+      // Try to get response body as text first
+      const rawText = await response.text();
+      let parsedBody: any = null;
+      
+      try {
+        parsedBody = rawText ? JSON.parse(rawText) : null;
+      } catch (parseError) {
+        console.warn(`⚠️ Lambda response not valid JSON:`, rawText);
       }
 
-      const result = await response.json();
-      console.log(`✅ Lambda function ${functionName} completed successfully`);
-      return result;
+      if (!response.ok) {
+        console.error(`❌ Lambda HTTP error:`, {
+          functionName,
+          endpoint,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          bodyParsed: parsedBody,
+          bodyRaw: rawText,
+        });
+        
+        throw new Error(
+          `Lambda function ${functionName} failed with status ${response.status} ${response.statusText}. Body: ${rawText || '(empty)'}`
+        );
+      }
+
+      console.log(`✅ Lambda function ${functionName} completed successfully:`, {
+        status: response.status,
+        bodyParsed: parsedBody,
+      });
+      
+      return parsedBody;
       
     } catch (error) {
+      // Enhanced error logging for network/fetch failures
       console.error(`❌ Lambda function ${functionName} failed:`, error);
-      console.error(`❌ Error details:`, {
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-        endpoint: `${this.lambdaBaseUrl}/${functionName}`
+      console.error(`❌ Detailed error info:`, {
+        functionName,
+        endpoint,
+        errorType: error?.constructor?.name,
+        errorName: (error as any)?.name,
+        errorMessage: (error as Error)?.message,
+        errorStack: (error as Error)?.stack,
+        // Check if it's a network error
+        isNetworkError: error instanceof TypeError,
+        // Additional debugging info
+        lambdaBaseUrl: this.lambdaBaseUrl,
       });
+      
+      // Re-throw with more context
       throw error;
     }
   }

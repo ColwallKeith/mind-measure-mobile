@@ -136,3 +136,4 @@ If Lambda calls fail, check:
 4. Authentication token validity
 5. Environment variable is set in Vercel
 
+

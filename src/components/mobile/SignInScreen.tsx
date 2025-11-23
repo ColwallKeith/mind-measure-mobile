@@ -124,7 +124,7 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@university.ac.uk"
-                  className="w-full h-12 pl-10 pr-4 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 pl-12 pr-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -144,7 +144,7 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full h-12 pl-10 pr-12 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 pl-12 pr-12 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
