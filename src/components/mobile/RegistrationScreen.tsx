@@ -142,11 +142,27 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
             console.log('🔐 User exists - attempting sign-in with entered password...');
             
-            const { error: signInError } = await signIn(formData.email, formData.password);
+            const signInResult = await signIn(formData.email, formData.password);
             
-            if (signInError) {
-              console.error('❌ Sign in error:', signInError);
-              setError(`This email is already registered. ${signInError}`);
+            // Check if user exists but email is not verified
+            if (signInResult.needsVerification) {
+              console.log('📧 User exists but email not verified - routing to email verification');
+              setError('Your account exists but needs email verification. Redirecting...');
+              setTimeout(() => {
+                onComplete(formData.email, formData.password);
+              }, 1500);
+              return;
+            }
+            
+            if (signInResult.error) {
+              console.error('❌ Sign in error:', signInResult.error);
+              
+              // Show a helpful error message with sign-in suggestion
+              if (signInResult.error.includes('Incorrect')) {
+                setError('This email is already registered but the password is incorrect. Please check your password or use "Forgot Password".');
+              } else {
+                setError(`This email is already registered. ${signInResult.error}`);
+              }
               setIsLoading(false);
               return;
             }
