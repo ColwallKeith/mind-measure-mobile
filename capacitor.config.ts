@@ -7,7 +7,8 @@ const config: CapacitorConfig = {
   // iOS loads FROM mobile.mindmeasure.app (Vercel deployment) per DEVELOPMENT_PROTOCOL.md
   // This ensures the app always has the latest code and can be updated without app store releases
   server: {
-    url: 'https://mobile.mindmeasure.app'
+    url: 'https://mobile.mindmeasure.app?v=' + Date.now(),
+    cleartext: true
   },
   plugins: {
     Keyboard: {
