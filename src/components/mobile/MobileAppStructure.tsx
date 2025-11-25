@@ -64,8 +64,8 @@ export const MobileAppStructure: React.FC = () => {
       // User is authenticated - check if they need baseline
       if (hasAssessmentHistory === true) {
         // Has baseline → Go directly to dashboard (skip all onboarding screens)
-        if (onboardingScreen === 'splash' || onboardingScreen === null) {
-          console.log('🔄 Has baseline - going directly to dashboard');
+        if (onboardingScreen !== null) {
+          console.log('🔄 Has baseline - going directly to dashboard from:', onboardingScreen);
           setOnboardingScreen(null); // Clear onboarding to show main app
           setCurrentScreen('dashboard');
         }
