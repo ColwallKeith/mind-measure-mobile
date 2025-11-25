@@ -40,35 +40,43 @@ export const MobileAppStructure: React.FC = () => {
   // SIMPLE FLOW: Always start with new user splash for unauthenticated users
   // Only initialize once when loading completes and onboardingScreen is null
   useEffect(() => {
-    // Don't run if still loading or if onboarding screen is already set
-    if (loading || onboardingScreen !== null) {
-      return;
-    }
-
     console.log('🎯 App start - user state:', {
       hasUser: !!user,
       userId: user?.id,
       hasAssessmentHistory,
-      loading
+      loading,
+      currentOnboardingScreen: onboardingScreen
     });
 
+    // Still loading - wait
+    if (loading) {
+      console.log('⏳ Still loading - waiting...');
+      return;
+    }
+
     if (!user) {
-      // No authenticated user → Show new user flow
-      console.log('🆕 No authenticated user - starting new user flow');
-      setOnboardingScreen('splash');
+      // No authenticated user → Show new user flow (only if not already set)
+      if (onboardingScreen === null) {
+        console.log('🆕 No authenticated user - starting new user flow');
+        setOnboardingScreen('splash');
+      }
     } else {
       // User is authenticated - check if they need baseline
       if (hasAssessmentHistory === true) {
-        // Has baseline → Dashboard
-        console.log('🔄 Has baseline - going to dashboard');
-        setOnboardingScreen('returning_splash');
+        // Has baseline → Dashboard (transition from splash if needed)
+        if (onboardingScreen === 'splash' || onboardingScreen === null) {
+          console.log('🔄 Has baseline - going to dashboard from splash');
+          setOnboardingScreen('returning_splash');
+        }
       } else {
         // No baseline → Force baseline
-        console.log('🎯 No baseline - forcing baseline flow');
-        setOnboardingScreen('baseline_welcome');
+        if (onboardingScreen === null || onboardingScreen === 'splash') {
+          console.log('🎯 No baseline - forcing baseline flow');
+          setOnboardingScreen('baseline_welcome');
+        }
       }
     }
-  }, [user, loading, hasAssessmentHistory]); // Removed onboardingScreen from dependencies to prevent loop
+  }, [user, loading, hasAssessmentHistory, onboardingScreen]); // Removed onboardingScreen from dependencies to prevent loop
 
   // Handle missing pendingEmail for email verification - move state update out of render
   useEffect(() => {
