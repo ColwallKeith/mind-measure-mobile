@@ -2,11 +2,22 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Play, Target, TrendingUp, Brain, Shield, Heart, Clock } from 'lucide-react';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 interface BaselineAssessmentScreenProps {
   onStartAssessment: () => void;
 }
 export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessmentScreenProps) {
+  const handleStartWithHaptics = async () => {
+    // Trigger haptic feedback
+    try {
+      await Haptics.impact({ style: ImpactStyle.Medium });
+    } catch (error) {
+      // Haptics might not be available in all environments
+      console.log('Haptics not available');
+    }
+    onStartAssessment();
+  };
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -95,7 +106,7 @@ export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessme
           whileTap={{ scale: 0.98 }}
         >
           <Button
-            onClick={onStartAssessment}
+            onClick={handleStartWithHaptics}
             className="w-full h-16 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-0 shadow-2xl text-lg backdrop-blur-xl hover:shadow-2xl transition-all duration-300 rounded-2xl"
           >
             <motion.div
