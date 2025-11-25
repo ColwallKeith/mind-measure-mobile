@@ -70,14 +70,14 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
         <div className="flex items-center justify-between px-6 py-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors"
             disabled={isLoading}
           >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="font-medium">Back</span>
+            <ChevronLeft className="w-6 h-6" />
+            <span className="font-medium text-base">Back</span>
           </button>
           <h1 className="text-lg font-semibold text-gray-900">Sign In</h1>
-          <div className="w-20" /> {/* Spacer for centering */}
+          <div className="w-24" /> {/* Spacer for centering */}
         </div>
       </div>
 
@@ -117,14 +117,14 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@university.ac.uk"
-                  className="w-full h-14 pl-12 pr-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 pl-14 pr-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -137,21 +137,21 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full h-14 pl-12 pr-12 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 pl-14 pr-14 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
