@@ -274,7 +274,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
           </div>
         </motion.div>
         {/* Main Content - Scrollable */}
-        <div className="flex-1 px-6 pb-8 overflow-y-auto" style={{ paddingBottom: 'max(6rem, env(safe-area-inset-bottom) + 5rem)' }}>
+        <div className="flex-1 px-6 overflow-y-auto" style={{ paddingBottom: step === 3 ? 'max(24rem, env(safe-area-inset-bottom) + 23rem)' : 'max(6rem, env(safe-area-inset-bottom) + 5rem)' }}>
           <motion.div variants={itemVariants}>
             <Card className="border-0 shadow-xl backdrop-blur-xl bg-white/80 p-6 max-w-md mx-auto">
               {/* Step Header */}
