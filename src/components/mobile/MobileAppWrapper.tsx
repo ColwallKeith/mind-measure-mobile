@@ -15,7 +15,7 @@ import { SplashScreen } from './LandingPage';
 import { RegistrationScreen } from './RegistrationScreen';
 import { WelcomeBack } from './WelcomeBack';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
-import { BaselineAssessment } from './BaselineAssessment';
+import { BaselineAssessmentSDK } from './BaselineAssessmentSDK';
 import { CheckinAssessment } from './CheckinAssessment';
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import NotFound from '../../pages/NotFound';
@@ -213,7 +213,7 @@ export function MobileAppWrapper() {
         <Route path="/welcome-back" element={<ReturningSplashScreen onComplete={() => navigate('/dashboard')} />} />
         {/* TEST ROUTE: Simulate returning user */}
         <Route path="/test-returning" element={<ReturningSplashScreen onComplete={() => navigate('/dashboard')} />} />
-        <Route path="/baseline" element={<BaselineAssessment onBack={() => window.history.back()} />} />
+        <Route path="/baseline" element={<BaselineAssessmentSDK onBack={() => window.history.back()} />} />
         <Route path="/checkin" element={<CheckinAssessment onBack={() => window.history.back()} />} />
         <Route path="/dashboard" element={
           <DashboardScreen

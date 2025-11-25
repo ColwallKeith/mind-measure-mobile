@@ -34,13 +34,7 @@ export interface UniversityMetrics {
 }
 export class UniversityDataService {
   private databaseService: DatabaseService;
-  // University domain mappings
-  private universityDomains = {
-    'worcs.ac.uk': 'worcester',
-    'worcester.ac.uk': 'worcester',
-    'lse.ac.uk': 'lse',
-    'student.lse.ac.uk': 'lse',
-  };
+
   constructor() {
     try {
       const backendService = BackendServiceFactory.createService(
@@ -52,14 +46,7 @@ export class UniversityDataService {
       this.databaseService = null as any; // Will trigger demo data fallback
     }
   }
-  /**
-   * Extract university identifier from email domain
-   */
-  private getUniversityFromEmail(email: string): string | null {
-    const domain = email.split('@')[1]?.toLowerCase();
-    if (!domain) return null;
-    return this.universityDomains[domain] || null;
-  }
+
   /**
    * Check if university should use demo data
    */
@@ -206,31 +193,25 @@ export class UniversityDataService {
     }
   }
   /**
-   * Get all users belonging to a university (by email domain)
+   * Get all users belonging to a university (by university_id in profiles table)
    */
   private async getUniversityUsers(universityId: string): Promise<any[]> {
-    // Find the domain(s) for this university
-    const domains = Object.entries(this.universityDomains)
-      .filter(([domain, uni]) => uni === universityId)
-      .map(([domain]) => domain);
-    if (domains.length === 0) {
+    try {
+      // Query profiles directly by university_id (much more reliable than email domain matching!)
+      const { data, error } = await this.databaseService.select('profiles', {
+        columns: 'user_id, email',
+        filters: { university_id: universityId },
+      });
+      if (error || !data) {
+        console.error('[UniversityDataService] Error fetching university users:', error);
+        return [];
+      }
+      console.log(`[UniversityDataService] ✅ Found ${data.length} users for university: ${universityId}`);
+      return data;
+    } catch (error) {
+      console.error('[UniversityDataService] Error in getUniversityUsers:', error);
       return [];
     }
-    // Query users with email domains matching this university
-    const { data, error } = await this.databaseService.select('profiles', {
-      columns: 'user_id, email',
-      filters: {}, // We'll filter in memory for email domains
-    });
-    if (error || !data) {
-      console.error('Error fetching university users:', error);
-      return [];
-    }
-    // Filter by email domain in memory (since we can't do LIKE queries easily)
-    return data.filter(user => {
-      if (!user.email) return false;
-      const userDomain = user.email.split('@')[1]?.toLowerCase();
-      return domains.includes(userDomain);
-    });
   }
   /**
    * Get total number of students

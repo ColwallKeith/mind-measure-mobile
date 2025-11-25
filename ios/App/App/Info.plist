@@ -49,5 +49,24 @@
 	<string>Mind Measure needs camera access for visual emotion analysis during your baseline assessment.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mind Measure needs microphone access to have a conversation with you during your baseline assessment.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>execute-api.eu-west-2.amazonaws.com</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

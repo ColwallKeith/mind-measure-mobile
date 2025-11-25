@@ -10,9 +10,8 @@ import { EmailVerificationScreen } from "./EmailVerificationScreen";
 import { SignInScreen } from "./SignInScreen";
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
-import { BaselineAssessment } from './BaselineAssessment';
+import { BaselineAssessmentSDK } from './BaselineAssessmentSDK';
 import { SplashScreen } from './LandingPage';
-import { AuthenticatedApp } from './AuthenticatedApp';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -217,8 +216,8 @@ export const MobileAppStructure: React.FC = () => {
           console.log('🎨 Rendering ReturningSplashScreen');
           return <ReturningSplashScreen onComplete={handleSplashComplete} />;
         case 'baseline_assessment':
-          console.log('🎨 Rendering BaselineAssessment');
-          return <BaselineAssessment onComplete={handleBaselineComplete} />;
+          console.log('🎨 Rendering BaselineAssessmentSDK');
+          return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;
         default:
           console.log('🎨 Rendering default SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;
