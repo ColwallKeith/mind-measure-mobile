@@ -324,11 +324,43 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
             </motion.div>
           </Button>
         </motion.div>
+        {/* Clear Session Button - Always available for stuck users */}
+        <motion.div
+          variants={itemVariants}
+          className="mt-6"
+        >
+          <Button
+            onClick={async () => {
+              console.log('🔄 Clearing all app data and signing out...');
+              try {
+                // Clear device preferences
+                const { Preferences } = await import('@capacitor/preferences');
+                await Preferences.clear();
+                console.log('✅ Device data cleared');
+                
+                // Sign out from Cognito
+                const { amplifyAuth } = await import('@/services/amplify-auth');
+                await amplifyAuth.signOut();
+                console.log('✅ Signed out from Cognito');
+                
+                // Reload the app
+                window.location.reload();
+              } catch (error) {
+                console.error('❌ Error clearing session:', error);
+                alert('Error clearing session. Please try again or reinstall the app.');
+              }
+            }}
+            className="bg-white/10 text-white/80 hover:bg-white/20 text-sm px-6 py-2 rounded-xl border border-white/20"
+          >
+            Already have an account? Sign in
+          </Button>
+        </motion.div>
+        
         {/* Debug Buttons - Only in development */}
         {process.env.NODE_ENV === 'development' && (
           <motion.div
             variants={itemVariants}
-            className="mt-6 space-y-2"
+            className="mt-4 space-y-2"
           >
             <p className="text-white/70 text-sm">Debug Options:</p>
             <div className="flex gap-2 flex-wrap justify-center">

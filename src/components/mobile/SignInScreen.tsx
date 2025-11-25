@@ -167,6 +167,39 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                 className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-200"
               >
                 <p className="text-sm font-medium">{error}</p>
+                
+                {/* Sign Out Button if already signed in */}
+                {error.includes('already a signed in user') && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      console.log('🔄 Signing out existing user...');
+                      setIsLoading(true);
+                      setError(null);
+                      try {
+                        const { amplifyAuth } = await import('@/services/amplify-auth');
+                        await amplifyAuth.signOut();
+                        console.log('✅ Signed out successfully');
+                        
+                        // Clear device preferences too
+                        const { Preferences } = await import('@capacitor/preferences');
+                        await Preferences.clear();
+                        console.log('✅ Device data cleared');
+                        
+                        // Reload the page to start fresh
+                        window.location.reload();
+                      } catch (err) {
+                        console.error('❌ Error signing out:', err);
+                        setError('Failed to sign out. Please close and reopen the app.');
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="mt-3 w-full h-12 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors"
+                    disabled={isLoading}
+                  >
+                    Sign Out and Try Again
+                  </button>
+                )}
               </motion.div>
             )}
 
