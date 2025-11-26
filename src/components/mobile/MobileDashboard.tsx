@@ -94,10 +94,8 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
             console.error('❌ No user ID found - cannot delete baseline');
           }
           
-          // Reload the app to force useUserAssessmentHistory to re-query
-          // This ensures the app sees baseline as incomplete and redirects to baseline welcome
-          console.log('🔄 Reloading app to apply baseline reset...');
-          window.location.reload();
+          // Trigger navigation to baseline
+          onResetBaseline();
         } catch (error) {
           console.error('❌ Error clearing baseline:', error);
           alert('Error resetting baseline. Please try again.');
