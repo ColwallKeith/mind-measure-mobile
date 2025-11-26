@@ -5,6 +5,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
+import {
+  extractAssessmentFromTranscript,
+  calculateClinicalScores,
+  calculateMindMeasureComposite,
+  validateAssessmentData,
+  type AssessmentState,
+  type PhqResponses
+} from '../../utils/baselineScoring';
 
 interface BaselineAssessmentSDKProps {
   onBack?: () => void;
@@ -25,15 +33,16 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Assessment data tracking
-  const [assessmentData, setAssessmentData] = useState({
-    phqResponses: {} as Record<string, number>,
-    moodScore: null as number | null,
-    transcript: [] as Message[],
-    startTime: null as number | null,
-    endTime: null as number | null,
-    sessionId: null as string | null
+  // Assessment state - using the new simplified model
+  const [assessmentState, setAssessmentState] = useState<AssessmentState>({
+    transcript: '',
+    phqResponses: {},
+    moodScore: null,
+    startedAt: null,
+    endedAt: null
   });
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
@@ -52,18 +61,14 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         timestamp: Date.now()
       };
       
-      // Update messages first
-      const updatedMessages = [...messages, newMessage];
-      setMessages(updatedMessages);
-      setAssessmentData(prev => ({
-        ...prev,
-        transcript: [...prev.transcript, newMessage]
-      }));
+      // Update messages for UI display
+      setMessages(prev => [...prev, newMessage]);
 
-      // Extract assessment data from user responses using UPDATED messages
-      if (message.source === 'user') {
-        extractAssessmentData(message.message, updatedMessages);
-      }
+      // Append to transcript using functional updater
+      setAssessmentState(prev => ({
+        ...prev,
+        transcript: prev.transcript + `${message.source === 'ai' ? 'agent' : 'user'}: ${message.message}\n`
+      }));
     },
     onError: (error) => {
       console.error('[SDK] ❌ Conversation error:', error);
@@ -90,21 +95,28 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[SDK] ✅ Audio permission granted');
 
-      // Show conversation UI
+      // Show conversation UI and initialize assessment state
       setShowConversation(true);
-      setAssessmentData(prev => ({ ...prev, startTime: Date.now() }));
+      const startedAt = Date.now();
+      setAssessmentState({
+        transcript: '',
+        phqResponses: {},
+        moodScore: null,
+        startedAt,
+        endedAt: null
+      });
       
       // Wait a moment for UI to render, then start the conversation
       setTimeout(async () => {
         try {
           console.log('[SDK] 🚀 Starting ElevenLabs conversation session...');
           
-          const sessionId = await conversation.startSession({
+          const sid = await conversation.startSession({
             agentId: 'agent_9301k22s8e94f7qs5e704ez02npe'
           });
 
-          console.log('[SDK] ✅ Session started with ID:', sessionId);
-          setAssessmentData(prev => ({ ...prev, sessionId }));
+          console.log('[SDK] ✅ Session started with ID:', sid);
+          setSessionId(sid);
 
         } catch (error) {
           console.error('[SDK] ❌ Failed to start conversation:', error);
@@ -119,115 +131,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     } finally {
       setRequestingPermissions(false);
     }
-  };
-
-  const extractAssessmentData = (userMessage: string, conversationHistory: Message[]) => {
-    console.log('[SDK] 🔍 Extracting assessment data from message:', userMessage);
-
-    // Helper to find the last agent message before this user response
-    const findLastAgentQuestion = () => {
-      for (let i = conversationHistory.length - 1; i >= 0; i--) {
-        if (conversationHistory[i].role === 'agent') {
-          return conversationHistory[i].content.toLowerCase();
-        }
-      }
-      return '';
-    };
-
-    const lastQuestion = findLastAgentQuestion();
-    const userResponse = userMessage.toLowerCase();
-
-    // PHQ-2 Questions (Q1-Q2)
-    if (lastQuestion.includes('little interest') || lastQuestion.includes('pleasure')) {
-      const score = mapPHQResponse(userResponse);
-      if (score !== null) {
-        console.log('[SDK] PHQ-2 Q1 detected:', score);
-        setAssessmentData(prev => ({
-          ...prev,
-          phqResponses: { ...prev.phqResponses, question_1: score }
-        }));
-      }
-    }
-
-    if (lastQuestion.includes('down') || lastQuestion.includes('depressed') || lastQuestion.includes('hopeless')) {
-      const score = mapPHQResponse(userResponse);
-      if (score !== null) {
-        console.log('[SDK] PHQ-2 Q2 detected:', score);
-        setAssessmentData(prev => ({
-          ...prev,
-          phqResponses: { ...prev.phqResponses, question_2: score }
-        }));
-      }
-    }
-
-    // GAD-2 Questions (Q3-Q4)
-    if (lastQuestion.includes('nervous') || lastQuestion.includes('anxious') || lastQuestion.includes('on edge')) {
-      const score = mapPHQResponse(userResponse);
-      if (score !== null) {
-        console.log('[SDK] GAD-2 Q1 detected:', score);
-        setAssessmentData(prev => ({
-          ...prev,
-          phqResponses: { ...prev.phqResponses, question_3: score }
-        }));
-      }
-    }
-
-    if (lastQuestion.includes('unable to stop') || lastQuestion.includes('control worrying')) {
-      const score = mapPHQResponse(userResponse);
-      if (score !== null) {
-        console.log('[SDK] GAD-2 Q2 detected:', score);
-        setAssessmentData(prev => ({
-          ...prev,
-          phqResponses: { ...prev.phqResponses, question_4: score }
-        }));
-      }
-    }
-
-    // Mood Scale (Q5) - Handle both digit and word responses
-    if (lastQuestion.includes('rate your current mood') || lastQuestion.includes('scale') || lastQuestion.includes('one to ten')) {
-      // Map word numbers to digits
-      const wordToNumber: Record<string, number> = {
-        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
-      };
-
-      // Try to extract a digit first
-      const digitMatch = userResponse.match(/(\d+)/);
-      if (digitMatch) {
-        const mood = parseInt(digitMatch[1]);
-        if (mood >= 1 && mood <= 10) {
-          console.log('[SDK] Mood scale (digit) detected:', mood);
-          setAssessmentData(prev => ({
-            ...prev,
-            moodScore: mood,
-            phqResponses: { ...prev.phqResponses, question_5: mood }
-          }));
-        }
-      } else {
-        // Try to match a word number
-        const words = userResponse.split(/\s+/);
-        for (const word of words) {
-          if (wordToNumber[word]) {
-            const mood = wordToNumber[word];
-            console.log('[SDK] Mood scale (word) detected:', mood);
-            setAssessmentData(prev => ({
-              ...prev,
-              moodScore: mood,
-              phqResponses: { ...prev.phqResponses, question_5: mood }
-            }));
-            break;
-          }
-        }
-      }
-    }
-  };
-
-  const mapPHQResponse = (response: string): number | null => {
-    if (response.includes('not at all')) return 0;
-    if (response.includes('several days')) return 1;
-    if (response.includes('more than half')) return 2;
-    if (response.includes('nearly every day')) return 3;
-    return null;
   };
 
   const handleFinish = async () => {
@@ -258,17 +161,20 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const processAssessmentData = async () => {
     console.log('[SDK] 📊 Processing assessment data...');
 
-    const endTime = Date.now();
-    const duration = assessmentData.startTime ? (endTime - assessmentData.startTime) / 1000 : 0;
+    const endedAt = Date.now();
 
-    // Validate data - STRICT: All 5 questions must be answered
-    const validation = validateBaselineData(
-      assessmentData,
-      assessmentData.transcript.length,
-      duration
-    );
+    // Extract PHQ/GAD/mood from the full transcript
+    const { phqResponses, moodScore } = extractAssessmentFromTranscript(assessmentState.transcript);
 
-    console.log('[SDK] Validation result:', validation);
+    const updatedState: AssessmentState = {
+      ...assessmentState,
+      phqResponses,
+      moodScore,
+      endedAt
+    };
+
+    // Validate
+    const validation = validateAssessmentData(updatedState);
 
     if (!validation.isValid) {
       console.error('[SDK] ❌ Incomplete assessment:', validation.details);
@@ -279,7 +185,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         'Please try again and answer all questions from Jodie.'
       );
       
-      // Return to welcome screen
       if (onBack) {
         onBack();
       }
@@ -287,6 +192,13 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     }
 
     console.log('[SDK] ✅ Baseline validation passed');
+
+    // Calculate scores
+    const clinical = calculateClinicalScores(phqResponses, moodScore);
+    const composite = calculateMindMeasureComposite(clinical);
+
+    console.log('[SDK] 📊 Clinical scores:', clinical);
+    console.log('[SDK] 📊 Mind Measure composite:', composite);
 
     // Get user ID
     let userId = user?.id;
@@ -319,8 +231,10 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       // Check/create profile
       const { data: existingProfiles, error: profileCheckError } = await backendService.database.select(
         'profiles',
-        ['id', 'email', 'user_id'],
-        { user_id: userId }
+        {
+          columns: ['id', 'email', 'user_id'],
+          filters: { user_id: userId }
+        }
       );
 
       if (profileCheckError) {
@@ -353,89 +267,79 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       }
 
       // Store raw transcript
-      const transcriptText = assessmentData.transcript
-        .map(m => `${m.role === 'agent' ? 'Jodie' : 'User'}: ${m.content}`)
-        .join('\n');
-
       const transcriptData = {
         user_id: userId,
         assessment_type: 'baseline',
-        transcript_text: transcriptText,
-        session_id: assessmentData.sessionId,
+        transcript_text: assessmentState.transcript,
+        session_id: sessionId,
         agent_id: 'agent_9301k22s8e94f7qs5e704ez02npe',
-        duration_seconds: Math.round(duration),
+        duration_seconds: Math.round((endedAt - (assessmentState.startedAt || endedAt)) / 1000),
         created_at: new Date().toISOString()
       };
 
-      const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
-      if (transcriptError) {
-        console.error('[SDK] ⚠️ Failed to store transcript:', transcriptError);
-      } else {
-        console.log('[SDK] ✅ Transcript stored');
-      }
+      await backendService.database.insert('assessment_transcripts', transcriptData);
+      console.log('[SDK] ✅ Transcript stored');
 
       // Store individual assessment items
-      const items = Object.entries(assessmentData.phqResponses).map(([questionKey, score], index) => ({
-        user_id: userId,
-        assessment_type: 'baseline',
-        item_number: index + 1,
-        question_id: questionKey,
-        response_value: score,
-        response_text: mapScoreToText(score, questionKey),
-        created_at: new Date().toISOString()
-      }));
+      const items = [
+        { question_id: 'phq2_q1', item_number: 1, response_value: phqResponses.phq2_q1 ?? 0 },
+        { question_id: 'phq2_q2', item_number: 2, response_value: phqResponses.phq2_q2 ?? 0 },
+        { question_id: 'gad2_q1', item_number: 3, response_value: phqResponses.gad2_q1 ?? 0 },
+        { question_id: 'gad2_q2', item_number: 4, response_value: phqResponses.gad2_q2 ?? 0 },
+        { question_id: 'mood', item_number: 5, response_value: moodScore ?? 5 },
+      ];
 
       for (const item of items) {
-        const { error: itemError } = await backendService.database.insert('assessment_items', item);
-        if (itemError) {
-          console.error('[SDK] ⚠️ Failed to store item:', itemError);
-        }
+        await backendService.database.insert('assessment_items', {
+          user_id: userId,
+          assessment_type: 'baseline',
+          ...item,
+          created_at: new Date().toISOString()
+        });
       }
       console.log('[SDK] ✅ Assessment items stored');
 
-      // Calculate provisional score
-      const phqTotal = (assessmentData.phqResponses.question_1 || 0) + 
-                       (assessmentData.phqResponses.question_2 || 0);
-      const gadTotal = (assessmentData.phqResponses.question_3 || 0) + 
-                       (assessmentData.phqResponses.question_4 || 0);
-      const moodScore = assessmentData.moodScore || 5;
-      
-      const provisionalScore = Math.round(
-        100 - ((phqTotal + gadTotal) * 5) - ((10 - moodScore) * 2)
-      );
-      const clampedScore = Math.max(0, Math.min(100, provisionalScore));
-
+      // Save fusion output with clinical and composite scores
       const fusionData = {
         user_id: userId,
-        session_id: null,
-        score: clampedScore,
-        score_smoothed: clampedScore,
-        final_score: clampedScore,
-        p_worse_fused: (100 - clampedScore) / 100,
+        session_id: sessionId,
+        score: composite.score,
+        score_smoothed: composite.score,
+        final_score: composite.score,
+        p_worse_fused: (100 - composite.score) / 100,
         uncertainty: 0.3,
         qc_overall: 0.8,
         public_state: 'report',
-        model_version: 'baseline_v1.0',
+        model_version: 'v1.0',
         analysis: JSON.stringify({
-          mood: 'baseline_established',
           assessment_type: 'baseline',
-          phq2_score: phqTotal,
-          gad2_score: gadTotal,
-          mood_rating: moodScore,
-          wellbeing_score: clampedScore
+          clinical_scores: {
+            phq2_total: clinical.phq2_total,
+            gad2_total: clinical.gad2_total,
+            mood_scale: clinical.mood_scale,
+            phq2_positive_screen: clinical.phq2_positive_screen,
+            gad2_positive_screen: clinical.gad2_positive_screen
+          },
+          conversation_quality: 'complete',
+          mind_measure_composite: {
+            score: composite.score,
+            phq2_component: composite.phq2_component,
+            gad2_component: composite.gad2_component,
+            mood_component: composite.mood_component
+          }
         }),
-        topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment']),
+        topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment', 'phq2', 'gad2']),
         created_at: new Date().toISOString()
       };
 
       await backendService.database.insert('fusion_outputs', fusionData);
-      console.log('[SDK] ✅ Baseline assessment saved with score:', clampedScore);
+      console.log('[SDK] ✅ Baseline assessment saved with score:', composite.score);
 
       // Update profile
       await backendService.database.update(
         'profiles',
         { baseline_established: true },
-        { user_id: userId }
+        { filters: { user_id: userId } }
       );
 
       // Mark complete in device storage
@@ -455,33 +359,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       console.error('[SDK] ❌ Error saving assessment:', error);
       alert('There was an error saving your assessment. Please try again or contact support.');
     }
-  };
-
-  const validateBaselineData = (data: typeof assessmentData, transcriptLength: number, duration: number) => {
-    // STRICT: Require all 5 questions to be answered
-    const hasAllQuestions = ['question_1', 'question_2', 'question_3', 'question_4', 'question_5']
-      .every(q => data.phqResponses[q] !== undefined);
-    
-    const hasMood = data.moodScore !== null;
-    const hasTranscript = transcriptLength > 5;
-    const hasDuration = duration > 30;
-
-    // All conditions must be true
-    const isValid = hasAllQuestions && hasMood && hasTranscript && hasDuration;
-
-    return {
-      isValid,
-      details: { hasAllQuestions, hasMood, hasTranscript, hasDuration }
-    };
-  };
-
-  const mapScoreToText = (score: number, questionKey: string): string => {
-    if (questionKey === 'question_5') {
-      return score.toString(); // Mood is 1-10
-    }
-    // PHQ/GAD responses
-    const map = ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'];
-    return map[score] || 'Unknown';
   };
 
   // Show conversation UI
