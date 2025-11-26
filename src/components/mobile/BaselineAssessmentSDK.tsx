@@ -262,11 +262,17 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           updated_at: new Date().toISOString()
         };
 
-        await backendService.database.insert('profiles', profileData);
+        const { error: profileCreateError } = await backendService.database.insert('profiles', profileData);
+        if (profileCreateError) {
+          console.error('[SDK] ❌ Failed to create profile:', profileCreateError);
+          throw new Error('Failed to create user profile');
+        }
         console.log('[SDK] ✅ Profile created');
+      } else {
+        console.log('[SDK] ✅ Profile exists');
       }
 
-      // Store raw transcript
+      // Store raw transcript (optional - doesn't block baseline completion)
       const transcriptData = {
         user_id: userId,
         transcript_text: assessmentState.transcript,
@@ -275,10 +281,15 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         created_at: new Date().toISOString()
       };
 
-      await backendService.database.insert('assessment_transcripts', transcriptData);
-      console.log('[SDK] ✅ Transcript stored');
+      const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
+      if (transcriptError) {
+        console.warn('[SDK] ⚠️ Failed to store transcript:', transcriptError);
+        // Non-blocking - continue
+      } else {
+        console.log('[SDK] ✅ Transcript stored');
+      }
 
-      // Store individual assessment items
+      // Store individual assessment items (optional - doesn't block baseline completion)
       const items = [
         { question_id: 'phq2_q1', item_number: 1, response_value: phqResponses.phq2_q1 ?? 0 },
         { question_id: 'phq2_q2', item_number: 2, response_value: phqResponses.phq2_q2 ?? 0 },
@@ -287,18 +298,27 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         { question_id: 'mood', item_number: 5, response_value: moodScore ?? 5 },
       ];
 
+      let itemsStored = 0;
       for (const item of items) {
-        await backendService.database.insert('assessment_items', {
+        const { error: itemError } = await backendService.database.insert('assessment_items', {
           user_id: userId,
           ...item,
           created_at: new Date().toISOString()
         });
+        if (itemError) {
+          console.warn('[SDK] ⚠️ Failed to store assessment item:', item.question_id, itemError);
+        } else {
+          itemsStored++;
+        }
       }
-      console.log('[SDK] ✅ Assessment items stored');
+      if (itemsStored > 0) {
+        console.log('[SDK] ✅ Assessment items stored:', itemsStored, '/', items.length);
+      }
 
-      // Save fusion output with clinical and composite scores
+      // Save fusion output with clinical and composite scores (CRITICAL - this is what enables dashboard access)
       const fusionData = {
         user_id: userId,
+        session_id: null, // ElevenLabs session ID stored in analysis JSON instead
         score: composite.score,
         score_smoothed: composite.score,
         final_score: composite.score,
@@ -309,7 +329,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         model_version: 'v1.0',
         analysis: JSON.stringify({
           assessment_type: 'baseline',
-          elevenlabs_session_id: sessionId, // Store session ID in analysis JSON
+          elevenlabs_session_id: sessionId,
           clinical_scores: {
             phq2_total: clinical.phq2_total,
             gad2_total: clinical.gad2_total,
@@ -329,28 +349,38 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         created_at: new Date().toISOString()
       };
 
-      await backendService.database.insert('fusion_outputs', fusionData);
+      const { error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
+      if (fusionError) {
+        console.error('[SDK] ❌ CRITICAL: Failed to save baseline assessment:', fusionError);
+        throw new Error('Failed to save baseline assessment');
+      }
       console.log('[SDK] ✅ Baseline assessment saved with score:', composite.score);
 
-      // Update profile
-      await backendService.database.update(
+      // Update profile to mark baseline as established (CRITICAL - enables dashboard access)
+      const { error: updateError } = await backendService.database.update(
         'profiles',
-        { baseline_established: true },
+        { baseline_established: true, updated_at: new Date().toISOString() },
         { user_id: userId }
       );
+      
+      if (updateError) {
+        console.error('[SDK] ❌ CRITICAL: Failed to update profile:', updateError);
+        throw new Error('Failed to mark baseline as complete');
+      }
+      console.log('[SDK] ✅ Profile updated (baseline_established = true)');
 
       // Mark complete in device storage
       await Preferences.set({ 
         key: 'mindmeasure_baseline_complete', 
         value: 'true' 
       });
+      console.log('[SDK] ✅ Device storage updated');
 
       console.log('[SDK] 🎉 Baseline assessment completed successfully!');
 
-      // Navigate to dashboard
-      if (onComplete) {
-        onComplete();
-      }
+      // Reload the app to force useUserAssessmentHistory to re-query
+      // This ensures the dashboard access gate sees the new baseline assessment
+      window.location.reload();
 
     } catch (error) {
       console.error('[SDK] ❌ Error saving assessment:', error);

@@ -63,57 +63,36 @@ export class UniversityResolver {
         BackendServiceFactory.getEnvironmentConfig()
       );
 
-      // Query universities where domain is in the domains array
-      // PostgreSQL syntax: 'worcs.ac.uk' = ANY(domains)
+      // Query universities - NOTE: 'domains' column may not exist yet
       console.log('[UniversityResolver] Querying database for domain:', domain);
       
       const { data: universities, error } = await backendService.database.select(
         'universities',
         {
-          columns: 'id, name, domains',
-          filters: {}, // We'll filter manually since we need array containment
+          columns: ['id', 'name'],
+          filters: {}, // Get all universities
         }
       );
 
       if (error) {
-        console.error('[UniversityResolver] ❌ Database query failed:', error);
+        console.warn('[UniversityResolver] DB lookup failed, using default:', error);
         return null;
       }
 
       if (!universities || universities.length === 0) {
-        console.log('[UniversityResolver] ⚠️ No universities found in database');
+        console.warn('[UniversityResolver] No universities found in database, using default');
         return null;
       }
 
       console.log('[UniversityResolver] 📊 Found', universities.length, 'universities in database');
-
-      // Refresh entire cache with all university domains
-      this.cache.clear();
-      for (const uni of universities) {
-        const domains = uni.domains || [];
-        console.log('[UniversityResolver] University:', uni.name, 'domains:', domains);
-        
-        for (const uniDomain of domains) {
-          const normalizedDomain = uniDomain.toLowerCase().trim();
-          this.cache.set(normalizedDomain, uni.id);
-        }
-      }
-      this.cacheExpiry = Date.now() + this.CACHE_TTL;
-
-      console.log('[UniversityResolver] ✅ Cache refreshed with', this.cache.size, 'domain mappings');
-
-      // Now check cache for the requested domain
-      if (this.cache.has(domain)) {
-        const universityId = this.cache.get(domain)!;
-        console.log('[UniversityResolver] ✅ Resolved:', { domain, universityId });
-        return universityId;
-      }
-
-      console.log('[UniversityResolver] ❌ Domain not found in any university:', domain);
+      
+      // For now, we don't have a domains column, so we can't do dynamic mapping
+      // Just return null and let the caller use the default
+      console.warn('[UniversityResolver] Domain mapping not yet implemented, using default university');
       return null;
 
     } catch (error) {
-      console.error('[UniversityResolver] ❌ Error resolving university:', error);
+      console.warn('[UniversityResolver] Error resolving university, using default:', error);
       return null;
     }
   }
