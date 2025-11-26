@@ -63,9 +63,9 @@ export const MobileAppStructure: React.FC = () => {
     } else {
       // User is authenticated - check if they need baseline
       if (hasAssessmentHistory === true) {
-        // Has baseline → Show returning splash first, then dashboard
-        if (onboardingScreen === null) {
-          console.log('👋 Returning user with baseline - showing returning splash');
+        // Has baseline → Dashboard (transition from splash if needed)
+        if (onboardingScreen === 'splash' || onboardingScreen === null) {
+          console.log('🔄 Has baseline - going to dashboard from splash');
           setOnboardingScreen('returning_splash');
         }
       } else {
@@ -100,17 +100,6 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
   }, []);
   
-  const handleReturningSplashComplete = useCallback(() => {
-    console.log('👋 Returning splash complete - going to dashboard');
-    setOnboardingScreen(null);
-    setCurrentScreen('dashboard');
-  }, []);
-  
-  const handleSignInStart = useCallback(() => {
-    console.log('🔐 Sign in requested from splash - going to sign in');
-    setOnboardingScreen('sign_in');
-  }, []);
-  
   const handleRegistrationComplete = useCallback((email: string, password: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
     setPendingEmail(email);
@@ -132,13 +121,8 @@ export const MobileAppStructure: React.FC = () => {
   }, []);
   
   const handleBaselineStart = useCallback(() => {
-    console.log('🎯 Starting baseline assessment - going to baseline welcome');
-    setOnboardingScreen('baseline_welcome');
-  }, []);
-  
-  const handleBaselineBack = useCallback(() => {
-    console.log('🔙 Going back to baseline welcome');
-    setOnboardingScreen('baseline_welcome');
+    console.log('🎯 Starting baseline assessment');
+    setOnboardingScreen('baseline_assessment');
   }, []);
   
   const handleBaselineComplete = useCallback(() => {
@@ -162,10 +146,14 @@ export const MobileAppStructure: React.FC = () => {
     // Prevent access to check-in if baseline not completed
     if (tab === 'checkin' && hasAssessmentHistory !== true) {
       console.log('🚫 Blocking check-in access - baseline not completed');
+      setOnboardingScreen('baseline_welcome');
       return;
     }
     setActiveTab(tab);
     setCurrentScreen(tab);
+  };
+  const handleNavigateToProfile = () => {
+    setCurrentScreen('profile');
   };
   const handleNavigateToSettings = () => {
     setCurrentScreen('settings');
@@ -202,10 +190,10 @@ export const MobileAppStructure: React.FC = () => {
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
         case 'returning_splash':
           console.log('🎨 Rendering ReturningSplashScreen');
-          return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
+          return <ReturningSplashScreen onComplete={handleSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessmentSDK');
-          return <BaselineAssessmentSDK onBack={handleBaselineBack} onComplete={handleBaselineComplete} />;
+          return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;
         default:
           console.log('🎨 Rendering default SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;
@@ -231,7 +219,6 @@ export const MobileAppStructure: React.FC = () => {
         return <DashboardScreen
           onNeedHelp={() => setCurrentScreen('help')}
           onCheckIn={() => setCurrentScreen('checkin')}
-          onResetBaseline={handleBaselineStart}
         />;
       case 'checkin':
         return (
@@ -249,43 +236,41 @@ export const MobileAppStructure: React.FC = () => {
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:
-        return (
-          <DashboardScreen
-            onNeedHelp={() => setCurrentScreen('help')}
-            onCheckIn={() => setCurrentScreen('checkin')}
-            onResetBaseline={handleBaselineStart}
-          />
-        );
+        return <DashboardScreen
+          onNeedHelp={() => setCurrentScreen('help')}
+        />;
     }
   };
   return (
-    <div className="fixed inset-0 bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="pb-24">
         {renderContent()}
       </div>
-      {/* Bottom Navigation - Only show on main screens, not during onboarding */}
-      {!onboardingScreen && user && hasAssessmentHistory && (
-        <div className="relative z-20">
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom">
-            <div className="flex items-center justify-around h-16">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.screen;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleTabChange(item.screen)}
-                    className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                      isActive ? 'text-purple-600' : 'text-gray-400'
-                    }`}
-                  >
-                    <Icon className="w-6 h-6 mb-1" />
-                    <span className="text-xs font-medium">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+      {/* Bottom Navigation - Only show on main tabs after onboarding */}
+      {!onboardingScreen && ['dashboard', 'checkin', 'buddies', 'help'].includes(currentScreen) && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/60 shadow-lg">
+          <div className="flex items-center justify-around px-2 py-3">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.id === activeTab;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabChange(item.id as MobileTab)}
+                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
+                  }`}
+                >
+                  <Icon className={`w-6 h-6 mb-1 ${isActive ? 'text-white' : ''}`} />
+                  <span className={`text-xs font-medium ${isActive ? 'text-white' : ''}`}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
