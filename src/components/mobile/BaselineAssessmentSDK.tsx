@@ -398,30 +398,40 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         flexDirection: 'column',
         background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)'
       }}>
-        {/* Header - increased top padding for Dynamic Island */}
+        {/* Header - matching BaselineWelcome style */}
         <div style={{ 
           paddingTop: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
           paddingBottom: '1.5rem',
           paddingLeft: '1rem',
           paddingRight: '1rem',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(12px)',
-          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+          backgroundColor: 'transparent'
         }}>
           <div style={{ textAlign: 'center' }}>
+            {/* Logo */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <img
+                src={mindMeasureLogo}
+                alt="Mind Measure"
+                style={{
+                  width: '6rem',
+                  height: '6rem',
+                  margin: '0 auto',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
+            {/* Title */}
             <h1 style={{ 
-              fontSize: '2rem', 
-              fontWeight: 'bold', 
-              marginBottom: '0.5rem',
-              background: 'linear-gradient(to right, #9333ea, #a855f7, #2563eb)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+              fontSize: '1.875rem', 
+              fontWeight: '400',
+              marginBottom: '0.75rem',
+              color: '#111827'
             }}>
               Baseline Assessment
             </h1>
+            {/* Subtitle */}
             <p style={{ 
-              fontSize: '1.125rem',
+              fontSize: '1rem',
               color: '#6b7280',
               margin: 0
             }}>
@@ -436,8 +446,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           alignItems: 'center', 
           justifyContent: 'space-between',
           padding: '0.75rem 1rem',
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(8px)'
+          backgroundColor: 'transparent'
         }}>
           {/* Finish button - left */}
           <Button
@@ -506,18 +515,18 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
                   marginBottom: '1rem'
                 }}
               >
-                {/* Jodie's messages - Light purple/pink card on LEFT */}
+                {/* Jodie's messages - White card on LEFT */}
                 {msg.role === 'agent' && (
                   <div 
                     style={{ 
-                      backgroundColor: '#faf5ff', 
-                      borderColor: '#f3e8ff', 
+                      backgroundColor: '#ffffff', 
+                      borderColor: '#e5e7eb', 
                       borderWidth: '1px',
                       borderStyle: 'solid',
                       borderRadius: '1.5rem', 
                       borderTopLeftRadius: '0.25rem', 
                       padding: '1rem 1.25rem', 
-                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', 
+                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', 
                       maxWidth: '75%', 
                       lineHeight: '1.6' 
                     }}
@@ -580,8 +589,8 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           </div>
         </header>
 
-        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
-          <div className="w-full max-w-2xl">
+        <div className="flex-1 flex items-start justify-center px-4 sm:px-6 py-8 sm:py-12 pt-16">
+          <div className="w-full max-w-2xl space-y-6">
             <div className="bg-white rounded-2xl shadow-lg p-8 border">
               <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
                 <img src={mindMeasureLogo} alt="Mind Measure" className="w-full h-full object-contain" />
@@ -589,7 +598,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
               
               <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">What to expect</h3>
               
-              <div className="bg-blue-50 rounded-lg p-6 mb-6">
+              <div className="bg-blue-50 rounded-lg p-6">
                 <ul className="text-blue-800 space-y-3 text-left">
                   <li className="flex items-start">
                     <span className="text-blue-600 mr-3 mt-0.5">•</span>
@@ -613,22 +622,22 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
                   </li>
                 </ul>
               </div>
-
-              <Button
-                onClick={handleStartAssessment}
-                disabled={requestingPermissions}
-                className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg font-medium rounded-xl disabled:opacity-50 shadow-lg"
-              >
-                {requestingPermissions ? (
-                  <div className="flex items-center gap-2 justify-center">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Requesting Permissions...
-                  </div>
-                ) : (
-                  'Start Your Baseline Assessment'
-                )}
-              </Button>
             </div>
+
+            <Button
+              onClick={handleStartAssessment}
+              disabled={requestingPermissions}
+              className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg font-medium rounded-xl disabled:opacity-50 shadow-lg"
+            >
+              {requestingPermissions ? (
+                <div className="flex items-center gap-2 justify-center">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Requesting Permissions...
+                </div>
+              ) : (
+                'Start Your Baseline Assessment'
+              )}
+            </Button>
           </div>
         </div>
       </div>

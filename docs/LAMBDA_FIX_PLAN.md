@@ -167,3 +167,4 @@ cd /Users/keithduddy/Desktop/Mind\ Measure\ local/mind-measure-mobile-final/aws/
 This will tell us exactly what state the Lambda functions are in.
 
 
+

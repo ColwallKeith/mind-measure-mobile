@@ -262,7 +262,7 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         animate="visible"
         style={{ 
           paddingTop: 'max(3rem, env(safe-area-inset-top))',
-          paddingBottom: 'env(safe-area-inset-bottom)' 
+          paddingBottom: 'max(24rem, calc(env(safe-area-inset-bottom) + 24rem))' 
         }}
       >
         {/* Header */}

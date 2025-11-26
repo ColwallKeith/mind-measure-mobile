@@ -117,14 +117,14 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your.email@university.ac.uk"
-                  className="w-full h-14 pl-14 pr-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 px-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  style={{ paddingLeft: '2rem' }}
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -137,14 +137,14 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full h-14 pl-14 pr-14 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  className="w-full h-14 px-4 pr-14 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
+                  style={{ paddingLeft: '2rem' }}
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
@@ -208,7 +208,11 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
               variants={itemVariants}
               type="submit"
               disabled={isLoading}
-              className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed hover:from-purple-700 hover:to-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-700 hover:to-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-2"
+              style={{
+                background: isLoading ? undefined : 'linear-gradient(to right, rgb(147 51 234), rgb(37 99 235))',
+                color: 'white'
+              }}
             >
               {isLoading ? (
                 <>

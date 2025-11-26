@@ -131,6 +131,11 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_assessment');
   }, []);
   
+  const handleBaselineBack = useCallback(() => {
+    console.log('🔙 Going back to baseline welcome');
+    setOnboardingScreen('baseline_welcome');
+  }, []);
+  
   const handleBaselineComplete = useCallback(() => {
     console.log('✅ Baseline assessment completed - going to dashboard');
     setOnboardingScreen(null);
@@ -195,7 +200,7 @@ export const MobileAppStructure: React.FC = () => {
           return <ReturningSplashScreen onComplete={handleSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessmentSDK');
-          return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;
+          return <BaselineAssessmentSDK onBack={handleBaselineBack} onComplete={handleBaselineComplete} />;
         default:
           console.log('🎨 Rendering default SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;

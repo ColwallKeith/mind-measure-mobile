@@ -82,11 +82,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     try {
       // FIX: Pass email and password as separate arguments, not as object
-      const { data, error } = await amplifyAuth.signInWithPassword(email, password);
-      if (error) {
-        return { error };
+      const result = await amplifyAuth.signInWithPassword(email, password);
+      if (result.error) {
+        // Pass through needsVerification flag for unverified emails
+        return { 
+          error: result.error, 
+          needsVerification: result.needsVerification,
+          email: result.email
+        };
       }
-      setUser(data.user);
+      setUser(result.data.user);
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);

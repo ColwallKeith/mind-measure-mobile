@@ -116,8 +116,10 @@ export function useDashboardData(): DashboardData {
       // DO NOT query assessment_sessions - it has FK constraints and missing columns (conversation_summary) for baseline
       const { data: sessions, error: sessionsError } = await backendService.database.select(
         'fusion_outputs',
-        ['id', 'score', 'final_score', 'analysis', 'created_at'],
-        { user_id: user.id }
+        {
+          columns: 'id, score, final_score, analysis, created_at',
+          filters: { user_id: user.id }
+        }
       );
       
       if (sessionsError) {

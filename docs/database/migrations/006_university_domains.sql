@@ -28,3 +28,4 @@ UPDATE universities SET domains = ARRAY['lse.ac.uk', 'student.lse.ac.uk'] WHERE 
 --   SELECT id, name, unnest(domains) as domain FROM universities;
 
 
+

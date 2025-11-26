@@ -135,7 +135,7 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
       </div>
 
       {/* Content */}
-      <div className="flex-1 px-6 py-8 overflow-y-auto" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+      <div className="flex-1 px-6 py-8 overflow-y-auto" style={{ paddingBottom: 'max(20rem, calc(env(safe-area-inset-bottom) + 20rem))' }}>
         <div className="max-w-md mx-auto">
           {/* Icon */}
           <div className="flex justify-center mb-6">
