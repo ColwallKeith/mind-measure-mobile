@@ -494,9 +494,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         flexDirection: 'column',
         background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)'
       }}>
-        {/* Header */}
+        {/* Header - increased top padding for Dynamic Island */}
         <div style={{ 
-          padding: '2.5rem 1rem 1.5rem 1rem',
+          paddingTop: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
+          paddingBottom: '1.5rem',
+          paddingLeft: '1rem',
+          paddingRight: '1rem',
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(12px)',
           boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
@@ -513,6 +516,13 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
             }}>
               Baseline Assessment
             </h1>
+            <p style={{ 
+              fontSize: '1.125rem',
+              color: '#6b7280',
+              margin: 0
+            }}>
+              Start your wellness journey
+            </p>
           </div>
         </div>
 
@@ -575,12 +585,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           )}
         </div>
 
-        {/* Messages */}
+        {/* Messages - increased bottom padding */}
         <div style={{ 
           flex: 1, 
           overflowY: 'auto',
           padding: '1rem',
-          paddingBottom: '4rem'
+          paddingBottom: 'max(8rem, calc(env(safe-area-inset-bottom, 0px) + 8rem))'
         }}>
           <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
             {messages.map((msg, idx) => (
