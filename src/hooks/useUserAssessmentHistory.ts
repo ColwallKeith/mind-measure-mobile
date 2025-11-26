@@ -39,11 +39,13 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
         BackendServiceFactory.getEnvironmentConfig()
       );
       
-      // Query fusion_outputs table for baseline assessments - same signature as BaselineAssessment uses
+      // Query fusion_outputs table for baseline assessments - use correct options signature
       const { data: assessments, error } = await backendService.database.select(
         'fusion_outputs',
-        ['id', 'score', 'created_at', 'analysis'],
-        { user_id: userId }
+        {
+          columns: ['id', 'score', 'created_at', 'analysis'],
+          filters: { user_id: userId }
+        }
       );
 
       if (error) {
