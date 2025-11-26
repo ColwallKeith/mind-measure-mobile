@@ -269,9 +269,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       // Store raw transcript
       const transcriptData = {
         user_id: userId,
-        assessment_type: 'baseline',
         transcript_text: assessmentState.transcript,
-        session_id: sessionId,
         agent_id: 'agent_9301k22s8e94f7qs5e704ez02npe',
         duration_seconds: Math.round((endedAt - (assessmentState.startedAt || endedAt)) / 1000),
         created_at: new Date().toISOString()
@@ -292,7 +290,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       for (const item of items) {
         await backendService.database.insert('assessment_items', {
           user_id: userId,
-          assessment_type: 'baseline',
           ...item,
           created_at: new Date().toISOString()
         });
@@ -302,7 +299,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       // Save fusion output with clinical and composite scores
       const fusionData = {
         user_id: userId,
-        session_id: sessionId,
         score: composite.score,
         score_smoothed: composite.score,
         final_score: composite.score,
@@ -313,6 +309,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         model_version: 'v1.0',
         analysis: JSON.stringify({
           assessment_type: 'baseline',
+          elevenlabs_session_id: sessionId, // Store session ID in analysis JSON
           clinical_scores: {
             phq2_total: clinical.phq2_total,
             gad2_total: clinical.gad2_total,
@@ -339,7 +336,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       await backendService.database.update(
         'profiles',
         { baseline_established: true },
-        { filters: { user_id: userId } }
+        { user_id: userId }
       );
 
       // Mark complete in device storage
