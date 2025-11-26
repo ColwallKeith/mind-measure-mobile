@@ -138,10 +138,24 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
         if (signUpError) {
           console.error('❌ Signup error:', signUpError);
           
-          // If user already exists, try to sign them in with the password they entered
+          // If user already exists, show confirmation popup
           if (signUpError.includes('already exists') || signUpError.includes('UsernameExistsException')) {
-            console.log('🔐 User exists - attempting sign-in with entered password...');
+            console.log('🔐 User exists - showing sign-in confirmation...');
             
+            const confirmed = window.confirm(
+              'Account Already Exists\n\n' +
+              `An account with ${formData.email} already exists.\n\n` +
+              'Would you like to sign in instead?'
+            );
+            
+            if (!confirmed) {
+              setError('This email is already registered. Please use a different email or click "Next" again to sign in.');
+              setIsLoading(false);
+              return;
+            }
+            
+            // User confirmed - attempt sign-in
+            console.log('✅ User confirmed - attempting sign-in with entered password...');
             const signInResult = await signIn(formData.email, formData.password);
             
             // Check if user exists but email is not verified

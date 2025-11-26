@@ -101,6 +101,11 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
   }, []);
   
+  const handleSignInStart = useCallback(() => {
+    console.log('🔐 Sign in requested from splash - going to sign in');
+    setOnboardingScreen('sign_in');
+  }, []);
+  
   const handleRegistrationComplete = useCallback((email: string, password: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
     setPendingEmail(email);
@@ -147,14 +152,10 @@ export const MobileAppStructure: React.FC = () => {
     // Prevent access to check-in if baseline not completed
     if (tab === 'checkin' && hasAssessmentHistory !== true) {
       console.log('🚫 Blocking check-in access - baseline not completed');
-      setOnboardingScreen('baseline_welcome');
       return;
     }
     setActiveTab(tab);
     setCurrentScreen(tab);
-  };
-  const handleNavigateToProfile = () => {
-    setCurrentScreen('profile');
   };
   const handleNavigateToSettings = () => {
     setCurrentScreen('settings');
@@ -220,6 +221,7 @@ export const MobileAppStructure: React.FC = () => {
         return <DashboardScreen
           onNeedHelp={() => setCurrentScreen('help')}
           onCheckIn={() => setCurrentScreen('checkin')}
+          onResetBaseline={handleBaselineStart}
         />;
       case 'checkin':
         return (
@@ -237,41 +239,43 @@ export const MobileAppStructure: React.FC = () => {
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:
-        return <DashboardScreen
-          onNeedHelp={() => setCurrentScreen('help')}
-        />;
+        return (
+          <DashboardScreen
+            onNeedHelp={() => setCurrentScreen('help')}
+            onCheckIn={() => setCurrentScreen('checkin')}
+            onResetBaseline={handleBaselineStart}
+          />
+        );
     }
   };
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="fixed inset-0 bg-gray-50 flex flex-col">
       {/* Main Content */}
-      <div className="pb-24">
+      <div className="flex-1 overflow-y-auto">
         {renderContent()}
       </div>
-      {/* Bottom Navigation - Only show on main tabs after onboarding */}
-      {!onboardingScreen && ['dashboard', 'checkin', 'buddies', 'help'].includes(currentScreen) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/60 shadow-lg">
-          <div className="flex items-center justify-around px-2 py-3">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.id === activeTab;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleTabChange(item.id as MobileTab)}
-                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
-                  }`}
-                >
-                  <Icon className={`w-6 h-6 mb-1 ${isActive ? 'text-white' : ''}`} />
-                  <span className={`text-xs font-medium ${isActive ? 'text-white' : ''}`}>
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
+      {/* Bottom Navigation - Only show on main screens, not during onboarding */}
+      {!onboardingScreen && user && hasAssessmentHistory && (
+        <div className="relative z-20">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-bottom">
+            <div className="flex items-center justify-around h-16">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.screen;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleTabChange(item.screen)}
+                    className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                      isActive ? 'text-purple-600' : 'text-gray-400'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6 mb-1" />
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

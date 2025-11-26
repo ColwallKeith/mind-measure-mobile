@@ -6,13 +6,14 @@ import { MessageCircle, Activity, Shield, Phone, Loader2, GraduationCap } from '
 import { ScoreCard } from './ScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 interface DashboardScreenProps {
   onNeedHelp?: () => void;
   onCheckIn?: () => void;
+  onResetBaseline?: () => void;
 }
-export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps) {
+export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: DashboardScreenProps) {
   const {
     profile,
     latestScore,
@@ -22,6 +23,52 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
     loading,
     error
   } = useDashboardData();
+  
+  // Developer hack: Click logo 5 times to reset baseline
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = async () => {
+    const newCount = logoClickCount + 1;
+    setLogoClickCount(newCount);
+    console.log(`🎯 Logo clicked ${newCount} times`);
+
+    // Reset counter after 2 seconds of inactivity
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+    clickTimeoutRef.current = setTimeout(() => {
+      setLogoClickCount(0);
+    }, 2000);
+
+    // Trigger reset on 5th click
+    if (newCount === 5) {
+      console.log('🔄 Developer mode: 5 clicks detected');
+      setLogoClickCount(0);
+      
+      // Show confirmation popup
+      const confirmed = window.confirm(
+        'Developer Mode\n\n' +
+        'Reset your baseline assessment?\n\n' +
+        'This will clear your baseline data and let you retake the assessment.'
+      );
+      
+      if (confirmed && onResetBaseline) {
+        // User clicked OK - proceed with reset
+        console.log('✅ User confirmed baseline reset');
+        try {
+          const { Preferences } = await import('@capacitor/preferences');
+          await Preferences.remove({ key: 'mindmeasure_baseline_complete' });
+          console.log('✅ Baseline flag cleared from device');
+          onResetBaseline();
+        } catch (error) {
+          console.error('❌ Error clearing baseline flag:', error);
+        }
+      } else {
+        console.log('❌ User cancelled baseline reset');
+      }
+    }
+  };
   
   // NOTE: Baseline requirement is now handled by AuthenticatedApp component
   // This screen will only render if user has baseline data
@@ -99,7 +146,10 @@ export function DashboardScreen({ onNeedHelp, onCheckIn }: DashboardScreenProps)
       {/* University Branding */}
       <motion.div variants={itemVariants} style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-12 h-12 flex items-center justify-center">
+          <div 
+            className="w-12 h-12 flex items-center justify-center cursor-pointer"
+            onClick={handleLogoClick}
+          >
             <img
               src={mindMeasureLogo}
               alt="Mind Measure"
