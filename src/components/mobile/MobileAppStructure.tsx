@@ -131,12 +131,6 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_welcome');
   }, []);
   
-  const handleBaselineReset = useCallback(async () => {
-    console.log('🔄 Developer mode: Resetting baseline and refetching history');
-    await refetch(); // Refetch assessment history to update hasAssessmentHistory
-    setOnboardingScreen('baseline_welcome');
-  }, [refetch]);
-  
   const handleBaselineBack = useCallback(() => {
     console.log('🔙 Going back to baseline welcome');
     setOnboardingScreen('baseline_welcome');
