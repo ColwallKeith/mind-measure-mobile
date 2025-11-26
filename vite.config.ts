@@ -8,7 +8,6 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
-        '@11labs/client': path.resolve(__dirname, './node_modules/@11labs/client/dist/lib.modern.js'),
         'vaul@1.1.2': 'vaul',
         'sonner@2.0.3': 'sonner',
         'recharts@2.15.2': 'recharts',

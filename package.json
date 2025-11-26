@@ -95,6 +95,7 @@
             "vercel": "^48.1.6"
       },
       "scripts": {
+            "postinstall": "cd node_modules/@11labs/client 2>/dev/null && npm run build 2>/dev/null || echo 'Skipping @11labs/client build'",
             "dev": "vite",
             "build": "vite build",
             "vercel-build": "vite build",
