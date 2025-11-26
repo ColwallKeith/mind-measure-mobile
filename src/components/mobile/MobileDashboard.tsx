@@ -7,6 +7,7 @@ import { ScoreCard } from './ScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 interface DashboardScreenProps {
   onNeedHelp?: () => void;
@@ -14,6 +15,7 @@ interface DashboardScreenProps {
   onResetBaseline?: () => void;
 }
 export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: DashboardScreenProps) {
+  const { user } = useAuth();
   const {
     profile,
     latestScore,
@@ -68,22 +70,26 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
             BackendServiceFactory.getEnvironmentConfig()
           );
           
-          // Get current user ID
-          const { useAuth } = await import('../../contexts/AuthContext');
-          const userId = profile?.user_id;
+          // Get current user ID from Auth context
+          const userId = user?.id;
+          console.log('🔍 Current user ID for deletion:', userId);
           
           if (userId) {
+            console.log('🗑️ Deleting baseline for user:', userId);
+            
             // Delete baseline assessments
-            await backendService.database.delete('fusion_outputs', { user_id: userId });
-            console.log('✅ Baseline assessments deleted from database');
+            const deleteResult = await backendService.database.delete('fusion_outputs', { user_id: userId });
+            console.log('✅ Baseline assessments deleted from database:', deleteResult);
             
             // Update profile to mark baseline as not established
-            await backendService.database.update(
+            const updateResult = await backendService.database.update(
               'profiles',
               { baseline_established: false },
               { user_id: userId }
             );
-            console.log('✅ Profile updated - baseline_established set to false');
+            console.log('✅ Profile updated - baseline_established set to false:', updateResult);
+          } else {
+            console.error('❌ No user ID found - cannot delete baseline');
           }
           
           // Trigger navigation to baseline
