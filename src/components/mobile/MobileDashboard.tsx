@@ -62,7 +62,12 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
           const { Preferences } = await import('@capacitor/preferences');
           await Preferences.remove({ key: 'mindmeasure_baseline_complete' });
           console.log('✅ Baseline flag cleared from device');
-          onResetBaseline();
+          
+          // Must reload to clear the cached hasAssessmentHistory state
+          // The useUserAssessmentHistory hook has already cached the baseline data
+          // and navigating to baseline_welcome will just redirect back to dashboard
+          console.log('🔄 Reloading app to clear cached state...');
+          window.location.reload();
         } catch (error) {
           console.error('❌ Error clearing baseline flag:', error);
         }

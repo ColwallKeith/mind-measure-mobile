@@ -63,11 +63,10 @@ export const MobileAppStructure: React.FC = () => {
     } else {
       // User is authenticated - check if they need baseline
       if (hasAssessmentHistory === true) {
-        // Has baseline → Go directly to dashboard (skip all onboarding screens)
-        if (onboardingScreen !== null) {
-          console.log('🔄 Has baseline - going directly to dashboard from:', onboardingScreen);
-          setOnboardingScreen(null); // Clear onboarding to show main app
-          setCurrentScreen('dashboard');
+        // Has baseline → Show returning splash first, then dashboard
+        if (onboardingScreen === null) {
+          console.log('👋 Returning user with baseline - showing returning splash');
+          setOnboardingScreen('returning_splash');
         }
       } else {
         // No baseline → Force baseline
@@ -99,6 +98,12 @@ export const MobileAppStructure: React.FC = () => {
   const handleSplashComplete = useCallback(() => {
     console.log('🎯 Splash complete - going to registration');
     setOnboardingScreen('registration');
+  }, []);
+  
+  const handleReturningSplashComplete = useCallback(() => {
+    console.log('👋 Returning splash complete - going to dashboard');
+    setOnboardingScreen(null);
+    setCurrentScreen('dashboard');
   }, []);
   
   const handleSignInStart = useCallback(() => {
@@ -197,7 +202,7 @@ export const MobileAppStructure: React.FC = () => {
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
         case 'returning_splash':
           console.log('🎨 Rendering ReturningSplashScreen');
-          return <ReturningSplashScreen onComplete={handleSplashComplete} />;
+          return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessmentSDK');
           return <BaselineAssessmentSDK onBack={handleBaselineBack} onComplete={handleBaselineComplete} />;
