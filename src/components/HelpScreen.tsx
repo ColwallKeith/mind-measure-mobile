@@ -1,10 +1,51 @@
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock } from 'lucide-react';
-import mindMeasureLogo from 'figma:asset/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+import mindMeasureLogo from '../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+import { getUserUniversityProfile } from '../features/mobile/data';
+import { useAuth } from '../contexts/AuthContext';
+import type { EmergencyContact, MentalHealthService, LocalResource } from '../features/cms/data';
+
+interface UniversityData {
+  name: string;
+  emergency_contacts: EmergencyContact[];
+  mental_health_services: MentalHealthService[];
+  local_resources: LocalResource[];
+}
 
 export function HelpScreen() {
+  const { user } = useAuth();
+  const [universityData, setUniversityData] = useState<UniversityData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadUniversityData() {
+      try {
+        const profile = await getUserUniversityProfile();
+        if (profile) {
+          setUniversityData({
+            name: profile.name,
+            emergency_contacts: profile.emergency_contacts || [],
+            mental_health_services: [],
+            local_resources: []
+          });
+        }
+      } catch (error) {
+        console.error('Error loading university data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (user) {
+      loadUniversityData();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
   const handleCall = (number: string) => {
     window.location.href = `tel:${number}`;
   };
@@ -12,35 +53,6 @@ export function HelpScreen() {
   const handleVisit = (url: string) => {
     window.open(url, '_blank');
   };
-
-  // Simulated user university detection based on email domain
-  const userUniversity = 'University of Manchester'; // This would come from user's email domain
-  const userLocation = 'Manchester';
-
-  // Sample local resources based on detected university
-  const localResources = [
-    { 
-      name: 'University of Manchester Counselling Service', 
-      description: 'Free confidential counselling for all University of Manchester students', 
-      phone: '0161 275 2864', 
-      website: 'https://www.manchester.ac.uk/study/experience/student-support/counselling/',
-      hours: 'Mon-Fri 9am-5pm'
-    },
-    { 
-      name: 'University of Manchester Student Support', 
-      description: '24/7 emergency support line for UoM students', 
-      phone: '0161 275 2900', 
-      website: 'https://www.manchester.ac.uk/study/experience/student-support/',
-      hours: '24/7'
-    },
-    { 
-      name: '42nd Street Manchester', 
-      description: 'Free and confidential support for young people under 25 in Greater Manchester', 
-      phone: '0161 832 0170', 
-      website: 'https://www.42ndstreet.org.uk/',
-      hours: 'Mon-Fri 10am-6pm'
-    }
-  ];
 
   return (
     <div className="px-6 py-8 space-y-6">
@@ -115,67 +127,63 @@ export function HelpScreen() {
       </Card>
 
       {/* Local Student Support Section */}
-      <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-indigo-600" />
-          </div>
-          <div>
-            <h3 className="text-indigo-900">Your local student support</h3>
-            <p className="text-indigo-700 text-sm">Resources specific to your university</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-3 bg-indigo-50/60 rounded-lg backdrop-blur-sm border border-indigo-200">
-            <p className="text-indigo-800 text-sm flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Detected: {userUniversity}
-            </p>
-            <p className="text-indigo-600 text-xs mt-1">Based on your university email address</p>
+      {loading ? (
+        <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
+          <p className="text-gray-600 text-center">Loading your university support...</p>
+        </Card>
+      ) : universityData && universityData.emergency_contacts.length > 0 ? (
+        <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="text-indigo-900">Your local student support</h3>
+              <p className="text-indigo-700 text-sm">Resources specific to your university</p>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-indigo-900">Your local support services:</h4>
-            {localResources.map((resource, index) => (
-              <div key={index} className="p-4 bg-indigo-50/60 rounded-xl backdrop-blur-sm">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                    <Building2 className="w-4 h-4 text-indigo-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="text-indigo-900 mb-1">{resource.name}</h5>
-                    <p className="text-indigo-700 text-sm mb-2">{resource.description}</p>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="w-3 h-3 text-indigo-500" />
-                      <span className="text-indigo-600 text-xs">{resource.hours}</span>
+          <div className="space-y-4">
+            <div className="p-3 bg-indigo-50/60 rounded-lg backdrop-blur-sm border border-indigo-200">
+              <p className="text-indigo-800 text-sm flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                {universityData.name}
+              </p>
+              <p className="text-indigo-600 text-xs mt-1">Based on your university email address</p>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-indigo-900">Your local support services:</h4>
+              {universityData.emergency_contacts.map((contact) => (
+                <div key={contact.id} className="p-4 bg-indigo-50/60 rounded-xl backdrop-blur-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                      <Building2 className="w-4 h-4 text-indigo-600" />
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => handleVisit(resource.website)}
-                        variant="outline"
-                        className="bg-white/60 border-indigo-200 text-indigo-700 hover:bg-indigo-50 h-9"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Visit
-                      </Button>
-                      {resource.phone && (
+                    <div className="flex-1">
+                      <h5 className="text-indigo-900 mb-1">{contact.name}</h5>
+                      <p className="text-indigo-700 text-sm mb-2">{contact.description}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Clock className="w-3 h-3 text-indigo-500" />
+                        <span className="text-indigo-600 text-xs">{contact.is24Hour ? '24/7' : 'Hours vary'}</span>
+                      </div>
+                      <div className="flex gap-2">
                         <Button 
-                          onClick={() => handleCall(resource.phone)}
+                          onClick={() => handleCall(contact.phone)}
                           className="bg-indigo-500 hover:bg-indigo-600 text-white h-9"
                         >
                           <Phone className="w-4 h-4 mr-2" />
                           Call
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      ) : null}
 
       {/* Support Services Accordion */}
       <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
