@@ -64,7 +64,7 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 overflow-y-auto">
       {/* Header */}
       <div className="bg-white border-b border-gray-100" style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center justify-between px-6 py-4">
@@ -87,7 +87,7 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: 'max(20rem, calc(env(safe-area-inset-bottom) + 20rem))' }}
       >
         <div className="max-w-md mx-auto">
           {/* Logo */}

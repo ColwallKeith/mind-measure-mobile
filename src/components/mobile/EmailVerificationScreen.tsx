@@ -195,15 +195,32 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
           <button
             onClick={handleVerify}
             disabled={code.length !== 6 || isLoading}
-            className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg disabled:from-gray-300 disabled:to-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed hover:from-purple-700 hover:to-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 mb-6"
+            style={{
+              background: (code.length !== 6 || isLoading) ? '#d1d5db' : 'linear-gradient(to right, #9333ea, #2563eb)',
+              color: 'white',
+              width: '100%',
+              height: '3.5rem',
+              fontWeight: 'bold',
+              fontSize: '1.125rem',
+              borderRadius: '0.75rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+              border: 'none',
+              cursor: (code.length !== 6 || isLoading) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.3s',
+              marginBottom: '1.5rem'
+            }}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-white">Verifying...</span>
+                <span style={{ color: 'white' }}>Verifying...</span>
               </>
             ) : (
-              <span className="text-white">Verify Email</span>
+              <span style={{ color: 'white' }}>Verify Email</span>
             )}
           </button>
 

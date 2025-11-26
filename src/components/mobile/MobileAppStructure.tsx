@@ -127,8 +127,8 @@ export const MobileAppStructure: React.FC = () => {
   }, []);
   
   const handleBaselineStart = useCallback(() => {
-    console.log('🎯 Starting baseline assessment');
-    setOnboardingScreen('baseline_assessment');
+    console.log('🎯 Starting baseline assessment - going to baseline welcome');
+    setOnboardingScreen('baseline_welcome');
   }, []);
   
   const handleBaselineBack = useCallback(() => {

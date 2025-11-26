@@ -78,14 +78,16 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
             console.log('🗑️ Deleting baseline for user:', userId);
             
             // Delete baseline assessments
-            const deleteResult = await backendService.database.delete('fusion_outputs', { user_id: userId });
+            const deleteResult = await backendService.database.delete('fusion_outputs', { 
+              filters: { user_id: { operator: 'eq', value: userId } }
+            });
             console.log('✅ Baseline assessments deleted from database:', deleteResult);
             
             // Update profile to mark baseline as not established
             const updateResult = await backendService.database.update(
               'profiles',
               { baseline_established: false },
-              { user_id: userId }
+              { filters: { user_id: { operator: 'eq', value: userId } } }
             );
             console.log('✅ Profile updated - baseline_established set to false:', updateResult);
           } else {
@@ -281,7 +283,38 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
         </motion.div>
       )}
       {/* Latest Check-in */}
-      {/* Recent Activity Card */}
+      {/* Need Help Section - MOVED UP */}
+      <motion.div variants={itemVariants}>
+        <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-r from-red-50/70 to-pink-50/70 p-6">
+          <div className="flex items-center gap-4">
+            <motion.div
+              className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center"
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Shield className="w-6 h-6 text-red-600" />
+            </motion.div>
+            <div className="flex-1">
+              <h4 className="text-red-900 mb-1">Need Support?</h4>
+              <p className="text-red-700 text-sm">Access crisis support and local resources anytime</p>
+            </div>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                onClick={onNeedHelp}
+                className="bg-red-500 hover:bg-red-600 text-white h-10 px-4"
+              >
+                <Phone className="w-4 h-4 mr-2" />
+                Help
+              </Button>
+            </motion.div>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Recent Activity Card - MOVED AFTER Need Support */}
       <motion.div variants={itemVariants}>
         <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
           <div className="flex justify-between items-start mb-4">
@@ -402,37 +435,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
           </div>
         </motion.div>
       )}
-      {/* Need Help Section */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-r from-red-50/70 to-pink-50/70 p-6">
-          <div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center"
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <Shield className="w-6 h-6 text-red-600" />
-            </motion.div>
-            <div className="flex-1">
-              <h4 className="text-red-900 mb-1">Need Support?</h4>
-              <p className="text-red-700 text-sm">Access crisis support and local resources anytime</p>
-            </div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button
-                onClick={onNeedHelp}
-                className="bg-red-500 hover:bg-red-600 text-white h-10 px-4"
-              >
-                <Phone className="w-4 h-4 mr-2" />
-                Help
-              </Button>
-            </motion.div>
-          </div>
-        </Card>
-      </motion.div>
-      
       {/* Recent Activity - Hide in post-baseline view (already shown above) */}
       {!isPostBaselineView && recentActivity.length > 0 && (
         <motion.div variants={itemVariants}>

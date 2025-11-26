@@ -233,7 +233,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         'profiles',
         {
           columns: ['id', 'email', 'user_id'],
-          filters: { user_id: userId }
+          filters: { user_id: { operator: 'eq', value: userId } }
         }
       );
 
@@ -249,12 +249,14 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         const userEmail = user?.email || '';
         const universityId = await resolveUniversityFromEmail(userEmail);
         
+        const firstName = user?.user_metadata?.first_name || 'User';
+        const lastName = user?.user_metadata?.last_name || '';
         const profileData = {
           user_id: userId,
-          first_name: user?.user_metadata?.first_name || user?.user_metadata?.given_name || 'User',
-          last_name: user?.user_metadata?.last_name || user?.user_metadata?.family_name || '',
+          first_name: firstName,
+          last_name: lastName,
           email: userEmail,
-          display_name: user?.user_metadata?.display_name || `${user?.user_metadata?.first_name || 'User'} ${user?.user_metadata?.last_name || ''}`.trim() || 'User',
+          display_name: `${firstName} ${lastName}`.trim() || 'User',
           university_id: universityId,
           baseline_established: false,
           streak_count: 0,
@@ -270,49 +272,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         console.log('[SDK] ✅ Profile created');
       } else {
         console.log('[SDK] ✅ Profile exists');
-      }
-
-      // Store raw transcript (optional - doesn't block baseline completion)
-      const transcriptData = {
-        user_id: userId,
-        transcript_text: assessmentState.transcript,
-        agent_id: 'agent_9301k22s8e94f7qs5e704ez02npe',
-        duration_seconds: Math.round((endedAt - (assessmentState.startedAt || endedAt)) / 1000),
-        created_at: new Date().toISOString()
-      };
-
-      const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
-      if (transcriptError) {
-        console.warn('[SDK] ⚠️ Failed to store transcript:', transcriptError);
-        // Non-blocking - continue
-      } else {
-        console.log('[SDK] ✅ Transcript stored');
-      }
-
-      // Store individual assessment items (optional - doesn't block baseline completion)
-      const items = [
-        { question_id: 'phq2_q1', item_number: 1, response_value: phqResponses.phq2_q1 ?? 0 },
-        { question_id: 'phq2_q2', item_number: 2, response_value: phqResponses.phq2_q2 ?? 0 },
-        { question_id: 'gad2_q1', item_number: 3, response_value: phqResponses.gad2_q1 ?? 0 },
-        { question_id: 'gad2_q2', item_number: 4, response_value: phqResponses.gad2_q2 ?? 0 },
-        { question_id: 'mood', item_number: 5, response_value: moodScore ?? 5 },
-      ];
-
-      let itemsStored = 0;
-      for (const item of items) {
-        const { error: itemError } = await backendService.database.insert('assessment_items', {
-          user_id: userId,
-          ...item,
-          created_at: new Date().toISOString()
-        });
-        if (itemError) {
-          console.warn('[SDK] ⚠️ Failed to store assessment item:', item.question_id, itemError);
-        } else {
-          itemsStored++;
-        }
-      }
-      if (itemsStored > 0) {
-        console.log('[SDK] ✅ Assessment items stored:', itemsStored, '/', items.length);
       }
 
       // Save fusion output with clinical and composite scores (CRITICAL - this is what enables dashboard access)
@@ -349,18 +308,124 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         created_at: new Date().toISOString()
       };
 
-      const { error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
-      if (fusionError) {
+      const { data: fusionResult, error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
+      if (fusionError || !fusionResult) {
         console.error('[SDK] ❌ CRITICAL: Failed to save baseline assessment:', fusionError);
         throw new Error('Failed to save baseline assessment');
       }
-      console.log('[SDK] ✅ Baseline assessment saved with score:', composite.score);
+      // Handle array or single object return - type the result properly
+      const fusionOutputId = Array.isArray(fusionResult) 
+        ? (fusionResult[0] as any)?.id 
+        : (fusionResult as any)?.id;
+      if (!fusionOutputId) {
+        console.error('[SDK] ❌ CRITICAL: No fusion_output_id returned');
+        throw new Error('Failed to get fusion_output_id');
+      }
+      console.log('[SDK] ✅ Baseline assessment saved with score:', composite.score, 'fusion_output_id:', fusionOutputId);
 
-      // Update profile to mark baseline as established (CRITICAL - enables dashboard access)
+      // Store raw transcript (optional - doesn't block baseline completion)
+      const transcriptLines = assessmentState.transcript.split('\n').filter(line => line.trim());
+      const transcriptData = {
+        fusion_output_id: fusionOutputId,
+        user_id: userId,
+        conversation_id: sessionId, // ElevenLabs session ID
+        transcript: assessmentState.transcript,
+        message_count: transcriptLines.length,
+        word_count: assessmentState.transcript.split(/\s+/).length,
+        duration_seconds: Math.round((endedAt - (assessmentState.startedAt || endedAt)) / 1000),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
+      if (transcriptError) {
+        console.warn('[SDK] ⚠️ Failed to store transcript:', transcriptError);
+        // Non-blocking - continue
+      } else {
+        console.log('[SDK] ✅ Transcript stored');
+      }
+
+      // Store individual assessment items (optional - doesn't block baseline completion)
+      const questionTexts = {
+        phq2_q1: 'Over the past two weeks, how often have you felt little interest or pleasure in doing things?',
+        phq2_q2: 'Over the past two weeks, how often have you felt down, depressed, or hopeless?',
+        gad2_q1: 'Over the past two weeks, how often have you felt nervous, anxious, or on edge?',
+        gad2_q2: 'Over the past two weeks, how often have you been unable to stop or control worrying?',
+        mood: 'On a scale of one to ten, how would you rate your current mood?'
+      };
+
+      const frequencyMap: { [key: number]: string } = {
+        0: 'Not at all',
+        1: 'Several days',
+        2: 'More than half the days',
+        3: 'Nearly every day'
+      };
+
+      const items = [
+        { 
+          item_code: 'phq2_q1', 
+          instrument: 'PHQ-2',
+          question_text: questionTexts.phq2_q1,
+          response_score: phqResponses.phq2_q1 ?? 0,
+          response_raw: frequencyMap[phqResponses.phq2_q1 ?? 0]
+        },
+        { 
+          item_code: 'phq2_q2', 
+          instrument: 'PHQ-2',
+          question_text: questionTexts.phq2_q2,
+          response_score: phqResponses.phq2_q2 ?? 0,
+          response_raw: frequencyMap[phqResponses.phq2_q2 ?? 0]
+        },
+        { 
+          item_code: 'gad2_q1', 
+          instrument: 'GAD-2',
+          question_text: questionTexts.gad2_q1,
+          response_score: phqResponses.gad2_q1 ?? 0,
+          response_raw: frequencyMap[phqResponses.gad2_q1 ?? 0]
+        },
+        { 
+          item_code: 'gad2_q2', 
+          instrument: 'GAD-2',
+          question_text: questionTexts.gad2_q2,
+          response_score: phqResponses.gad2_q2 ?? 0,
+          response_raw: frequencyMap[phqResponses.gad2_q2 ?? 0]
+        },
+        { 
+          item_code: 'mood_scale', 
+          instrument: 'MOOD_SCALE',
+          question_text: questionTexts.mood,
+          response_score: moodScore ?? 5,
+          response_raw: String(moodScore ?? 5)
+        },
+      ];
+
+      let itemsStored = 0;
+      for (const item of items) {
+        const { error: itemError } = await backendService.database.insert('assessment_items', {
+          fusion_output_id: fusionOutputId,
+          user_id: userId,
+          instrument: item.instrument,
+          item_code: item.item_code,
+          question_text: item.question_text,
+          response_raw: item.response_raw,
+          response_score: item.response_score,
+          extraction_confidence: 'high',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        if (itemError) {
+          console.warn('[SDK] ⚠️ Failed to store assessment item:', item.item_code, itemError);
+        } else {
+          itemsStored++;
+        }
+      }
+      if (itemsStored > 0) {
+        console.log('[SDK] ✅ Assessment items stored:', itemsStored, '/', items.length);
+      }
       const { error: updateError } = await backendService.database.update(
         'profiles',
         { baseline_established: true, updated_at: new Date().toISOString() },
-        { user_id: userId }
+        { filters: { user_id: { operator: 'eq', value: userId } } }
       );
       
       if (updateError) {
