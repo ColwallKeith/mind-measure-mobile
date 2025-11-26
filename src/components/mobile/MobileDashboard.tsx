@@ -59,46 +59,12 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
         // User clicked OK - proceed with reset
         console.log('✅ User confirmed baseline reset');
         try {
-          // Clear device storage
           const { Preferences } = await import('@capacitor/preferences');
           await Preferences.remove({ key: 'mindmeasure_baseline_complete' });
           console.log('✅ Baseline flag cleared from device');
-          
-          // Clear baseline from database
-          const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
-          const backendService = BackendServiceFactory.createService(
-            BackendServiceFactory.getEnvironmentConfig()
-          );
-          
-          // Get current user ID from Auth context
-          const userId = user?.id;
-          console.log('🔍 Current user ID for deletion:', userId);
-          
-          if (userId) {
-            console.log('🗑️ Deleting baseline for user:', userId);
-            
-            // Delete baseline assessments
-            const deleteResult = await backendService.database.delete('fusion_outputs', { 
-              filters: { user_id: { operator: 'eq', value: userId } }
-            });
-            console.log('✅ Baseline assessments deleted from database:', deleteResult);
-            
-            // Update profile to mark baseline as not established
-            const updateResult = await backendService.database.update(
-              'profiles',
-              { baseline_established: false },
-              { filters: { user_id: { operator: 'eq', value: userId } } }
-            );
-            console.log('✅ Profile updated - baseline_established set to false:', updateResult);
-          } else {
-            console.error('❌ No user ID found - cannot delete baseline');
-          }
-          
-          // Trigger navigation to baseline
           onResetBaseline();
         } catch (error) {
-          console.error('❌ Error clearing baseline:', error);
-          alert('Error resetting baseline. Please try again.');
+          console.error('❌ Error clearing baseline flag:', error);
         }
       } else {
         console.log('❌ User cancelled baseline reset');
