@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Conversation } from '@11labs/client';
+import { useConversation } from '@elevenlabs/react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
@@ -22,16 +22,8 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const [showConversation, setShowConversation] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const conversationRef = useRef<Conversation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Load click sound
-  useEffect(() => {
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYIGWi77eafTRAMUKfj8LZjHAY4ktfyy3ksBSR3yPDdkEALFF+06eunVRQKRZ/g8r5sIQUsgs/y2Yk1CBlouu3mn00QDFA=');
-  }, []);
 
   // Assessment data tracking
   const [assessmentData, setAssessmentData] = useState({
@@ -42,6 +34,44 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     endTime: null as number | null,
     sessionId: null as string | null
   });
+
+  // Initialize the ElevenLabs conversation hook
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('[SDK] ✅ Connected to ElevenLabs');
+    },
+    onDisconnect: () => {
+      console.log('[SDK] 🔌 Disconnected from ElevenLabs');
+    },
+    onMessage: (message) => {
+      console.log('[SDK] 📩 Message received:', message);
+      
+      const newMessage: Message = {
+        role: message.source === 'ai' ? 'agent' : 'user',
+        content: message.message,
+        timestamp: Date.now()
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      setAssessmentData(prev => ({
+        ...prev,
+        transcript: [...prev.transcript, newMessage]
+      }));
+
+      // Extract assessment data from user responses
+      if (message.source === 'user') {
+        extractAssessmentData(message.message, messages);
+      }
+    },
+    onError: (error) => {
+      console.error('[SDK] ❌ Conversation error:', error);
+    }
+  });
+
+  // Load click sound
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYIGWi77eafTRAMUKfj8LZjHAY4ktfyy3ksBSR3yPDdkEALFF+06eunVRQKRZ/g8r5sIQUsgs/y2Yk1CBlouu3mn00QDFA=');
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -58,13 +88,27 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[SDK] ✅ Audio permission granted');
 
-      // Initialize conversation
+      // Show conversation UI
       setShowConversation(true);
       setAssessmentData(prev => ({ ...prev, startTime: Date.now() }));
       
-      // Wait a moment for UI to render
-      setTimeout(() => {
-        initializeConversation();
+      // Wait a moment for UI to render, then start the conversation
+      setTimeout(async () => {
+        try {
+          console.log('[SDK] 🚀 Starting ElevenLabs conversation session...');
+          
+          const sessionId = await conversation.startSession({
+            agentId: 'agent_9301k22s8e94f7qs5e704ez02npe'
+          });
+
+          console.log('[SDK] ✅ Session started with ID:', sessionId);
+          setAssessmentData(prev => ({ ...prev, sessionId }));
+
+        } catch (error) {
+          console.error('[SDK] ❌ Failed to start conversation:', error);
+          alert('Failed to start conversation. Please try again.');
+          setShowConversation(false);
+        }
       }, 500);
 
     } catch (error) {
@@ -72,64 +116,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       alert('Microphone access is required for the baseline assessment. Please check your browser settings and try again.');
     } finally {
       setRequestingPermissions(false);
-    }
-  };
-
-  const initializeConversation = async () => {
-    try {
-      console.log('[SDK] 🚀 Initializing ElevenLabs SDK conversation...');
-
-      const conversation = await Conversation.startSession({
-        agentId: 'agent_9301k22s8e94f7qs5e704ez02npe',
-        onConnect: () => {
-          console.log('[SDK] ✅ Connected to ElevenLabs');
-          setIsConnected(true);
-        },
-        onDisconnect: () => {
-          console.log('[SDK] 🔌 Disconnected from ElevenLabs');
-          setIsConnected(false);
-        },
-        onMessage: (message) => {
-          console.log('[SDK] 📩 Message received:', message);
-          
-          const newMessage: Message = {
-            role: message.source === 'ai' ? 'agent' : 'user',
-            content: message.message,
-            timestamp: Date.now()
-          };
-          
-          setMessages(prev => [...prev, newMessage]);
-          setAssessmentData(prev => ({
-            ...prev,
-            transcript: [...prev.transcript, newMessage]
-          }));
-
-          // Extract assessment data from the conversation
-          if (message.source === 'user') {
-            extractAssessmentData(message.message, messages);
-          }
-        },
-        onError: (error) => {
-          console.error('[SDK] ❌ Conversation error:', error);
-        }
-      });
-
-      conversationRef.current = conversation;
-      
-      // Capture session ID if available
-      const sid = (conversation as any).sessionId || (conversation as any).conversationId;
-      if (sid) {
-        console.log('[SDK] 📝 Session ID captured:', sid);
-        setSessionId(sid);
-        setAssessmentData(prev => ({ ...prev, sessionId: sid }));
-      }
-
-      console.log('[SDK] ✅ Conversation initialized successfully');
-
-    } catch (error) {
-      console.error('[SDK] ❌ Failed to initialize conversation:', error);
-      alert('Failed to start conversation. Please try again.');
-      setShowConversation(false);
     }
   };
 
@@ -256,13 +242,11 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     }
 
     // End the conversation
-    if (conversationRef.current) {
-      try {
-        await conversationRef.current.endSession();
-        console.log('[SDK] ✅ Conversation ended');
-      } catch (error) {
-        console.error('[SDK] Error ending conversation:', error);
-      }
+    try {
+      await conversation.endSession();
+      console.log('[SDK] ✅ Conversation ended');
+    } catch (error) {
+      console.error('[SDK] Error ending conversation:', error);
     }
 
     // Process assessment data
@@ -566,7 +550,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           </Button>
 
           {/* Camera indicator - right */}
-          {isConnected && (
+          {conversation.status === 'connected' && (
             <div style={{ 
               display: 'flex', 
               alignItems: 'center', 
@@ -675,7 +659,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
                   Mind Measure
                 </span>
               </h1>
-              <p className="text-lg text-gray-600">Your Baseline Assessment</p>
+              <p className="text-lg text-gray-600">Start your wellness journey</p>
             </div>
           </div>
         </header>
@@ -735,4 +719,3 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     </div>
   );
 }
-

@@ -3,7 +3,6 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
-            "@11labs/client": "^0.2.0",
             "@aws-amplify/ui-react": "^6.13.1",
             "@aws-sdk/client-cognito-identity-provider": "^3.894.0",
             "@aws-sdk/client-lambda": "^3.899.0",
@@ -95,7 +94,6 @@
             "vercel": "^48.1.6"
       },
       "scripts": {
-            "postinstall": "cd node_modules/@11labs/client 2>/dev/null && npm run build 2>/dev/null || echo 'Skipping @11labs/client build'",
             "dev": "vite",
             "build": "vite build",
             "vercel-build": "vite build",
