@@ -52,15 +52,17 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         timestamp: Date.now()
       };
       
-      setMessages(prev => [...prev, newMessage]);
+      // Update messages first
+      const updatedMessages = [...messages, newMessage];
+      setMessages(updatedMessages);
       setAssessmentData(prev => ({
         ...prev,
         transcript: [...prev.transcript, newMessage]
       }));
 
-      // Extract assessment data from user responses
+      // Extract assessment data from user responses using UPDATED messages
       if (message.source === 'user') {
-        extractAssessmentData(message.message, messages);
+        extractAssessmentData(message.message, updatedMessages);
       }
     },
     onError: (error) => {
