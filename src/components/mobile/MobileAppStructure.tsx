@@ -58,7 +58,8 @@ export const MobileAppStructure: React.FC = () => {
     // NOW we know the auth state - make decisions
     if (!user) {
       // No authenticated user → Switch to new user flow
-      if (onboardingScreen === 'returning_splash') {
+      // BUT ONLY if loading is complete AND we're on returning splash
+      if (onboardingScreen === 'returning_splash' && !loading) {
         console.log('🆕 No authenticated user - switching to new user splash');
         setOnboardingScreen('splash');
         setHasShownReturningSplash(false);
