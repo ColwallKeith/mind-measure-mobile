@@ -47,6 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('🔐 initializeAuth: checking current user');
         const { data, error } = await cognitoApiClient.getUser();
         console.log('👤 Current user:', data);
+        console.log('🏁 getUser() completed, about to set loading=false');
         
         if (error) {
           console.log('ℹ️ No authenticated user found:', error);
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.error('❌ Auth initialization error:', error);
         setUser(null);
       } finally {
+        console.log('🔚 Setting loading=false');
         setLoading(false);
       }
     };

@@ -117,8 +117,9 @@ export function useDashboardData(): DashboardData {
       const { data: sessions, error: sessionsError } = await backendService.database.select(
         'fusion_outputs',
         {
-          columns: 'id, score, final_score, analysis, created_at',
-          filters: { user_id: user.id }
+          columns: ['id', 'score', 'final_score', 'analysis', 'created_at'],
+          filters: { user_id: user.id },
+          orderBy: [{ column: 'created_at', ascending: false }]
         }
       );
       

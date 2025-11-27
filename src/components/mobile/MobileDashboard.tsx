@@ -76,10 +76,9 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
   // This screen will only render if user has baseline data
 
   // Detect if this is the special post-baseline view
-  // This happens when: user has baseline data but only baseline assessments (no check-ins)
+  // This happens when: user has baseline data but only baseline assessments (no check-ins yet)
   const isPostBaselineView = recentActivity.length > 0 && 
-    recentActivity.every(activity => activity.type === 'baseline') &&
-    recentActivity.length === 1;
+    recentActivity.every(activity => activity.type === 'baseline');
 
   const containerVariants = {
     hidden: { opacity: 0 },
