@@ -32,6 +32,8 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Assessment state - using the new simplified model
   const [assessmentState, setAssessmentState] = useState<AssessmentState>({
@@ -178,16 +180,11 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
     if (!validation.isValid) {
       console.error('[SDK] ❌ Incomplete assessment:', validation.details);
-      alert(
-        'Unable to Complete Baseline\n\n' +
+      setErrorMessage(
         'We didn\'t capture enough data to create your baseline assessment. ' +
-        'This can happen if you pressed Finish before answering all five questions.\n\n' +
-        'Please try again and answer all questions from Jodie.'
+        'This can happen if you pressed Finish before answering all five questions.'
       );
-      
-      if (onBack) {
-        onBack();
-      }
+      setShowErrorModal(true);
       return;
     }
 
@@ -469,8 +466,54 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           paddingBottom: '1.5rem',
           paddingLeft: '1rem',
           paddingRight: '1rem',
-          backgroundColor: 'transparent'
+          backgroundColor: 'transparent',
+          position: 'relative'
         }}>
+          {/* Back Button - Top Left */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              style={{
+                position: 'absolute',
+                left: '1rem',
+                top: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+                padding: '0.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.5rem',
+                height: '2.5rem',
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.2s',
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f3f4f6';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+              }}
+            >
+              <svg 
+                width="20" 
+                height="20" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                style={{ color: '#6b7280' }}
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+            </button>
+          )}
+          
           <div style={{ textAlign: 'center' }}>
             {/* Logo */}
             <div style={{ marginBottom: '1.5rem' }}>
@@ -706,6 +749,146 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           </div>
         </div>
       </div>
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            maxWidth: '28rem',
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                color: '#111827',
+                margin: 0
+              }}>
+                Unable to Complete Baseline
+              </h3>
+            </div>
+
+            {/* Body */}
+            <div style={{
+              padding: '1.5rem'
+            }}>
+              <p style={{
+                color: '#6b7280',
+                lineHeight: '1.6',
+                margin: 0
+              }}>
+                {errorMessage}
+              </p>
+            </div>
+
+            {/* Footer - Buttons */}
+            <div style={{
+              padding: '1rem 1.5rem',
+              backgroundColor: '#f9fafb',
+              display: 'flex',
+              gap: '0.75rem',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => {
+                  setShowErrorModal(false);
+                  setShowConversation(false);
+                  setMessages([]);
+                  setAssessmentState({
+                    transcript: '',
+                    phqResponses: {},
+                    moodScore: null,
+                    startedAt: null,
+                    endedAt: null
+                  });
+                  // Navigate back to dashboard
+                  if (onComplete) {
+                    onComplete();
+                  }
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  color: '#6b7280',
+                  backgroundColor: 'white',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                Cancel
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowErrorModal(false);
+                  setShowConversation(false);
+                  setMessages([]);
+                  setAssessmentState({
+                    transcript: '',
+                    phqResponses: {},
+                    moodScore: null,
+                    startedAt: null,
+                    endedAt: null
+                  });
+                  // Go back to baseline welcome to try again
+                  if (onBack) {
+                    onBack();
+                  }
+                }}
+                style={{
+                  padding: '0.5rem 1.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  color: 'white',
+                  background: 'linear-gradient(to right, #a855f7, #3b82f6)',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
