@@ -183,14 +183,14 @@ export const MobileAppStructure: React.FC = () => {
 
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
-    { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
+    { id: 'checkin', icon: Heart, label: 'Baseline Check', screen: 'checkin' as const },
     { id: 'buddies', icon: Users, label: 'Buddies', screen: 'buddies' as const },
     { id: 'help', icon: HelpCircle, label: 'Help', screen: 'help' as const }
   ];
   const handleTabChange = (tab: MobileTab) => {
-    // Prevent access to check-in if baseline not completed
-    if (tab === 'checkin' && hasAssessmentHistory !== true) {
-      console.log('🚫 Blocking check-in access - baseline not completed');
+    // "Baseline Check" button in footer always goes to baseline assessment
+    if (tab === 'checkin') {
+      console.log('🎯 Baseline Check clicked - starting baseline assessment');
       setOnboardingScreen('baseline_welcome');
       return;
     }
