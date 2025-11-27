@@ -56,10 +56,16 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
-    build: {
-      target: 'esnext',
-      outDir: 'dist',
-    },
+  build: {
+    target: 'esnext',
+    outDir: 'dist',
+    rollupOptions: {
+      external: []
+    }
+  },
+  optimizeDeps: {
+    exclude: ['@capacitor/haptics', '@capacitor/preferences', '@capacitor/app', '@capacitor/device', '@capacitor/keyboard']
+  },
     server: {
       port: 3000,
       open: true,
