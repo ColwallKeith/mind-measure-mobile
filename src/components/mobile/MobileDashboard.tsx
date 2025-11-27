@@ -55,14 +55,14 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
         'This will clear your baseline data and let you retake the assessment.'
       );
       
-      if (confirmed && onResetBaseline) {
+      if (confirmed) {
         // User clicked OK - proceed with reset
         console.log('✅ User confirmed baseline reset');
         try {
           const { Preferences } = await import('@capacitor/preferences');
           await Preferences.remove({ key: 'mindmeasure_baseline_complete' });
           console.log('✅ Baseline flag cleared from device');
-          onResetBaseline();
+          window.location.reload();
         } catch (error) {
           console.error('❌ Error clearing baseline flag:', error);
         }
