@@ -27,7 +27,7 @@ type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
-  const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
+  const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>('returning_splash');
   const [pendingEmail, setPendingEmail] = useState<string | null>(null); // Track email for verification
   const [pendingPassword, setPendingPassword] = useState<string | null>(null); // Track password for auto-sign-in
   // Debug onboarding screen changes
@@ -35,10 +35,11 @@ export const MobileAppStructure: React.FC = () => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
   }, [onboardingScreen]);
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
+  const [hasShownReturningSplash, setHasShownReturningSplash] = useState(false);
   const { user } = useAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
-  // SIMPLE FLOW: Always start with new user splash for unauthenticated users
-  // Only initialize once when loading completes and onboardingScreen is null
+  // SIMPLE FLOW: Always start with returning splash (looks like loader)
+  // Only initialize once when loading completes
   useEffect(() => {
     console.log('🎯 App start - user state:', {
       hasUser: !!user,
@@ -48,17 +49,19 @@ export const MobileAppStructure: React.FC = () => {
       currentOnboardingScreen: onboardingScreen
     });
 
-    // Still loading - wait
+    // Still loading - keep showing returning splash (default state)
     if (loading) {
-      console.log('⏳ Still loading - waiting...');
+      console.log('⏳ Still loading - returning splash acts as loader...');
       return;
     }
 
+    // NOW we know the auth state - make decisions
     if (!user) {
-      // No authenticated user → Show new user flow (only if not already set)
-      if (onboardingScreen === null) {
-        console.log('🆕 No authenticated user - starting new user flow');
+      // No authenticated user → Switch to new user flow
+      if (onboardingScreen === 'returning_splash') {
+        console.log('🆕 No authenticated user - switching to new user splash');
         setOnboardingScreen('splash');
+        setHasShownReturningSplash(false);
       }
       return;
     }
@@ -66,29 +69,31 @@ export const MobileAppStructure: React.FC = () => {
     // User is authenticated - check baseline status
     if (hasAssessmentHistory === false) {
       // No baseline → Force baseline
-      if (onboardingScreen === null || onboardingScreen === 'splash') {
+      if (onboardingScreen === 'returning_splash' || onboardingScreen === 'splash') {
         console.log('🎯 No baseline - forcing baseline flow');
         setOnboardingScreen('baseline_welcome');
+        setHasShownReturningSplash(false);
       }
       return;
     }
 
     if (hasAssessmentHistory === true) {
-      // Has baseline → Dashboard
-      if (onboardingScreen === 'splash' || onboardingScreen === null) {
-        console.log('🔄 Has baseline - showing returning splash');
-        setOnboardingScreen('returning_splash');
-      } else if (onboardingScreen === 'returning_splash') {
-        // Don't interfere - let the returning splash complete naturally
-        console.log('⏳ Waiting for returning splash to complete...');
+      // Has baseline → Let returning splash finish naturally, then go to dashboard
+      if (onboardingScreen === 'returning_splash') {
+        console.log('✅ User + baseline confirmed - returning splash will complete and go to dashboard');
+        // Don't change anything - let the splash play and its onComplete will clear onboarding
       } else if (onboardingScreen === 'baseline_welcome') {
-        // User has baseline but is stuck on baseline_welcome → clear onboarding
-        console.log('✅ User and baseline present - leaving onboarding');
+        // Somehow stuck on baseline welcome - clear it
+        console.log('✅ User and baseline present - clearing baseline welcome');
         setOnboardingScreen(null);
+        setHasShownReturningSplash(true);
+      } else if (onboardingScreen === null) {
+        // Already on dashboard - stay there
+        console.log('✅ On dashboard - staying put');
       }
       return;
     }
-  }, [user, loading, hasAssessmentHistory, onboardingScreen]); // Removed onboardingScreen from dependencies to prevent loop
+  }, [user, loading, hasAssessmentHistory, onboardingScreen, hasShownReturningSplash]);
 
   // Handle missing pendingEmail for email verification - move state update out of render
   useEffect(() => {
@@ -150,6 +155,7 @@ export const MobileAppStructure: React.FC = () => {
 
   const handleReturningSplashComplete = useCallback(() => {
     console.log('✅ Returning user splash complete - going to dashboard');
+    setHasShownReturningSplash(true);
     setOnboardingScreen(null);
     setCurrentScreen('dashboard');
   }, []);
