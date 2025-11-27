@@ -15,7 +15,7 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   
-  const { signIn } = useAuth();
+  const { signIn, confirmEmail, resendConfirmation } = useAuth();
 
   // Cooldown timer for resend button
   useEffect(() => {
@@ -35,35 +35,26 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
     setError(null);
 
     try {
-      const { confirmSignUp } = await import('aws-amplify/auth');
-      
-      const { isSignUpComplete } = await confirmSignUp({
-        username: email,
-        confirmationCode: code
-      });
+      const { error: confirmError } = await confirmEmail(email, code);
 
-      if (isSignUpComplete) {
+      if (confirmError) {
+        if (confirmError.includes('CodeMismatchException') || confirmError.includes('Invalid')) {
+          setError('Invalid code. Please check and try again.');
+        } else if (confirmError.includes('ExpiredCodeException') || confirmError.includes('expired')) {
+          setError('Code expired. Please request a new one.');
+        } else if (confirmError.includes('LimitExceededException') || confirmError.includes('Too many')) {
+          setError('Too many attempts. Please try again later.');
+        } else {
+          setError(confirmError);
+        }
+      } else {
         console.log('✅ Email verified successfully');
-        
-        // After verification, proceed to baseline - user will sign in there if needed
-        // OR: Take them to a sign-in screen first
         console.log('📧 Email verified - user can now sign in');
         onVerified();
-      } else {
-        setError('Verification incomplete. Please try again.');
       }
     } catch (err: any) {
       console.error('❌ Verification error:', err);
-      
-      if (err.name === 'CodeMismatchException') {
-        setError('Invalid code. Please check and try again.');
-      } else if (err.name === 'ExpiredCodeException') {
-        setError('Code expired. Please request a new one.');
-      } else if (err.name === 'LimitExceededException') {
-        setError('Too many attempts. Please try again later.');
-      } else {
-        setError('Verification failed. Please try again.');
-      }
+      setError('Verification failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -74,30 +65,29 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
     setError(null);
 
     try {
-      const { resendSignUpCode } = await import('aws-amplify/auth');
+      const { error: resendError } = await resendConfirmation(email);
       
-      await resendSignUpCode({
-        username: email
-      });
-
-      console.log('✅ Verification code resent');
-      setResendCooldown(60); // 60 second cooldown
-      setError('New code sent! Check your email.');
-      
-      // Clear the success message after 3 seconds
-      setTimeout(() => {
-        if (error === 'New code sent! Check your email.') {
-          setError(null);
+      if (resendError) {
+        if (resendError.includes('LimitExceededException') || resendError.includes('Too many')) {
+          setError('Too many requests. Please try again later.');
+        } else {
+          setError(resendError);
         }
-      }, 3000);
+      } else {
+        console.log('✅ Verification code resent');
+        setResendCooldown(60); // 60 second cooldown
+        setError('New code sent! Check your email.');
+        
+        // Clear the success message after 3 seconds
+        setTimeout(() => {
+          if (error === 'New code sent! Check your email.') {
+            setError(null);
+          }
+        }, 3000);
+      }
     } catch (err: any) {
       console.error('❌ Resend error:', err);
-      
-      if (err.name === 'LimitExceededException') {
-        setError('Too many requests. Please try again later.');
-      } else {
-        setError('Failed to resend code. Please try again.');
-      }
+      setError('Failed to resend code. Please try again.');
     } finally {
       setIsResending(false);
     }

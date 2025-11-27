@@ -25,38 +25,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, password, userAttributes } = req.body;
+  const { email, password, firstName, lastName } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
   try {
+    const userAttributes: Array<{ Name: string; Value: string }> = [
+      {
+        Name: 'email',
+        Value: email
+      }
+    ];
+    
+    if (firstName) {
+      userAttributes.push({ Name: 'given_name', Value: firstName });
+    }
+    
+    if (lastName) {
+      userAttributes.push({ Name: 'family_name', Value: lastName });
+    }
+
     const command = new SignUpCommand({
       ClientId: clientId,
       Username: email,
       Password: password,
-      UserAttributes: [
-        {
-          Name: 'email',
-          Value: email
-        },
-        ...(userAttributes || [])
-      ]
+      UserAttributes: userAttributes
     });
 
     const result = await client.send(command);
 
     res.status(200).json({
       userSub: result.UserSub,
+      userConfirmed: result.UserConfirmed,
       codeDeliveryDetails: result.CodeDeliveryDetails,
       error: null
     });
 
   } catch (error: any) {
     console.error('Cognito sign up error:', error);
-    res.status(500).json({
-      error: error.message || 'Sign up failed'
-    });
+    
+    let errorMessage = 'Sign up failed';
+    if (error.name === 'InvalidPasswordException') {
+      errorMessage = 'Password must be at least 8 characters long and contain uppercase, lowercase, and numbers';
+    } else if (error.name === 'UsernameExistsException') {
+      errorMessage = 'An account with this email already exists';
+    } else if (error.name === 'InvalidParameterException') {
+      errorMessage = 'Invalid email format';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(400).json({ error: errorMessage });
   }
 }

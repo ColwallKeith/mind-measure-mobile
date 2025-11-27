@@ -177,8 +177,8 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                       setIsLoading(true);
                       setError(null);
                       try {
-                        const { amplifyAuth } = await import('@/services/amplify-auth');
-                        await amplifyAuth.signOut();
+                        const { cognitoApiClient } = await import('@/services/cognito-api-client');
+                        await cognitoApiClient.signOut();
                         console.log('✅ Signed out successfully');
                         
                         // Clear device preferences too

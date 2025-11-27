@@ -483,18 +483,15 @@ export class AWSBrowserFunctionsService {
 
   private async getAccessToken(): Promise<string> {
     try {
-      // Import fetchAuthSession from Amplify
-      const { fetchAuthSession } = await import('aws-amplify/auth');
+      // Get access token from Capacitor Preferences storage
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value } = await Preferences.get({ key: 'cognito_access_token' });
       
-      // Get current auth session
-      const session = await fetchAuthSession();
-      
-      if (!session.tokens?.accessToken) {
+      if (!value) {
         throw new Error('No access token available - user not authenticated');
       }
       
-      // Return the JWT access token
-      return session.tokens.accessToken.toString();
+      return value;
     } catch (error) {
       console.error('❌ Failed to get access token:', error);
       throw new Error('Authentication required for Lambda functions');

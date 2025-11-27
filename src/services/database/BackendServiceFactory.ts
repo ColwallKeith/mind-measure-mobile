@@ -145,8 +145,7 @@ export class BackendServiceFactory {
           ...baseConfig,
           provider: 'aws',
           awsRegion: this.getEnv('VITE_AWS_REGION', 'eu-west-2'),
-          cognitoUserPoolId: this.getEnv('VITE_AWS_COGNITO_USER_POOL_ID'),
-          cognitoClientId: this.getEnv('VITE_AWS_COGNITO_CLIENT_ID'),
+          // Note: Cognito credentials removed - auth now handled server-side via /api/auth endpoints
           apiBaseUrl: this.getEnv('VITE_API_BASE_URL', 'https://api.mindmeasure.co.uk')
         } as BackendServiceConfig;      case 'local':
         return {
@@ -167,8 +166,7 @@ export class BackendServiceFactory {
           awsCredentials: {
             accessKeyId: this.getEnv('VITE_AWS_ACCESS_KEY_ID', ''),
             secretAccessKey: this.getEnv('VITE_AWS_SECRET_ACCESS_KEY', '')},
-          cognitoUserPoolId: this.getEnv('VITE_AWS_COGNITO_USER_POOL_ID', 'eu-west-2_ClAG4fQXR'),
-          cognitoClientId: this.getEnv('VITE_AWS_COGNITO_CLIENT_ID', '7vu03ppv6alkpphs1ksopll8us'),
+          // Note: Cognito credentials removed - auth now handled server-side via /api/auth endpoints
           s3BucketName: this.getEnv('VITE_AWS_S3_BUCKET_NAME', 'mindmeasure-user-content-459338929203'),
           s3Region: this.getEnv('VITE_AWS_S3_REGION', this.getEnv('VITE_AWS_REGION', 'eu-west-2'))} as BackendServiceConfig;
       case 'postgresql':

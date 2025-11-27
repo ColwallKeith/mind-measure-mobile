@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { amplifyAuth } from '../services/amplify-auth';
+import { cognitoApiClient } from '../services/cognito-api-client';
 
 export interface AuthUser {
   id: string;
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Set up auth state listener
   useEffect(() => {
-    const unsubscribe = amplifyAuth.onAuthStateChange((event, user) => {
+    const unsubscribe = cognitoApiClient.onAuthStateChange((event, user) => {
       console.log('🔄 Auth state changed:', event, user?.email);
       setUser(user);
       setLoading(false);
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initializeAuth = async () => {
     try {
       console.log('🔐 initializeAuth: checking current user');
-      console.log('🔄 Initializing AWS Amplify auth...');
-      const { data, error } = await amplifyAuth.getUser();
+      console.log('🔄 Initializing secure auth client...');
+      const { data, error } = await cognitoApiClient.getUser();
       console.log('👤 Current user:', data);
       if (error) {
         console.log('ℹ️ No authenticated user found:', error);
@@ -81,8 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // FIX: Pass email and password as separate arguments, not as object
-      const result = await amplifyAuth.signInWithPassword(email, password);
+      const result = await cognitoApiClient.signInWithPassword(email, password);
       if (result.error) {
         // Pass through needsVerification flag for unverified emails
         return { 
@@ -104,7 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signUp = async (data: { firstName: string; lastName: string; email: string; password: string }) => {
     setLoading(true);
     try {
-      const { data: authData, error } = await amplifyAuth.signUp(
+      const { data: authData, error } = await cognitoApiClient.signUp(
         data.email,
         data.password,
         {
@@ -136,7 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signOut = async () => {
     setLoading(true);
     try {
-      await amplifyAuth.signOut();
+      await cognitoApiClient.signOut();
       setUser(null);
       return { error: null };
     } catch (error) {
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const confirmEmail = async (email: string, code: string) => {
     try {
-      const { error } = await amplifyAuth.confirmSignUp(email, code);
+      const { error } = await cognitoApiClient.confirmSignUp(email, code);
       return { error };
     } catch (error) {
       console.error('Email confirmation error:', error);
@@ -177,7 +176,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const resendConfirmation = async (email: string) => {
     try {
-      const { error } = await amplifyAuth.resendConfirmationCode(email);
+      const { error } = await cognitoApiClient.resendConfirmationCode(email);
       return { error };
     } catch (error) {
       console.error('Resend confirmation error:', error);
@@ -187,7 +186,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const forgotPassword = async (email: string) => {
     try {
-      const { error } = await amplifyAuth.resetPassword(email);
+      const { error } = await cognitoApiClient.resetPassword(email);
       return { error };
     } catch (error) {
       console.error('Forgot password error:', error);
@@ -197,7 +196,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const confirmForgotPassword = async (email: string, code: string, newPassword: string) => {
     try {
-      const { error } = await amplifyAuth.confirmResetPassword(email, code, newPassword);
+      const { error } = await cognitoApiClient.confirmResetPassword(email, code, newPassword);
       return { error };
     } catch (error) {
       console.error('Confirm forgot password error:', error);
@@ -207,8 +206,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refetchUser = async () => {
     try {
-      const user = await amplifyAuth.getUser();
-      setUser(user);
+      const { data } = await cognitoApiClient.getUser();
+      if (data?.user) {
+        setUser(data.user);
+      }
     } catch (error) {
       console.error('Refetch user error:', error);
     }
