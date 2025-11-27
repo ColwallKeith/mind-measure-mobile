@@ -39,7 +39,7 @@ export const MobileAppStructure: React.FC = () => {
   const { user } = useAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
   // SIMPLE FLOW: Always start with returning splash (looks like loader)
-  // Only initialize once when loading completes
+  // Let it play for 5 seconds while auth completes - DON'T INTERRUPT IT
   useEffect(() => {
     console.log('🎯 App start - user state:', {
       hasUser: !!user,
@@ -49,20 +49,27 @@ export const MobileAppStructure: React.FC = () => {
       currentOnboardingScreen: onboardingScreen
     });
 
-    // Still loading - keep showing returning splash (default state)
-    if (loading) {
-      console.log('⏳ Still loading - returning splash acts as loader...');
+    // If we're showing returning splash, let it finish its 5 second timer
+    // Don't interrupt it - auth will complete during that time
+    if (onboardingScreen === 'returning_splash') {
+      console.log('⏳ Returning splash is playing - letting it complete naturally...');
       return;
     }
 
-    // NOW we know the auth state - make decisions
+    // Still loading auth - wait
+    if (loading) {
+      console.log('⏳ Still loading auth...');
+      return;
+    }
+
+    // NOW we know the final auth state - make routing decisions
+    // But ONLY for screens other than returning_splash (which handles itself)
+    
     if (!user) {
-      // No authenticated user → Switch to new user flow
-      // BUT ONLY if loading is complete AND we're on returning splash
-      if (onboardingScreen === 'returning_splash' && !loading) {
-        console.log('🆕 No authenticated user - switching to new user splash');
+      // No authenticated user → Show new user flow
+      if (onboardingScreen === null) {
+        console.log('🆕 No authenticated user - starting new user flow');
         setOnboardingScreen('splash');
-        setHasShownReturningSplash(false);
       }
       return;
     }
@@ -70,7 +77,7 @@ export const MobileAppStructure: React.FC = () => {
     // User is authenticated - check baseline status
     if (hasAssessmentHistory === false) {
       // No baseline → Force baseline
-      if (onboardingScreen === 'returning_splash' || onboardingScreen === 'splash') {
+      if (onboardingScreen === null || onboardingScreen === 'splash') {
         console.log('🎯 No baseline - forcing baseline flow');
         setOnboardingScreen('baseline_welcome');
         setHasShownReturningSplash(false);
@@ -79,11 +86,8 @@ export const MobileAppStructure: React.FC = () => {
     }
 
     if (hasAssessmentHistory === true) {
-      // Has baseline → Let returning splash finish naturally, then go to dashboard
-      if (onboardingScreen === 'returning_splash') {
-        console.log('✅ User + baseline confirmed - returning splash will complete and go to dashboard');
-        // Don't change anything - let the splash play and its onComplete will clear onboarding
-      } else if (onboardingScreen === 'baseline_welcome') {
+      // Has baseline → Dashboard
+      if (onboardingScreen === 'baseline_welcome') {
         // Somehow stuck on baseline welcome - clear it
         console.log('✅ User and baseline present - clearing baseline welcome');
         setOnboardingScreen(null);
@@ -155,11 +159,27 @@ export const MobileAppStructure: React.FC = () => {
   }, []);
 
   const handleReturningSplashComplete = useCallback(() => {
-    console.log('✅ Returning user splash complete - going to dashboard');
+    console.log('✅ Returning user splash complete - making routing decision based on final auth state');
+    console.log('📊 Final state:', { hasUser: !!user, hasAssessmentHistory, loading });
+    
     setHasShownReturningSplash(true);
-    setOnboardingScreen(null);
-    setCurrentScreen('dashboard');
-  }, []);
+    
+    // After 5 seconds, auth should be complete - make the routing decision
+    if (!user) {
+      // No user found after 5 seconds → new user flow
+      console.log('🆕 No user detected - going to new user splash');
+      setOnboardingScreen('splash');
+    } else if (!hasAssessmentHistory) {
+      // User but no baseline → baseline flow
+      console.log('🎯 User found but no baseline - going to baseline welcome');
+      setOnboardingScreen('baseline_welcome');
+    } else {
+      // User + baseline → dashboard
+      console.log('✅ User + baseline confirmed - going to dashboard');
+      setOnboardingScreen(null);
+      setCurrentScreen('dashboard');
+    }
+  }, [user, hasAssessmentHistory, loading]);
 
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
