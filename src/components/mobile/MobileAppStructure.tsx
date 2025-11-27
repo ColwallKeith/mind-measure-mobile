@@ -151,6 +151,12 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_assessment');
   }, []);
   
+  const handleBaselineBack = useCallback(() => {
+    console.log('🔙 Going back to baseline welcome from failed assessment');
+    setIsManualBaselineRetake(true); // Keep the flag so we can stay on baseline_welcome
+    setOnboardingScreen('baseline_welcome');
+  }, []);
+  
   const handleBaselineComplete = useCallback(() => {
     console.log('✅ Baseline assessment completed - going to dashboard');
     setIsManualBaselineRetake(false); // Clear the flag
@@ -244,7 +250,7 @@ export const MobileAppStructure: React.FC = () => {
           return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessmentSDK');
-          return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;
+          return <BaselineAssessmentSDK onComplete={handleBaselineComplete} onBack={handleBaselineBack} />;
         default:
           console.log('🎨 Rendering default SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;
