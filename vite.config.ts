@@ -59,8 +59,9 @@
   build: {
     target: 'esnext',
     outDir: 'dist',
-    rollupOptions: {
-      external: []
+    commonjsOptions: {
+      ignoreDynamicRequires: true,
+      ignore: ['@capacitor/haptics']
     }
   },
   optimizeDeps: {
