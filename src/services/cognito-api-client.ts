@@ -86,8 +86,32 @@ async function getStoredTokens(): Promise<AuthTokens | null> {
   // Check if tokens are expired
   const expiryTime = parseInt(expiry.value || '0');
   if (expiryTime < Date.now()) {
-    console.log('⚠️ Tokens expired');
-    return null;
+    console.log('⚠️ Tokens expired - attempting refresh...');
+    
+    // Try to refresh the tokens
+    try {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refreshToken.value })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.session) {
+        console.log('✅ Tokens refreshed successfully');
+        await storeTokens(data.session);
+        return data.session;
+      } else {
+        console.log('❌ Token refresh failed:', data.error);
+        await clearTokens();
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Token refresh error:', error);
+      await clearTokens();
+      return null;
+    }
   }
 
   return {
