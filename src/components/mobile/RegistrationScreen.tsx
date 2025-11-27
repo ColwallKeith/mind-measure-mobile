@@ -182,9 +182,11 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
             }
             
             console.log('✅ Sign in successful!');
+            // User is now signed in - reload app to trigger proper flow (returning splash → dashboard)
+            console.log('🔄 Reloading app to start returning user flow...');
             setTimeout(() => {
-              onComplete(formData.email, formData.password);
-            }, 50);
+              window.location.reload();
+            }, 500);
           } else {
             setError(signUpError);
             setIsLoading(false);
