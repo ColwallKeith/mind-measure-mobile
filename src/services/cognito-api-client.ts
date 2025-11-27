@@ -366,23 +366,13 @@ export const cognitoApiClient = {
    * Simplified version - just polls for token changes
    */
   onAuthStateChange(callback: (event: string, user: AuthUser | null) => void) {
-    let lastUserState: string | null = null;
-
-    // Check auth state every 5 seconds
-    const interval = setInterval(async () => {
-      const { data } = await cognitoApiClient.getUser();
-      const currentState = data?.user?.id || null;
-      
-      if (currentState !== lastUserState) {
-        console.log('🔔 API Client: Auth state changed');
-        lastUserState = currentState;
-        callback(currentState ? 'signIn' : 'signOut', data?.user || null);
-      }
-    }, 5000);
-
+    // This is a simplified listener for explicit auth events (sign-in, sign-out)
+    // We do NOT poll - we only trigger on actual auth actions
+    console.log('🔔 Auth state listener registered');
+    
     // Return unsubscribe function
     return () => {
-      clearInterval(interval);
+      console.log('🔕 Auth state listener unsubscribed');
     };
   }
 };

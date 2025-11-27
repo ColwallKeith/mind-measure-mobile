@@ -60,21 +60,33 @@ export const MobileAppStructure: React.FC = () => {
         console.log('🆕 No authenticated user - starting new user flow');
         setOnboardingScreen('splash');
       }
-    } else {
-      // User is authenticated - check if they need baseline
-      if (hasAssessmentHistory === true) {
-        // Has baseline → Dashboard (transition from splash if needed)
-        if (onboardingScreen === 'splash' || onboardingScreen === null) {
-          console.log('🔄 Has baseline - going to dashboard from splash');
-          setOnboardingScreen('returning_splash');
-        }
-      } else {
-        // No baseline → Force baseline
-        if (onboardingScreen === null || onboardingScreen === 'splash') {
-          console.log('🎯 No baseline - forcing baseline flow');
-          setOnboardingScreen('baseline_welcome');
-        }
+      return;
+    }
+
+    // User is authenticated - check baseline status
+    if (hasAssessmentHistory === false) {
+      // No baseline → Force baseline
+      if (onboardingScreen === null || onboardingScreen === 'splash') {
+        console.log('🎯 No baseline - forcing baseline flow');
+        setOnboardingScreen('baseline_welcome');
       }
+      return;
+    }
+
+    if (hasAssessmentHistory === true) {
+      // Has baseline → Dashboard
+      if (onboardingScreen === 'splash' || onboardingScreen === null) {
+        console.log('🔄 Has baseline - showing returning splash');
+        setOnboardingScreen('returning_splash');
+      } else if (onboardingScreen === 'returning_splash') {
+        // Don't interfere - let the returning splash complete naturally
+        console.log('⏳ Waiting for returning splash to complete...');
+      } else if (onboardingScreen === 'baseline_welcome') {
+        // User has baseline but is stuck on baseline_welcome → clear onboarding
+        console.log('✅ User and baseline present - leaving onboarding');
+        setOnboardingScreen(null);
+      }
+      return;
     }
   }, [user, loading, hasAssessmentHistory, onboardingScreen]); // Removed onboardingScreen from dependencies to prevent loop
 
@@ -136,6 +148,12 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_welcome');
   }, []);
 
+  const handleReturningSplashComplete = useCallback(() => {
+    console.log('✅ Returning user splash complete - going to dashboard');
+    setOnboardingScreen(null);
+    setCurrentScreen('dashboard');
+  }, []);
+
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
     { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
@@ -190,7 +208,7 @@ export const MobileAppStructure: React.FC = () => {
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
         case 'returning_splash':
           console.log('🎨 Rendering ReturningSplashScreen');
-          return <ReturningSplashScreen onComplete={handleSplashComplete} />;
+          return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessmentSDK');
           return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;

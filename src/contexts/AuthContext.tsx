@@ -38,45 +38,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state
+  // Initialize auth state ONCE on mount
   useEffect(() => {
-    initializeAuth();
-  }, []);
+    let unsubscribe: (() => void) | undefined;
 
-  // Set up auth state listener
-  useEffect(() => {
-    const unsubscribe = cognitoApiClient.onAuthStateChange((event, user) => {
-      console.log('🔄 Auth state changed:', event, user?.email);
-      setUser(user);
-      setLoading(false);
-    });
+    const initializeAuth = async () => {
+      try {
+        console.log('🔐 initializeAuth: checking current user');
+        const { data, error } = await cognitoApiClient.getUser();
+        console.log('👤 Current user:', data);
+        
+        if (error) {
+          console.log('ℹ️ No authenticated user found:', error);
+          setUser(null);
+        } else if (data?.user && data.user.email) {
+          console.log('✅ Current user restored:', data.user.email);
+          setUser(data.user);
+        } else {
+          console.log('ℹ️ No authenticated user found');
+          setUser(null);
+        }
 
-    return unsubscribe;
-  }, []);
-
-  const initializeAuth = async () => {
-    try {
-      console.log('🔐 initializeAuth: checking current user');
-      console.log('🔄 Initializing secure auth client...');
-      const { data, error } = await cognitoApiClient.getUser();
-      console.log('👤 Current user:', data);
-      if (error) {
-        console.log('ℹ️ No authenticated user found:', error);
+        // Set up auth state listener (simplified - no polling)
+        unsubscribe = cognitoApiClient.onAuthStateChange((event, user) => {
+          console.log('🔄 Auth state changed:', event, user?.email);
+          setUser(user);
+        });
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error);
         setUser(null);
-      } else if (data?.user && data.user.email) {
-        console.log('✅ Current user restored:', data.user.email);
-        setUser(data.user);
-      } else {
-        console.log('ℹ️ No authenticated user found');
-        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Auth initialization error:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    initializeAuth();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []); // Run ONCE on mount
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
