@@ -425,7 +425,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       const { error: updateError } = await backendService.database.update(
         'profiles',
         { baseline_established: true, updated_at: new Date().toISOString() },
-        { filters: { user_id: { operator: 'eq', value: userId } } }
+        { user_id: { operator: 'eq', value: userId } }
       );
       
       if (updateError) {
