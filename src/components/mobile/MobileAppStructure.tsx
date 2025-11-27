@@ -30,6 +30,7 @@ export const MobileAppStructure: React.FC = () => {
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>('returning_splash');
   const [pendingEmail, setPendingEmail] = useState<string | null>(null); // Track email for verification
   const [pendingPassword, setPendingPassword] = useState<string | null>(null); // Track password for auto-sign-in
+  const [isManualBaselineRetake, setIsManualBaselineRetake] = useState(false); // Flag for intentional baseline retakes
   // Debug onboarding screen changes
   useEffect(() => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
@@ -87,11 +88,14 @@ export const MobileAppStructure: React.FC = () => {
 
     if (hasAssessmentHistory === true) {
       // Has baseline → Dashboard
-      if (onboardingScreen === 'baseline_welcome') {
-        // Somehow stuck on baseline welcome - clear it
+      if (onboardingScreen === 'baseline_welcome' && !isManualBaselineRetake) {
+        // Somehow stuck on baseline welcome (not intentional) - clear it
         console.log('✅ User and baseline present - clearing baseline welcome');
         setOnboardingScreen(null);
         setHasShownReturningSplash(true);
+      } else if (onboardingScreen === 'baseline_welcome' && isManualBaselineRetake) {
+        // Intentional baseline retake - allow it
+        console.log('🔄 Manual baseline retake - allowing baseline_welcome screen');
       } else if (onboardingScreen === null) {
         // Already on dashboard - stay there
         console.log('✅ On dashboard - staying put');
@@ -149,6 +153,7 @@ export const MobileAppStructure: React.FC = () => {
   
   const handleBaselineComplete = useCallback(() => {
     console.log('✅ Baseline assessment completed - going to dashboard');
+    setIsManualBaselineRetake(false); // Clear the flag
     setOnboardingScreen(null);
     setCurrentScreen('dashboard');
   }, []);
@@ -191,6 +196,7 @@ export const MobileAppStructure: React.FC = () => {
     // "Baseline Check" button in footer always goes to baseline assessment
     if (tab === 'checkin') {
       console.log('🎯 Baseline Check clicked - starting baseline assessment');
+      setIsManualBaselineRetake(true);
       setOnboardingScreen('baseline_welcome');
       return;
     }
