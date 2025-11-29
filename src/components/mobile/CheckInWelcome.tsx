@@ -5,10 +5,10 @@ import mindMeasureLogo from '@/assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.p
 
 interface CheckInWelcomeProps {
   onStartCheckIn: () => void;
-  userName?: string;
+  userName: string;
 }
 
-export function CheckInWelcome({ onStartCheckIn, userName = 'Alex' }: CheckInWelcomeProps) {
+export function CheckInWelcome({ onStartCheckIn, userName }: CheckInWelcomeProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-8">
       {/* Header */}
