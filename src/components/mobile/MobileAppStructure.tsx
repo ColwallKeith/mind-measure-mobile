@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { HelpScreen } from './HelpPage';
+import { CheckInWelcome } from './CheckInWelcome';
+import { CheckInAssessmentSDK } from './CheckInAssessmentSDK';
 import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
 import { MobileSettings } from './MobileSettings';
@@ -22,7 +24,7 @@ import {
   Users
 } from 'lucide-react';
 type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
-type Screen = MobileTab | 'profile' | 'settings';
+type Screen = MobileTab | 'profile' | 'settings' | 'checkin_assessment';
 type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
