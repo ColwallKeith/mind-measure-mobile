@@ -27,92 +27,6 @@ type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
 type Screen = MobileTab | 'profile' | 'settings' | 'checkin_welcome' | 'checkin_assessment';
 type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
-  const [pendingPassword, setPendingPassword] = useState<string | null>(null);
-  
-  console.log('👤 MobileAppStructure - Auth Gate:', { user: user?.email, authLoading, onboardingScreen });
-
-  // ========================================================================
-  // Phase 2A: Clean Gate Architecture
-  // Auth Gate → Onboarding Flow → Baseline Gate (in AuthenticatedApp) → Main App
-  // ========================================================================
-  
-  // Gate 1: Auth Loading
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Gate 2: Not Authenticated - Show proper onboarding flow
-  if (!user) {
-    console.log('🚫 No user - showing onboarding flow:', onboardingScreen);
-    
-    // Default to splash screen if no onboarding screen set
-    const currentOnboardingScreen = onboardingScreen || 'splash';
-    
-    switch (currentOnboardingScreen) {
-      case 'splash':
-        return <SplashScreen onGetStarted={() => setOnboardingScreen('registration')} />;
-        
-      case 'registration':
-        return (
-          <RegistrationScreen
-            onRegistrationComplete={(email, password) => {
-              setPendingEmail(email);
-              setPendingPassword(password);
-              setOnboardingScreen('email_verification');
-            }}
-            onBack={() => setOnboardingScreen('splash')}
-            onSignInClick={() => setOnboardingScreen('sign_in')}
-          />
-        );
-        
-      case 'email_verification':
-        return (
-          <EmailVerificationScreen
-            email={pendingEmail || ''}
-            password={pendingPassword || ''}
-            onVerificationComplete={() => {
-              console.log('✅ Email verified - AuthContext will update user state');
-              setOnboardingScreen(null);
-            }}
-            onBack={() => setOnboardingScreen('registration')}
-          />
-        );
-        
-      case 'sign_in':
-        return (
-          <SignInScreen 
-            onSignInComplete={() => {
-              console.log('✅ Sign in complete - AuthContext will update user state');
-              setOnboardingScreen(null);
-            }} 
-            onBack={() => setOnboardingScreen('splash')} 
-          />
-        );
-        
-      default:
-        return <SplashScreen onGetStarted={() => setOnboardingScreen('registration')} />;
-    }
-  }
-
-  // Gate 3: Authenticated - Pass to AuthenticatedApp for baseline check
-  console.log('✅ User authenticated - passing to AuthenticatedApp');
-  return <AuthenticatedApp />;
-
-  // ========================================================================
-  // ORIGINAL ONBOARDING LOGIC - COMMENTED OUT FOR PHASE 1/2A
-  // This will be restored and refactored in Phase 2C (full onboarding flow)
-  // ========================================================================
-  /*
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
@@ -342,5 +256,4 @@ export const MobileAppStructure: React.FC = () => {
       )}
     </div>
   );
-  */
 };
