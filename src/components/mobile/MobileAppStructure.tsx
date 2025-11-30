@@ -39,11 +39,12 @@ export const MobileAppStructure: React.FC = () => {
   
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
   const [hasShownReturningSplash, setHasShownReturningSplash] = useState(false);
-  const { user } = useAuth();
-  const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
+  const { user, loading: authLoading } = useAuth();
+  const { needsBaseline, needsCheckin, hasAssessmentHistory, loading: historyLoading } = useUserAssessmentHistory();
   
   useEffect(() => {
-    if (loading) {
+    if (authLoading || historyLoading) {
+      console.log('⏳ Auth or history loading - deferring onboarding decision', { authLoading, historyLoading });
       return;
     }
 
@@ -51,7 +52,8 @@ export const MobileAppStructure: React.FC = () => {
       hasUser: !!user,
       userId: user?.id,
       hasAssessmentHistory,
-      loading,
+      authLoading,
+      historyLoading,
       onboardingScreen,
       hasShownReturningSplash
     });
@@ -79,7 +81,7 @@ export const MobileAppStructure: React.FC = () => {
     if (onboardingScreen !== 'baseline_welcome' && onboardingScreen !== 'baseline_assessment') {
       setOnboardingScreen('baseline_welcome');
     }
-  }, [user, loading, hasAssessmentHistory, onboardingScreen, hasShownReturningSplash]);
+  }, [user, authLoading, historyLoading, hasAssessmentHistory, onboardingScreen, hasShownReturningSplash]);
 
   useEffect(() => {
     if (onboardingScreen === 'email_verification' && !pendingEmail) {
