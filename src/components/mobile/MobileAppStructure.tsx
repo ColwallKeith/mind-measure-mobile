@@ -168,6 +168,18 @@ export const MobileAppStructure: React.FC = () => {
   const renderContent = () => {
     console.log('🎨 Rendering content - onboardingScreen:', onboardingScreen);
     
+    // Show returning splash while auth/history loads for users with tokens
+    if (authLoading || historyLoading) {
+      console.log('⏳ Auth or history loading', { authLoading, historyLoading, hasUser: !!user });
+      // If we already have a user object (tokens restored), show returning splash
+      if (user) {
+        console.log('🔄 User tokens found - showing returning splash while loading');
+        return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
+      }
+      // Otherwise return null (blank screen momentarily)
+      return null;
+    }
+    
     if (onboardingScreen) {
       console.log('🎯 Rendering onboarding screen:', onboardingScreen);
       switch (onboardingScreen) {
