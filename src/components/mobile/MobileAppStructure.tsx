@@ -214,10 +214,8 @@ export const MobileAppStructure: React.FC = () => {
       }
     }
     
-    if (user && hasAssessmentHistory !== true) {
-      console.log('🚫 Blocking access to main screens - baseline not completed');
-      return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
-    }
+    // This baseline check is now redundant - the useEffect handles routing
+    // Removed to prevent bypassing the onboarding screen state
     
     if (!onboardingScreen && !user) {
       console.log('⚠️ No onboarding screen and no user - showing splash');
