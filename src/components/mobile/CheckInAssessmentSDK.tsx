@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { Button } from '../ui/button';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { useAuth } from '@/contexts/AuthContext';
+import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 
 interface CheckInAssessmentSDKProps {
@@ -16,11 +18,17 @@ interface Message {
 }
 
 export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSDKProps) {
+  const { user } = useAuth();
   const [showConversation, setShowConversation] = useState(false);
   const [requestingPermissions, setRequestingPermissions] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [userContext, setUserContext] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const backendServiceRef = useRef(
+    BackendServiceFactory.createService(BackendServiceFactory.getEnvironmentConfig())
+  );
+  const latestContextRef = useRef<any>(null);
 
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
@@ -56,6 +64,113 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
 
+  const formatContextForAgent = (context: any) => {
+    if (!context) return '';
+
+    const { user: userProfile, assessmentHistory = [], wellnessTrends = [] } = context;
+
+    const formatDate = (isoString?: string) => {
+      if (!isoString) return 'unknown date';
+      return new Date(isoString).toLocaleDateString('en-GB', {
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+
+    const assessmentsSummary = assessmentHistory.length
+      ? assessmentHistory
+          .map((assessment: any, index: number) => {
+            const assessmentType = assessment.assessment_type || 'check-in';
+            return `${index + 1}. ${assessmentType} on ${formatDate(assessment.created_at)}`;
+          })
+          .join('\n')
+      : 'No previous check-ins recorded.';
+
+    const trendSummary = wellnessTrends.length
+      ? wellnessTrends
+          .map((trend: any, index: number) => {
+            const score = trend.score ?? trend.final_score ?? trend.mind_measure_score;
+            const prefix = typeof score === 'number' ? `score ${score}` : 'score unavailable';
+            return `${index + 1}. ${prefix} on ${formatDate(trend.created_at)}`;
+          })
+          .join('\n')
+      : 'No trend data yet.';
+
+    return [
+      `You are speaking with ${userProfile?.fullName || userProfile?.name || 'the student'}.`,
+      userProfile?.university ? `University: ${userProfile.university}` : null,
+      userProfile?.course ? `Course: ${userProfile.course}` : null,
+      userProfile?.yearOfStudy ? `Year of study: ${userProfile.yearOfStudy}` : null,
+      context.isFirstTime ? 'This is their first check-in after baseline.' : 'They have previous check-ins recorded.',
+      '',
+      'Recent assessments:',
+      assessmentsSummary,
+      '',
+      'Recent Mind Measure scores:',
+      trendSummary,
+      '',
+      'Use this context to personalize the conversation, reference their journey so far, and ask empathetic follow-up questions.'
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const loadUserContext = useCallback(async () => {
+    if (!user?.id) {
+      return null;
+    }
+
+    try {
+      const backendService = backendServiceRef.current;
+
+      const [{ data: profile }, { data: recentAssessments }, { data: wellnessData }] =
+        await Promise.all([
+          backendService.database
+            .select('profiles')
+            .select('first_name, last_name, university, course, year_of_study')
+            .eq('id', user.id)
+            .single(),
+          backendService.database
+            .select('assessment_sessions')
+            .select('assessment_type, created_at, meta')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(3),
+          backendService.database
+            .select('fusion_outputs')
+            .select('score, final_score, mind_measure_score, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(5)
+        ]);
+
+      const context = {
+        user: {
+          name: profile?.first_name || 'there',
+          fullName: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
+          university: profile?.university,
+          course: profile?.course,
+          yearOfStudy: profile?.year_of_study
+        },
+        assessmentHistory: recentAssessments || [],
+        wellnessTrends: wellnessData || [],
+        isFirstTime: !recentAssessments || recentAssessments.length === 0,
+        platform: 'mobile'
+      };
+
+      latestContextRef.current = context;
+      setUserContext(context);
+      return context;
+    } catch (error) {
+      console.error('[CheckIn SDK] Failed to load user context:', error);
+      return null;
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadUserContext();
+  }, [loadUserContext]);
+
   const handleStartCheckIn = async () => {
     console.log('[CheckIn SDK] 🎯 Starting check-in conversation');
     setRequestingPermissions(true);
@@ -66,6 +181,8 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[CheckIn SDK] ✅ Audio permission granted');
 
+      const latestContext = userContext || (await loadUserContext());
+
       setShowConversation(true);
       
       // Wait a moment for UI to render, then start the conversation
@@ -74,10 +191,20 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
           console.log('[CheckIn SDK] 🚀 Starting ElevenLabs check-in conversation...');
           
           await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx' // Check-in agent
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx', // Check-in agent
+            userId: user?.id
           });
 
           console.log('[CheckIn SDK] ✅ Check-in session started');
+
+          const contextToSend = latestContextRef.current || latestContext;
+          if (contextToSend) {
+            const contextText = formatContextForAgent(contextToSend);
+            if (contextText) {
+              console.log('[CheckIn SDK] 📤 Sending contextual update to agent');
+              conversation.sendContextualUpdate(contextText);
+            }
+          }
 
         } catch (error) {
           console.error('[CheckIn SDK] ❌ Failed to start conversation:', error);
