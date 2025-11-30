@@ -37,51 +37,18 @@ export const MobileAppStructure: React.FC = () => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
   }, [onboardingScreen]);
   
-  const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
-  const [hasShownReturningSplash, setHasShownReturningSplash] = useState(false);
+  const [hasCompletedInitialSplash, setHasCompletedInitialSplash] = useState(false);
   const { user, loading: authLoading } = useAuth();
-  const { needsBaseline, needsCheckin, hasAssessmentHistory, loading: historyLoading } = useUserAssessmentHistory();
+  const { hasAssessmentHistory, loading: historyLoading } = useUserAssessmentHistory();
   
+  // Simple logic: Always show returning splash on launch, then route after 5 seconds
   useEffect(() => {
-    if (authLoading || historyLoading) {
-      console.log('⏳ Auth or history loading - deferring onboarding decision', { authLoading, historyLoading });
-      return;
+    // On first mount, always show returning splash
+    if (!hasCompletedInitialSplash && onboardingScreen === null) {
+      console.log('🚀 App launch - showing returning splash for 5 seconds');
+      setOnboardingScreen('returning_splash');
     }
-
-    console.log('🎯 App start - user state:', {
-      hasUser: !!user,
-      userId: user?.id,
-      hasAssessmentHistory,
-      authLoading,
-      historyLoading,
-      onboardingScreen,
-      hasShownReturningSplash
-    });
-
-    if (!user) {
-      console.log('🆕 No authenticated user - starting new user flow');
-      setHasShownReturningSplash(false);
-      if (onboardingScreen !== 'splash') {
-        setOnboardingScreen('splash');
-      }
-      return;
-    }
-
-    if (hasAssessmentHistory === true) {
-      if (!hasShownReturningSplash) {
-        console.log('🔄 Returning user - showing returning splash');
-        setOnboardingScreen('returning_splash');
-      } else if (onboardingScreen === 'splash') {
-        setOnboardingScreen(null);
-      }
-      return;
-    }
-
-    console.log('🎯 No baseline - forcing baseline flow');
-    if (onboardingScreen !== 'baseline_welcome' && onboardingScreen !== 'baseline_assessment') {
-      setOnboardingScreen('baseline_welcome');
-    }
-  }, [user, authLoading, historyLoading, hasAssessmentHistory, onboardingScreen, hasShownReturningSplash]);
+  }, [hasCompletedInitialSplash, onboardingScreen]);
 
   useEffect(() => {
     if (onboardingScreen === 'email_verification' && !pendingEmail) {
@@ -96,12 +63,23 @@ export const MobileAppStructure: React.FC = () => {
   }, []);
 
   const handleReturningSplashComplete = useCallback(() => {
-    console.log('✅ Returning splash complete - going to dashboard');
-    setHasShownReturningSplash(true);
-    setOnboardingScreen(null);
-    setCurrentScreen('dashboard');
-    setActiveTab('dashboard');
-  }, []);
+    console.log('✅ Returning splash complete - checking auth state');
+    setHasCompletedInitialSplash(true);
+    
+    // After splash, route based on actual auth state
+    if (!user) {
+      console.log('🆕 No user found - showing new user splash');
+      setOnboardingScreen('splash');
+    } else if (hasAssessmentHistory === true) {
+      console.log('✅ Returning user with history - going to dashboard');
+      setOnboardingScreen(null);
+      setCurrentScreen('dashboard');
+      setActiveTab('dashboard');
+    } else {
+      console.log('🎯 User needs baseline - showing baseline welcome');
+      setOnboardingScreen('baseline_welcome');
+    }
+  }, [user, hasAssessmentHistory]);
 
   const handleRegistrationComplete = useCallback((email: string, password: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
@@ -168,18 +146,6 @@ export const MobileAppStructure: React.FC = () => {
   const renderContent = () => {
     console.log('🎨 Rendering content - onboardingScreen:', onboardingScreen);
     
-    // Show returning splash while auth/history loads for users with tokens
-    if (authLoading || historyLoading) {
-      console.log('⏳ Auth or history loading', { authLoading, historyLoading, hasUser: !!user });
-      // If we already have a user object (tokens restored), show returning splash
-      if (user) {
-        console.log('🔄 User tokens found - showing returning splash while loading');
-        return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
-      }
-      // Otherwise return null (blank screen momentarily)
-      return null;
-    }
-    
     if (onboardingScreen) {
       console.log('🎯 Rendering onboarding screen:', onboardingScreen);
       switch (onboardingScreen) {
@@ -213,9 +179,6 @@ export const MobileAppStructure: React.FC = () => {
           return <SplashScreen onGetStarted={handleSplashComplete} />;
       }
     }
-    
-    // This baseline check is now redundant - the useEffect handles routing
-    // Removed to prevent bypassing the onboarding screen state
     
     if (!onboardingScreen && !user) {
       console.log('⚠️ No onboarding screen and no user - showing splash');
