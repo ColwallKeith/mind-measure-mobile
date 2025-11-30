@@ -38,11 +38,12 @@ export const MobileAppStructure: React.FC = () => {
   }, [onboardingScreen]);
   
   const [isNewUser, setIsNewUser] = useState<boolean | null>(null);
+  const [hasShownReturningSplash, setHasShownReturningSplash] = useState(false);
   const { user } = useAuth();
   const { needsBaseline, needsCheckin, hasAssessmentHistory, loading } = useUserAssessmentHistory();
   
   useEffect(() => {
-    if (loading || onboardingScreen !== null) {
+    if (loading) {
       return;
     }
 
@@ -50,22 +51,35 @@ export const MobileAppStructure: React.FC = () => {
       hasUser: !!user,
       userId: user?.id,
       hasAssessmentHistory,
-      loading
+      loading,
+      onboardingScreen,
+      hasShownReturningSplash
     });
 
     if (!user) {
       console.log('🆕 No authenticated user - starting new user flow');
-      setOnboardingScreen('splash');
-    } else {
-      if (hasAssessmentHistory === true) {
-        console.log('🔄 Has baseline - going to dashboard');
-        setOnboardingScreen('returning_splash');
-      } else {
-        console.log('🎯 No baseline - forcing baseline flow');
-        setOnboardingScreen('baseline_welcome');
+      setHasShownReturningSplash(false);
+      if (onboardingScreen !== 'splash') {
+        setOnboardingScreen('splash');
       }
+      return;
     }
-  }, [user, loading, hasAssessmentHistory]);
+
+    if (hasAssessmentHistory === true) {
+      if (!hasShownReturningSplash) {
+        console.log('🔄 Returning user - showing returning splash');
+        setOnboardingScreen('returning_splash');
+      } else if (onboardingScreen === 'splash') {
+        setOnboardingScreen(null);
+      }
+      return;
+    }
+
+    console.log('🎯 No baseline - forcing baseline flow');
+    if (onboardingScreen !== 'baseline_welcome' && onboardingScreen !== 'baseline_assessment') {
+      setOnboardingScreen('baseline_welcome');
+    }
+  }, [user, loading, hasAssessmentHistory, onboardingScreen, hasShownReturningSplash]);
 
   useEffect(() => {
     if (onboardingScreen === 'email_verification' && !pendingEmail) {
@@ -77,6 +91,14 @@ export const MobileAppStructure: React.FC = () => {
   const handleSplashComplete = useCallback(() => {
     console.log('✅ Splash complete - going to registration');
     setOnboardingScreen('registration');
+  }, []);
+
+  const handleReturningSplashComplete = useCallback(() => {
+    console.log('✅ Returning splash complete - going to dashboard');
+    setHasShownReturningSplash(true);
+    setOnboardingScreen(null);
+    setCurrentScreen('dashboard');
+    setActiveTab('dashboard');
   }, []);
 
   const handleRegistrationComplete = useCallback((email: string, password: string) => {
@@ -168,7 +190,7 @@ export const MobileAppStructure: React.FC = () => {
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
         case 'returning_splash':
           console.log('🎨 Rendering ReturningSplashScreen');
-          return <ReturningSplashScreen onComplete={handleSplashComplete} />;
+          return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
         case 'baseline_assessment':
           console.log('🎨 Rendering BaselineAssessment');
           return <BaselineAssessment onComplete={handleBaselineComplete} />;
