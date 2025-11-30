@@ -190,6 +190,10 @@ export const MobileAppStructure: React.FC = () => {
         return <DashboardScreen
           onNeedHelp={() => setCurrentScreen('help')}
           onCheckIn={() => setCurrentScreen('checkin')}
+          onResetBaseline={() => {
+            console.log('🔄 Retaking baseline from developer mode');
+            setOnboardingScreen('baseline_welcome');
+          }}
         />;
       case 'checkin':
         // Show welcome screen with user's first name, then start conversation

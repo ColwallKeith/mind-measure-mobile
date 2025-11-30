@@ -12,9 +12,9 @@ import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b
 interface DashboardScreenProps {
   onNeedHelp?: () => void;
   onCheckIn?: () => void;
-  onResetBaseline?: () => void;
+  onRetakeBaseline?: () => void;
 }
-export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: DashboardScreenProps) {
+export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: DashboardScreenProps) {
   const { user } = useAuth();
   const {
     profile,
@@ -56,15 +56,12 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onResetBaseline }: Dash
       );
       
       if (confirmed) {
-        // User clicked OK - proceed with reset
+        // User clicked OK - trigger baseline retake
         console.log('✅ User confirmed baseline reset');
-        try {
-          const { Preferences } = await import('@capacitor/preferences');
-          await Preferences.remove({ key: 'mindmeasure_baseline_complete' });
-          console.log('✅ Baseline flag cleared from device');
-          window.location.reload();
-        } catch (error) {
-          console.error('❌ Error clearing baseline flag:', error);
+        if (onRetakeBaseline) {
+          onRetakeBaseline();
+        } else {
+          console.warn('⚠️ onRetakeBaseline prop not provided');
         }
       } else {
         console.log('❌ User cancelled baseline reset');
