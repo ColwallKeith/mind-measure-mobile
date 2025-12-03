@@ -111,6 +111,21 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  // Format time ago (e.g., "2h ago", "Yesterday", "3 Dec")
+  const formatTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
   // Loading state
   if (loading) {
     return (
@@ -134,6 +149,9 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
       </div>
     );
   }
+  // Filter check-ins only (exclude baseline) for recent activity display
+  const checkInActivity = recentActivity.filter(activity => activity.type === 'checkin');
+
   return (
     <motion.div
       className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6"
@@ -169,23 +187,23 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           transition={{ delay: 0.2, duration: 0.6 }}
         >
           {isPostBaselineView 
-            ? `${getGreeting()}, ${profile.firstName ? profile.firstName.charAt(0).toUpperCase() + profile.firstName.slice(1).toLowerCase() : 'Keith'} - here is the result of your baseline assessment`
-            : `${getGreeting()}, ${profile.firstName ? profile.firstName.charAt(0).toUpperCase() + profile.firstName.slice(1).toLowerCase() : 'there'}`
+            ? `${getGreeting()}, ${profile.firstName || 'there'}`
+            : `${getGreeting()}, ${profile.firstName || 'there'}`
           }
         </motion.h1>
-        {!isPostBaselineView && (
-          <motion.p
-            className="text-gray-600"
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            {hasData
+        <motion.p
+          className="text-gray-600"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+        >
+          {isPostBaselineView
+            ? "Here's the result of your baseline assessment"
+            : hasData
               ? "Here's your latest mental health snapshot"
               : "Complete your first assessment to see your dashboard"
-            }
-          </motion.p>
-        )}
+          }
+        </motion.p>
         {profile.streakCount > 0 && (
           <motion.div
             className="mt-2"
@@ -199,6 +217,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </motion.div>
         )}
       </motion.div>
+
       {/* Current Score Card */}
       {latestScore ? (
         <motion.div variants={itemVariants}>
@@ -224,19 +243,45 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </Card>
         </motion.div>
       )}
-      {/* Mind Measure Themes - Hide in post-baseline view */}
+
+      {/* Quick Actions - Side by side */}
+      <motion.div variants={itemVariants} className="space-y-3">
+        <h3 className="text-gray-900">Quick Actions</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={onCheckIn}
+              className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg rounded-xl"
+            >
+              <MessageCircle className="w-5 h-5 mr-2" />
+              Check-in
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={onNeedHelp}
+              className="w-full h-14 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg rounded-xl"
+            >
+              <Phone className="w-5 h-5 mr-2" />
+              Need Help
+            </Button>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Key Themes - Only show if we have check-in data (not just baseline) */}
       {!isPostBaselineView && latestSession?.themes && latestSession.themes.length > 0 && (
-        <motion.div variants={itemVariants} className="space-y-4">
-          <h3 className="text-gray-900">Recent Themes</h3>
+        <motion.div variants={itemVariants} className="space-y-3">
+          <h3 className="text-gray-900">Key Themes</h3>
           <div className="flex flex-wrap gap-2">
-            {latestSession.themes.map((theme, index) => (
+            {latestSession.themes.slice(0, 6).map((theme, index) => (
               <motion.span
                 key={theme}
-                className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm"
+                className="px-4 py-2 bg-white/60 backdrop-blur-md text-gray-700 rounded-full text-sm shadow-sm"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5 + index * 0.1, type: "spring", stiffness: 200 }}
-                whileHover={{ scale: 1.05 }}
+                transition={{ delay: 0.5 + index * 0.05, type: "spring", stiffness: 200 }}
+                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.8)' }}
               >
                 {theme}
               </motion.span>
@@ -244,197 +289,132 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </div>
         </motion.div>
       )}
-      {/* Latest Check-in */}
-      {/* Need Help Section - MOVED UP */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-r from-red-50/70 to-pink-50/70 p-6">
-          <div className="flex items-center gap-4">
-            <motion.div
-              className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center"
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              <Shield className="w-6 h-6 text-red-600" />
-            </motion.div>
-            <div className="flex-1">
-              <h4 className="text-red-900 mb-1">Need Support?</h4>
-              <p className="text-red-700 text-sm">Access crisis support and local resources anytime</p>
-            </div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button
-                onClick={onNeedHelp}
-                className="bg-red-500 hover:bg-red-600 text-white h-10 px-4"
-              >
-                <Phone className="w-4 h-4 mr-2" />
-                Help
-              </Button>
-            </motion.div>
-          </div>
-        </Card>
-      </motion.div>
 
-      {/* Recent Activity Card - MOVED AFTER Need Support */}
+      {/* Latest Check-in Card - Only show for check-ins with summary */}
+      {!isPostBaselineView && latestSession?.summary && (
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-gray-900">Latest Check-in</h3>
+              <p className="text-gray-500 text-sm">{latestSession.createdAt}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-gray-800 font-medium mb-2">Conversation Summary</h4>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {latestSession.summary}
+                </p>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                <span className="text-gray-700">Mood Score</span>
+                <span className="text-2xl font-semibold text-gray-900">{latestSession.moodScore}/10</span>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Topics Discussed - Positive/Negative drivers */}
+      {!isPostBaselineView && latestSession && (latestSession.driverPositive.length > 0 || latestSession.driverNegative.length > 0) && (
+        <motion.div variants={itemVariants} className="space-y-3">
+          <h3 className="text-gray-900">Topics Discussed</h3>
+          <div className="space-y-3">
+            {latestSession.driverPositive.length > 0 && (
+              <Card className="border-0 shadow-sm backdrop-blur-xl bg-green-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
+                  <div className="flex-1">
+                    <p className="text-green-800 font-medium mb-2">Finding Pleasure In</p>
+                    <div className="flex flex-wrap gap-2">
+                      {latestSession.driverPositive.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 text-xs border border-green-300 text-green-700 bg-green-100/50 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+            
+            {latestSession.driverNegative.length > 0 && (
+              <Card className="border-0 shadow-sm backdrop-blur-xl bg-orange-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2" />
+                  <div className="flex-1">
+                    <p className="text-orange-800 font-medium mb-2">Causing Concern</p>
+                    <div className="flex flex-wrap gap-2">
+                      {latestSession.driverNegative.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-1 text-xs border border-orange-300 text-orange-700 bg-orange-100/50 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Recent Activity - Check-ins only (compact format) */}
       <motion.div variants={itemVariants}>
         <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-gray-900">Recent Activity</h3>
-            <p className="text-gray-500 text-sm">
-              {recentActivity.length > 0 ? new Date(recentActivity[0].createdAt).toLocaleDateString() : 'Today'}
-            </p>
-          </div>
-          <div className="space-y-4">
-            {recentActivity.length > 0 ? (
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">
-                    {recentActivity[0].type === 'baseline' ? 'Baseline Assessment Completed' : 'Check-in Completed'}
-                  </span>
-                  <span className="text-sm text-green-600 font-medium">✓ Complete</span>
-                </div>
-                {recentActivity[0].type === 'baseline' && (
-                  <p className="text-gray-600 text-sm mt-2">
-                    Great job completing your baseline assessment! This helps us understand your starting point.
+          <h3 className="text-gray-900 mb-4">Recent Activity</h3>
+          <div className="space-y-3">
+            {checkInActivity.length > 0 ? (
+              // Show check-in history
+              checkInActivity.slice(0, 5).map((activity, index) => (
+                <motion.div
+                  key={`${activity.createdAt}-${index}`}
+                  className="flex items-center gap-4"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 * index }}
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-800">Check-in Complete</p>
+                    <p className="text-gray-500 text-sm">
+                      Score: {activity.score} ({activity.score >= 80 ? 'Excellent' : activity.score >= 60 ? 'Good' : activity.score >= 40 ? 'Fair' : 'Needs Attention'})
+                    </p>
+                  </div>
+                  <p className="text-gray-400 text-sm">
+                    {formatTimeAgo(activity.createdAt)}
                   </p>
-                )}
-              </div>
+                </motion.div>
+              ))
             ) : (
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Baseline Assessment Completed</span>
-                  <span className="text-sm text-green-600 font-medium">✓ Complete</span>
+              // No check-ins yet - show baseline info
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-purple-600" />
                 </div>
-                <p className="text-gray-600 text-sm mt-2">
-                  Welcome to Mind Measure! Your baseline assessment is complete.
+                <div className="flex-1">
+                  <p className="text-gray-800">Baseline Established</p>
+                  <p className="text-gray-500 text-sm">
+                    {latestScore ? `Score: ${latestScore.score} (${latestScore.label})` : 'Ready for check-ins'}
+                  </p>
+                </div>
+                <p className="text-gray-400 text-sm">
+                  {latestScore?.lastUpdated || 'Today'}
                 </p>
               </div>
             )}
           </div>
         </Card>
       </motion.div>
-
-      {/* Quick Check-in Button - NOW AFTER Recent Activity */}
-      <motion.div variants={itemVariants} className="text-center space-y-4">
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Button
-            onClick={onCheckIn}
-            className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg shadow-lg rounded-2xl"
-          >
-            <motion.div
-              className="flex items-center justify-center gap-3"
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <MessageCircle className="w-6 h-6" />
-              <span>Check-In</span>
-            </motion.div>
-          </Button>
-        </motion.div>
-        <motion.p
-          className="text-gray-600 text-sm px-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          Check-in with Jodie to get your current score
-        </motion.p>
-      </motion.div>
-
-      {/* Topics Discussed - Hide in post-baseline view */}
-      {!isPostBaselineView && latestSession && latestSession.summary && (latestSession.driverPositive.length > 0 || latestSession.driverNegative.length > 0) && (
-        <motion.div variants={itemVariants} className="space-y-4">
-          <h3 className="text-gray-900">Topics Discussed</h3>
-          <div className="space-y-3">
-            {latestSession.driverPositive.length > 0 && (
-              <motion.div
-                className="bg-green-50 p-4 rounded-lg"
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <p className="text-green-800 font-medium">Positive Indicators</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {latestSession.driverPositive.map((tag, index) => (
-                    <motion.span
-                      key={tag}
-                      className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1.2 + index * 0.1 }}
-                    >
-                      {tag}
-                    </motion.span>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-            {latestSession.driverNegative.length > 0 && (
-              <motion.div
-                className="bg-orange-50 p-4 rounded-lg"
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <p className="text-orange-800 font-medium">Areas of Concern</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {latestSession.driverNegative.map((tag, index) => (
-                    <motion.span
-                      key={tag}
-                      className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 1.5 + index * 0.1 }}
-                    >
-                      {tag}
-                    </motion.span>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-      )}
-      {/* Recent Activity - Hide in post-baseline view (already shown above) */}
-      {!isPostBaselineView && recentActivity.length > 0 && (
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <h3 className="text-gray-900 mb-4">Recent Activity</h3>
-            <div className="space-y-3">
-              {recentActivity.slice(0, 3).map((activity, index) => (
-                <motion.div
-                  key={`${activity.createdAt}-${index}`}
-                  className="flex items-center gap-4"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 1.8 + index * 0.1 }}
-                >
-                  <motion.div
-                    className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <Activity className="w-5 h-5 text-blue-600" />
-                  </motion.div>
-                  <div className="flex-1">
-                    <p className="text-gray-800">
-                      {activity.type === 'baseline' ? 'Baseline Complete' : 'Check-in Complete'}
-                    </p>
-                    <p className="text-gray-500 text-sm">
-                      Score: {activity.score} ({activity.score >= 80 ? 'Excellent' : activity.score >= 60 ? 'Good' : activity.score >= 40 ? 'Fair' : 'Needs Attention'})
-                    </p>
-                  </div>
-                  <p className="text-gray-400 text-sm">
-                    {new Date(activity.createdAt).toLocaleDateString()}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      )}
       
       {/* Bottom padding for navigation */}
       <div className="h-24" />
