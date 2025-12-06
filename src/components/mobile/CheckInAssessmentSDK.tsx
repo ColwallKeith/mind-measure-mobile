@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
+import { assessmentEngineClient, type CheckInStatus } from '@/services/assessmentEngineClient';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 
 interface CheckInAssessmentSDKProps {
@@ -29,6 +30,12 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
     BackendServiceFactory.createService(BackendServiceFactory.getEnvironmentConfig())
   );
   const latestContextRef = useRef<any>(null);
+
+  // Assessment Engine state
+  const [checkInId, setCheckInId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingPhase, setProcessingPhase] = useState<string>('');
+  const [finalResult, setFinalResult] = useState<CheckInStatus | null>(null);
 
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
@@ -181,6 +188,17 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[CheckIn SDK] ✅ Audio permission granted');
 
+      // Start Assessment Engine check-in
+      console.log('[CheckIn SDK] 📡 Starting Assessment Engine check-in...');
+      try {
+        const result = await assessmentEngineClient.startCheckIn('daily');
+        setCheckInId(result.checkInId);
+        console.log('[CheckIn SDK] ✅ Assessment Engine check-in started:', result.checkInId);
+      } catch (error) {
+        console.error('[CheckIn SDK] ⚠️ Assessment Engine start failed (continuing anyway):', error);
+        // Continue without Assessment Engine - graceful degradation
+      }
+
       const latestContext = userContext || (await loadUserContext());
 
       setShowConversation(true);
@@ -242,10 +260,257 @@ export function CheckInAssessmentSDK({ onBack, onComplete }: CheckInAssessmentSD
       console.error('[CheckIn SDK] Error ending conversation:', error);
     }
 
-    // Complete check-in and return to dashboard
-    console.log('[CheckIn SDK] 🎉 Check-in completed!');
-    onComplete?.();
+    // If Assessment Engine check-in was started, complete it
+    if (checkInId) {
+      setIsProcessing(true);
+      setProcessingPhase('Completing check-in...');
+      
+      try {
+        // Extract transcript from messages
+        const transcript = messages
+          .filter(m => m.role === 'user')
+          .map(m => m.content)
+          .join(' ');
+
+        console.log('[CheckIn SDK] 📝 Extracted transcript:', transcript.substring(0, 100) + '...');
+        console.log('[CheckIn SDK] 📡 Completing Assessment Engine check-in...');
+
+        await assessmentEngineClient.completeCheckIn(checkInId, {
+          type: 'daily',
+          hasAudio: true,
+          hasVideo: false, // ElevenLabs SDK doesn't capture video
+          transcript: transcript
+        });
+
+        console.log('[CheckIn SDK] ✅ Check-in marked complete, starting analysis...');
+        setProcessingPhase('Analyzing your conversation...');
+
+        // Poll for results
+        const result = await assessmentEngineClient.pollCheckInStatus(
+          checkInId,
+          (status) => {
+            console.log('[CheckIn SDK] Poll update:', status.status);
+            if (status.status === 'PROCESSING') {
+              setProcessingPhase('Processing multimodal data...');
+            }
+          }
+        );
+
+        console.log('[CheckIn SDK] 🎉 Analysis complete!', result);
+        setFinalResult(result);
+        setIsProcessing(false);
+
+        // Show results briefly, then return to dashboard
+        setTimeout(() => {
+          onComplete?.();
+        }, 3000);
+
+      } catch (error) {
+        console.error('[CheckIn SDK] ❌ Assessment Engine error:', error);
+        setIsProcessing(false);
+        // Still complete the check-in even if Assessment Engine fails
+        onComplete?.();
+      }
+    } else {
+      // No Assessment Engine check-in, complete immediately
+      console.log('[CheckIn SDK] 🎉 Check-in completed!');
+      onComplete?.();
+    }
   };
+
+  // Show processing screen
+  if (isProcessing || finalResult) {
+    return (
+      <div style={{ 
+        position: 'fixed', 
+        inset: 0, 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)',
+        padding: '2rem'
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: '28rem' }}>
+          {/* Logo */}
+          <img
+            src={mindMeasureLogo}
+            alt="Mind Measure"
+            style={{
+              width: '6rem',
+              height: '6rem',
+              margin: '0 auto 2rem',
+              objectFit: 'contain'
+            }}
+          />
+
+          {!finalResult ? (
+            <>
+              {/* Processing Animation */}
+              <div style={{ 
+                width: '4rem', 
+                height: '4rem', 
+                margin: '0 auto 1.5rem',
+                border: '4px solid #e5e7eb',
+                borderTop: '4px solid #a855f7',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+
+              <h2 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: '600',
+                marginBottom: '0.75rem',
+                color: '#111827'
+              }}>
+                Analyzing Your Check-In
+              </h2>
+
+              <p style={{ 
+                fontSize: '1rem',
+                color: '#6b7280',
+                marginBottom: '2rem'
+              }}>
+                {processingPhase}
+              </p>
+
+              {/* Progress phases */}
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem',
+                  marginBottom: '0.75rem'
+                }}>
+                  <div style={{ 
+                    width: '1.5rem', 
+                    height: '1.5rem',
+                    borderRadius: '50%',
+                    backgroundColor: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <span style={{ color: '#6b7280' }}>Conversation recorded</span>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem',
+                  marginBottom: '0.75rem'
+                }}>
+                  <div style={{ 
+                    width: '1.5rem', 
+                    height: '1.5rem',
+                    borderRadius: '50%',
+                    backgroundColor: processingPhase.includes('Analyzing') ? '#a855f7' : '#e5e7eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {processingPhase.includes('Analyzing') && (
+                      <div style={{ 
+                        width: '0.5rem', 
+                        height: '0.5rem',
+                        backgroundColor: 'white',
+                        borderRadius: '50%'
+                      }} />
+                    )}
+                  </div>
+                  <span style={{ color: '#6b7280' }}>Analyzing text patterns</span>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ 
+                    width: '1.5rem', 
+                    height: '1.5rem',
+                    borderRadius: '50%',
+                    backgroundColor: processingPhase.includes('multimodal') ? '#a855f7' : '#e5e7eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {processingPhase.includes('multimodal') && (
+                      <div style={{ 
+                        width: '0.5rem', 
+                        height: '0.5rem',
+                        backgroundColor: 'white',
+                        borderRadius: '50%'
+                      }} />
+                    )}
+                  </div>
+                  <span style={{ color: '#6b7280' }}>Calculating Mind Measure score</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Success - Show Score */}
+              <div style={{ 
+                width: '5rem', 
+                height: '5rem',
+                margin: '0 auto 1.5rem',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                  <path d="M33.3333 10L15 28.3333L6.66666 20" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+
+              <h2 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: '600',
+                marginBottom: '0.75rem',
+                color: '#111827'
+              }}>
+                Check-In Complete!
+              </h2>
+
+              {finalResult.score !== undefined && (
+                <div style={{ 
+                  fontSize: '3rem',
+                  fontWeight: '700',
+                  background: 'linear-gradient(to right, #a855f7, #ec4899)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '0.5rem'
+                }}>
+                  {Math.round(finalResult.score)}
+                </div>
+              )}
+
+              <p style={{ 
+                fontSize: '1rem',
+                color: '#6b7280'
+              }}>
+                Your Mind Measure score has been recorded
+              </p>
+            </>
+          )}
+        </div>
+
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   // Show conversation UI
   if (showConversation) {
