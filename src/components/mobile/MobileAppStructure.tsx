@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { CheckInWelcome } from './CheckInWelcome';
-import { CheckInAssessmentSDK } from './CheckInAssessmentSDK';
+import { CheckinAssessment } from './CheckinAssessment';
 import { HelpScreen } from './HelpPage';
 import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
@@ -201,7 +201,7 @@ export const MobileAppStructure: React.FC = () => {
         return <CheckInWelcome userName={firstName} onStartCheckIn={() => setCurrentScreen('checkin_assessment')} />;
       case 'checkin_assessment':
         return (
-          <CheckInAssessmentSDK
+          <CheckinAssessment
             onBack={() => setCurrentScreen('dashboard')}
             onComplete={() => {
               console.log('✅ Check-in complete');
