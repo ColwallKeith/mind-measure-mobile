@@ -36,7 +36,7 @@ export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessme
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col px-6">
         {/* Header */}
-        <div className="text-center pt-8 pb-6">
+        <div className="text-center pt-16 pb-6">
           <h2 className="text-2xl font-medium text-gray-800">
             Your Baseline Assessment
           </h2>
