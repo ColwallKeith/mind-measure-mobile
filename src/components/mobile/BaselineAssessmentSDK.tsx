@@ -14,6 +14,8 @@ import {
   type AssessmentState,
   type PhqResponses
 } from '../../utils/baselineScoring';
+import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
+import { BaselineEnrichmentService } from '../../services/multimodal/baseline';
 
 interface BaselineAssessmentSDKProps {
   onBack?: () => void;
@@ -37,6 +39,10 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Multimodal capture
+  const mediaCaptureRef = useRef<MediaCapture | null>(null);
+  const captureStartTimeRef = useRef<number>(0);
 
   // Assessment state - using the new simplified model
   const [assessmentState, setAssessmentState] = useState<AssessmentState>({
@@ -100,6 +106,22 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[SDK] ✅ Audio permission granted');
 
+      // Start media capture for multimodal features
+      try {
+        console.log('[SDK] 📹 Starting multimodal media capture...');
+        mediaCaptureRef.current = new MediaCapture({
+          captureAudio: true,
+          captureVideo: true,
+          videoFrameRate: 1 // 1 frame per second
+        });
+        await mediaCaptureRef.current.start();
+        captureStartTimeRef.current = Date.now();
+        console.log('[SDK] ✅ Media capture started');
+      } catch (captureError) {
+        console.warn('[SDK] ⚠️ Media capture failed, continuing with clinical-only:', captureError);
+        // Continue anyway - we'll fall back to clinical-only scoring
+      }
+
       // Show conversation UI and initialize assessment state
       setShowConversation(true);
       const startedAt = Date.now();
@@ -127,6 +149,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
           console.error('[SDK] ❌ Failed to start conversation:', error);
           alert('Failed to start conversation. Please try again.');
           setShowConversation(false);
+          
+          // Cleanup media capture
+          if (mediaCaptureRef.current) {
+            mediaCaptureRef.current.cancel();
+            mediaCaptureRef.current = null;
+          }
         }
       }, 500);
 
