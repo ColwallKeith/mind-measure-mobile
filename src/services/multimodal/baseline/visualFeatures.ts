@@ -56,6 +56,15 @@ export class BaselineVisualExtractor {
         media.videoFrames.map(blob => this.blobToBase64(blob))
       );
 
+      // Calculate payload size for debugging
+      const payloadSize = JSON.stringify({ frames: framesBase64 }).length;
+      console.log('[VisualExtractor] Payload size:', (payloadSize / 1024 / 1024).toFixed(2), 'MB for', framesBase64.length, 'frames');
+
+      // Warn if payload is large
+      if (payloadSize > 6 * 1024 * 1024) { // 6MB limit for most APIs
+        console.warn('[VisualExtractor] ⚠️ Large payload detected, may cause timeout');
+      }
+
       // Call Rekognition API
       console.log('[VisualExtractor] 📡 Calling Rekognition API...');
       const response = await fetch('/api/rekognition/analyze-frames', {
@@ -69,11 +78,30 @@ export class BaselineVisualExtractor {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Rekognition API failed: ${errorData.error || response.statusText}`);
+        console.error('[VisualExtractor] API returned error status:', response.status);
+        let errorMessage = response.statusText;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          console.error('[VisualExtractor] Could not parse error response as JSON');
+        }
+        throw new Error(`Rekognition API failed (${response.status}): ${errorMessage}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.error('[VisualExtractor] Failed to parse response as JSON:', e);
+        throw new Error('Rekognition API returned invalid JSON response');
+      }
+
+      if (!result || !result.analyses) {
+        console.error('[VisualExtractor] Invalid response structure:', result);
+        throw new Error('Rekognition API returned invalid response structure');
+      }
+
       const analyses: RekognitionFrame[] = result.analyses;
 
       console.log('[VisualExtractor] ✅ Rekognition analyzed', analyses.length, '/', media.videoFrames.length, 'frames');

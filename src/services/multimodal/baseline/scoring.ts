@@ -17,31 +17,37 @@ export class BaselineScoring {
   /**
    * Compute final baseline score from clinical and multimodal components
    * 
+   * DYNAMIC WEIGHTING:
+   * - Both modalities work: 70% clinical, 15% audio, 15% visual
+   * - One modality fails: 85% clinical, 15% working modality
+   * - Both fail: 100% clinical
+   * 
    * @param clinicalScore - Score from PHQ-2/GAD-2/mood (0-100)
-   * @param audioFeatures - Extracted audio features
-   * @param visualFeatures - Extracted visual features
+   * @param audioFeatures - Extracted audio features (or null if failed)
+   * @param visualFeatures - Extracted visual features (or null if failed)
+   * @param audioFailed - Flag indicating if audio extraction failed
+   * @param visualFailed - Flag indicating if visual extraction failed
    * @returns Scoring breakdown with final weighted score
    */
   static computeScore(
     clinicalScore: number,
-    audioFeatures: BaselineAudioFeatures,
-    visualFeatures: BaselineVisualFeatures
+    audioFeatures: BaselineAudioFeatures | null,
+    visualFeatures: BaselineVisualFeatures | null,
+    audioFailed: boolean = false,
+    visualFailed: boolean = false
   ): BaselineScoringBreakdown {
     
-    console.log('[BaselineScoring] Computing 70/30 weighted score');
+    console.log('[BaselineScoring] Computing dynamic weighted score');
     console.log('[BaselineScoring] Clinical score:', clinicalScore);
+    console.log('[BaselineScoring] Audio failed:', audioFailed, '| Visual failed:', visualFailed);
     
-    // Normalize audio features to 0-100 scale
-    const audioScore = this.normalizeAudioFeatures(audioFeatures);
-    console.log('[BaselineScoring] Audio score:', audioScore);
+    // Determine which modalities are available
+    const hasAudio = !audioFailed && audioFeatures !== null;
+    const hasVisual = !visualFailed && visualFeatures !== null;
     
-    // Normalize visual features to 0-100 scale
-    const visualScore = this.normalizeVisualFeatures(visualFeatures);
-    console.log('[BaselineScoring] Visual score:', visualScore);
-    
-    // Check for NaN values
-    if (isNaN(audioScore) || isNaN(visualScore)) {
-      console.error('[BaselineScoring] ❌ NaN detected in multimodal scores - falling back to clinical only');
+    // Case 1: Both modalities failed → 100% clinical
+    if (!hasAudio && !hasVisual) {
+      console.warn('[BaselineScoring] ⚠️ Both modalities failed - using 100% clinical');
       return {
         clinicalScore: Math.round(clinicalScore),
         clinicalWeight: 1.0,
@@ -54,13 +60,73 @@ export class BaselineScoring {
       };
     }
     
-    // Combine audio and visual into single multimodal score
-    const multimodalScore = (audioScore + visualScore) / 2;
-    console.log('[BaselineScoring] Multimodal score:', multimodalScore);
+    // Extract scores for available modalities
+    let audioScore: number | null = null;
+    let visualScore: number | null = null;
     
-    // Compute final weighted score: 70% clinical + 30% multimodal
-    const finalScore = (clinicalScore * 0.7) + (multimodalScore * 0.3);
-    console.log('[BaselineScoring] Final score:', finalScore);
+    if (hasAudio) {
+      audioScore = this.normalizeAudioFeatures(audioFeatures!);
+      console.log('[BaselineScoring] Audio score:', audioScore);
+      
+      if (isNaN(audioScore)) {
+        console.warn('[BaselineScoring] ⚠️ Audio score is NaN, treating as failed');
+        audioScore = null;
+      }
+    }
+    
+    if (hasVisual) {
+      visualScore = this.normalizeVisualFeatures(visualFeatures!);
+      console.log('[BaselineScoring] Visual score:', visualScore);
+      
+      if (isNaN(visualScore)) {
+        console.warn('[BaselineScoring] ⚠️ Visual score is NaN, treating as failed');
+        visualScore = null;
+      }
+    }
+    
+    // Case 2: Only audio works → 85% clinical + 15% audio
+    if (audioScore !== null && visualScore === null) {
+      const finalScore = (clinicalScore * 0.85) + (audioScore * 0.15);
+      console.log('[BaselineScoring] Using audio only: 85% clinical + 15% audio');
+      console.log('[BaselineScoring] Final score:', finalScore);
+      
+      return {
+        clinicalScore: Math.round(clinicalScore),
+        clinicalWeight: 0.85,
+        audioScore: Math.round(audioScore),
+        visualScore: null,
+        multimodalScore: Math.round(audioScore), // Audio is the multimodal score
+        multimodalWeight: 0.15,
+        finalScore: Math.round(finalScore),
+        confidence: this.computeConfidence(audioFeatures!, null, clinicalScore)
+      };
+    }
+    
+    // Case 3: Only visual works → 85% clinical + 15% visual
+    if (visualScore !== null && audioScore === null) {
+      const finalScore = (clinicalScore * 0.85) + (visualScore * 0.15);
+      console.log('[BaselineScoring] Using visual only: 85% clinical + 15% visual');
+      console.log('[BaselineScoring] Final score:', finalScore);
+      
+      return {
+        clinicalScore: Math.round(clinicalScore),
+        clinicalWeight: 0.85,
+        audioScore: null,
+        visualScore: Math.round(visualScore),
+        multimodalScore: Math.round(visualScore), // Visual is the multimodal score
+        multimodalWeight: 0.15,
+        finalScore: Math.round(finalScore),
+        confidence: this.computeConfidence(null, visualFeatures!, clinicalScore)
+      };
+    }
+    
+    // Case 4: Both work → 70% clinical + 15% audio + 15% visual
+    const multimodalScore = (audioScore! + visualScore!) / 2;
+    const finalScore = (clinicalScore * 0.70) + (audioScore! * 0.15) + (visualScore! * 0.15);
+    
+    console.log('[BaselineScoring] Both modalities working');
+    console.log('[BaselineScoring] Multimodal score:', multimodalScore);
+    console.log('[BaselineScoring] Final score: 70% clinical + 15% audio + 15% visual =', finalScore);
     
     // Validate final score
     if (isNaN(finalScore) || !isFinite(finalScore)) {
@@ -68,8 +134,8 @@ export class BaselineScoring {
       return {
         clinicalScore: Math.round(clinicalScore),
         clinicalWeight: 1.0,
-        audioScore: Math.round(audioScore),
-        visualScore: Math.round(visualScore),
+        audioScore: Math.round(audioScore!),
+        visualScore: Math.round(visualScore!),
         multimodalScore: Math.round(multimodalScore),
         multimodalWeight: 0,
         finalScore: Math.round(clinicalScore),
@@ -79,20 +145,20 @@ export class BaselineScoring {
     
     // Assess overall confidence
     const confidence = this.computeConfidence(
-      audioFeatures,
-      visualFeatures,
+      audioFeatures!,
+      visualFeatures!,
       clinicalScore
     );
     console.log('[BaselineScoring] Confidence:', confidence);
     
     return {
       clinicalScore: Math.round(clinicalScore),
-      clinicalWeight: 0.7,
-      audioScore: Math.round(audioScore),
-      visualScore: Math.round(visualScore),
+      clinicalWeight: 0.70,
+      audioScore: Math.round(audioScore!),
+      visualScore: Math.round(visualScore!),
       multimodalScore: Math.round(multimodalScore),
-      multimodalWeight: 0.3,
-      finalScore: Math.round(finalScore), // Round to whole number
+      multimodalWeight: 0.30,
+      finalScore: Math.round(finalScore),
       confidence
     };
   }
@@ -218,20 +284,22 @@ export class BaselineScoring {
    * Compute overall confidence in the score
    */
   private static computeConfidence(
-    audioFeatures: BaselineAudioFeatures,
-    visualFeatures: BaselineVisualFeatures,
+    audioFeatures: BaselineAudioFeatures | null,
+    visualFeatures: BaselineVisualFeatures | null,
     clinicalScore: number
   ): number {
     let confidence = 1.0;
 
-    // Factor in audio quality
-    confidence *= audioFeatures.quality;
+    // Factor in audio quality (if available)
+    if (audioFeatures) {
+      confidence *= audioFeatures.quality || 0.5;
+    }
 
-    // Factor in visual quality
-    confidence *= visualFeatures.overallQuality;
-
-    // Factor in face presence
-    confidence *= visualFeatures.facePresenceQuality;
+    // Factor in visual quality (if available)
+    if (visualFeatures) {
+      confidence *= visualFeatures.overallQuality || 0.5;
+      confidence *= visualFeatures.facePresenceQuality || 0.5;
+    }
 
     // Penalize if clinical score is extreme (might indicate inaccurate responses)
     if (clinicalScore < 20 || clinicalScore > 95) {
