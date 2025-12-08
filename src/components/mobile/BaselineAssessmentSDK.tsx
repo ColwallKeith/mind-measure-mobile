@@ -230,7 +230,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         'profiles',
         {
           columns: ['id', 'email', 'user_id'],
-          filters: { user_id: { operator: 'eq', value: userId } }
+          filters: { user_id: userId }
         }
       );
 
@@ -422,7 +422,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       const { error: updateError } = await backendService.database.update(
         'profiles',
         { baseline_established: true, updated_at: new Date().toISOString() },
-        { user_id: { operator: 'eq', value: userId } }
+        { user_id: userId }
       );
       
       if (updateError) {
