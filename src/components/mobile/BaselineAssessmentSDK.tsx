@@ -190,17 +190,15 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       console.error('[SDK] Error ending conversation:', error);
     }
 
-    // Process assessment data
+    // Process assessment data (including multimodal enrichment)
     await processAssessmentData();
   };
 
   const processAssessmentData = async () => {
     console.log('[SDK] 📊 Processing assessment data...');
 
-    // Cycle through processing phases every 5 seconds
+    // Phase 1: Extracting (3 seconds)
     setProcessingPhase('extracting');
-    setTimeout(() => setProcessingPhase('calculating'), 3000);
-    setTimeout(() => setProcessingPhase('saving'), 6000);
 
     const endedAt = Date.now();
 
@@ -230,9 +228,68 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
     console.log('[SDK] ✅ Baseline validation passed');
 
-    // Calculate scores
+    // Calculate clinical scores
     const clinical = calculateClinicalScores(phqResponses, moodScore);
     const composite = calculateMindMeasureComposite(clinical);
+
+    console.log('[SDK] 📊 Clinical scores:', clinical);
+    console.log('[SDK] 📊 Mind Measure composite (clinical-only):', composite);
+
+    // Phase 2: Calculating (stop media capture + enrich with multimodal)
+    setTimeout(() => setProcessingPhase('calculating'), 3000);
+    
+    // Stop media capture and get blobs
+    let capturedMedia: any = null;
+    let enrichmentResult: any = null;
+    
+    if (mediaCaptureRef.current) {
+      try {
+        console.log('[SDK] 📹 Stopping media capture...');
+        capturedMedia = await mediaCaptureRef.current.stop();
+        console.log('[SDK] ✅ Media captured:', {
+          hasAudio: !!capturedMedia.audio,
+          hasVideo: !!capturedMedia.videoFrames?.length,
+          duration: capturedMedia.duration
+        });
+
+        // Enrich with multimodal features
+        console.log('[SDK] 🎯 Enriching with multimodal features...');
+        const enrichmentService = new BaselineEnrichmentService();
+        
+        enrichmentResult = await enrichmentService.enrichBaseline({
+          clinicalScore: composite.score,
+          audioBlob: capturedMedia.audio,
+          videoFrames: capturedMedia.videoFrames,
+          duration: capturedMedia.duration,
+          userId: user?.id || '',
+          fusionOutputId: 'temp', // Will be replaced after DB insert
+          startTime: capturedMedia.startTime,
+          endTime: capturedMedia.endTime
+        });
+
+        console.log('[SDK] ✅ Enrichment complete:', {
+          originalScore: enrichmentResult.originalScore,
+          finalScore: enrichmentResult.finalScore,
+          success: enrichmentResult.success,
+          warnings: enrichmentResult.warnings
+        });
+
+      } catch (error) {
+        console.warn('[SDK] ⚠️ Multimodal enrichment failed:', error);
+        enrichmentResult = null; // Fall back to clinical-only
+      } finally {
+        mediaCaptureRef.current = null;
+      }
+    } else {
+      console.log('[SDK] ℹ️ No media capture - using clinical-only scoring');
+    }
+
+    // Use enriched score if available, otherwise clinical-only
+    const finalScore = enrichmentResult?.finalScore ?? composite.score;
+    console.log('[SDK] 📊 Final score:', finalScore, enrichmentResult ? '(70% clinical + 30% multimodal)' : '(clinical-only)');
+
+    // Phase 3: Saving (6 seconds from start)
+    setTimeout(() => setProcessingPhase('saving'), 3000); // 3s more = 6s total
 
     console.log('[SDK] 📊 Clinical scores:', clinical);
     console.log('[SDK] 📊 Mind Measure composite:', composite);
@@ -254,6 +311,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     if (!userId) {
       console.error('[SDK] ❌ No user ID available');
       alert('Unable to save assessment. Please try logging in again.');
+      setIsSaving(false);
       return;
     }
 
@@ -311,36 +369,56 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         console.log('[SDK] ✅ Profile exists');
       }
 
-      // Save fusion output with clinical and composite scores (CRITICAL - this is what enables dashboard access)
+      // Build analysis object with multimodal data if available
+      const analysisData: any = {
+        assessment_type: 'baseline',
+        elevenlabs_session_id: sessionId,
+        clinical_scores: {
+          phq2_total: clinical.phq2_total,
+          gad2_total: clinical.gad2_total,
+          mood_scale: clinical.mood_scale,
+          phq2_positive_screen: clinical.phq2_positive_screen,
+          gad2_positive_screen: clinical.gad2_positive_screen
+        },
+        conversation_quality: 'complete',
+        mind_measure_composite: {
+          score: composite.score,
+          phq2_component: composite.phq2_component,
+          gad2_component: composite.gad2_component,
+          mood_component: composite.mood_component
+        }
+      };
+
+      // Add multimodal data if enrichment succeeded
+      if (enrichmentResult && enrichmentResult.success) {
+        analysisData.multimodal_enrichment = {
+          enabled: true,
+          audio_features: enrichmentResult.audioFeatures,
+          visual_features: enrichmentResult.visualFeatures,
+          scoring_breakdown: enrichmentResult.scoringBreakdown,
+          processing_time_ms: enrichmentResult.processingTimeMs,
+          warnings: enrichmentResult.warnings
+        };
+      } else {
+        analysisData.multimodal_enrichment = {
+          enabled: false,
+          reason: enrichmentResult?.warnings?.[0] || 'Media capture not available'
+        };
+      }
+
+      // Save fusion output with FINAL score (hybrid if available, clinical-only otherwise)
       const fusionData = {
         user_id: userId,
         session_id: null, // ElevenLabs session ID stored in analysis JSON instead
-        score: composite.score,
-        score_smoothed: composite.score,
-        final_score: composite.score,
-        p_worse_fused: (100 - composite.score) / 100,
-        uncertainty: 0.3,
-        qc_overall: 0.8,
+        score: finalScore,
+        score_smoothed: finalScore,
+        final_score: finalScore,
+        p_worse_fused: (100 - finalScore) / 100,
+        uncertainty: enrichmentResult ? (1 - enrichmentResult.scoringBreakdown.confidence) : 0.3,
+        qc_overall: enrichmentResult?.scoringBreakdown.confidence || 0.7,
         public_state: 'report',
-        model_version: 'v1.0',
-        analysis: JSON.stringify({
-          assessment_type: 'baseline',
-          elevenlabs_session_id: sessionId,
-          clinical_scores: {
-            phq2_total: clinical.phq2_total,
-            gad2_total: clinical.gad2_total,
-            mood_scale: clinical.mood_scale,
-            phq2_positive_screen: clinical.phq2_positive_screen,
-            gad2_positive_screen: clinical.gad2_positive_screen
-          },
-          conversation_quality: 'complete',
-          mind_measure_composite: {
-            score: composite.score,
-            phq2_component: composite.phq2_component,
-            gad2_component: composite.gad2_component,
-            mood_component: composite.mood_component
-          }
-        }),
+        model_version: enrichmentResult ? 'v1.1-multimodal' : 'v1.0-clinical',
+        analysis: JSON.stringify(analysisData),
         topics: JSON.stringify(['wellbeing', 'baseline', 'initial_assessment', 'phq2', 'gad2']),
         created_at: new Date().toISOString()
       };
@@ -358,7 +436,10 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
         console.error('[SDK] ❌ CRITICAL: No fusion_output_id returned');
         throw new Error('Failed to get fusion_output_id');
       }
-      console.log('[SDK] ✅ Baseline assessment saved with score:', composite.score, 'fusion_output_id:', fusionOutputId);
+      console.log('[SDK] ✅ Baseline assessment saved with final score:', finalScore, 'fusion_output_id:', fusionOutputId);
+      if (enrichmentResult) {
+        console.log('[SDK] 📊 Score breakdown: clinical=' + composite.score + ', final=' + finalScore + ' (70/30 weighted)');
+      }
 
       // Store raw transcript (optional - doesn't block baseline completion)
       const transcriptLines = assessmentState.transcript.split('\n').filter(line => line.trim());
