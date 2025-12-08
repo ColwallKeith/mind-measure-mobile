@@ -1,25 +1,43 @@
 /**
- * Visual Feature Extraction - Baseline
+ * Visual Feature Extraction - Baseline (AWS Rekognition)
  * 
- * Extracts 10 core visual features for baseline reference:
- * - Positive affect (smile frequency, intensity)
- * - Engagement (eye contact)
- * - Stress indicators (eyebrow position, facial tension)
- * - Fatigue indicators (blink rate)
- * - Movement (head movement)
- * - Overall affect
+ * Extracts 10 core visual features for baseline using AWS Rekognition.
  * 
- * Note: This is a simplified implementation using basic computer vision.
- * For Phase 2 (check-ins), we'll use AWS Rekognition for full 18-feature extraction.
+ * Features:
+ * 1. Smile frequency - % of frames smiling
+ * 2. Smile intensity - Average smile confidence
+ * 3. Eye contact - % of frames with eyes open and forward gaze
+ * 4. Eyebrow position - Average eyebrow raise (surprise/concern)
+ * 5. Facial tension - Derived from mouth/jaw tension
+ * 6. Blink rate - Blinks per minute
+ * 7. Head movement - Head pose variance
+ * 8. Overall affect - Composite emotion score
+ * 9. Face presence quality - % of frames with face detected
+ * 10. Overall quality - Average detection confidence
+ * 
+ * Note: These same features will be extracted for check-ins (Phase 2) to ensure
+ * consistent comparison against baseline.
  */
 
 import type { BaselineVisualFeatures, CapturedMedia } from '../types';
 import { MultimodalError, MultimodalErrorCode } from '../types';
 
+interface RekognitionFrame {
+  frameIndex: number;
+  confidence: number;
+  emotions: Array<{ type: string; confidence: number }>;
+  smile: { value: boolean; confidence: number };
+  eyesOpen: { value: boolean; confidence: number };
+  mouthOpen: { value: boolean; confidence: number };
+  pose: { roll: number; yaw: number; pitch: number };
+  brightness: number;
+  sharpness: number;
+}
+
 export class BaselineVisualExtractor {
   
   /**
-   * Extract visual features from captured video frames
+   * Extract visual features from captured video frames using AWS Rekognition
    */
   async extract(media: CapturedMedia): Promise<BaselineVisualFeatures> {
     if (!media.videoFrames || media.videoFrames.length === 0) {
@@ -30,19 +48,37 @@ export class BaselineVisualExtractor {
       );
     }
 
-    console.log('[VisualExtractor] Extracting features from', media.videoFrames.length, 'frames');
+    console.log('[VisualExtractor] Extracting features from', media.videoFrames.length, 'frames using AWS Rekognition');
 
     try {
-      // Analyze each frame
-      const frameAnalyses = await Promise.all(
-        media.videoFrames.map(frame => this.analyzeFrame(frame))
+      // Convert video frames to base64 for API transmission
+      const framesBase64 = await Promise.all(
+        media.videoFrames.map(blob => this.blobToBase64(blob))
       );
 
-      // Filter out frames where no face was detected
-      const validFrames = frameAnalyses.filter(f => f.faceDetected);
-      console.log('[VisualExtractor]', validFrames.length, 'frames with faces detected');
+      // Call Rekognition API
+      console.log('[VisualExtractor] 📡 Calling Rekognition API...');
+      const response = await fetch('/api/rekognition/analyze-frames', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          frames: framesBase64
+        })
+      });
 
-      if (validFrames.length === 0) {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Rekognition API failed: ${errorData.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      const analyses: RekognitionFrame[] = result.analyses;
+
+      console.log('[VisualExtractor] ✅ Rekognition analyzed', analyses.length, '/', media.videoFrames.length, 'frames');
+
+      if (analyses.length === 0) {
         throw new MultimodalError(
           'No faces detected in video frames',
           MultimodalErrorCode.INSUFFICIENT_DATA,
@@ -50,18 +86,18 @@ export class BaselineVisualExtractor {
         );
       }
 
-      // Aggregate features across all valid frames
+      // Extract features from Rekognition results
       const features: BaselineVisualFeatures = {
-        smileFrequency: this.calculateMean(validFrames.map(f => f.smiling ? 1 : 0)),
-        smileIntensity: this.calculateMean(validFrames.map(f => f.smileIntensity)),
-        eyeContact: this.calculateMean(validFrames.map(f => f.lookingAtCamera ? 1 : 0)),
-        eyebrowPosition: this.calculateMean(validFrames.map(f => f.eyebrowRaise)),
-        facialTension: this.calculateMean(validFrames.map(f => f.tension)),
-        blinkRate: this.estimateBlinkRate(validFrames, media.duration),
-        headMovement: this.estimateHeadMovement(validFrames),
-        affect: this.calculateMean(validFrames.map(f => f.affect)),
-        facePresenceQuality: validFrames.length / frameAnalyses.length,
-        overallQuality: this.assessOverallQuality(validFrames, frameAnalyses.length)
+        smileFrequency: this.extractSmileFrequency(analyses),
+        smileIntensity: this.extractSmileIntensity(analyses),
+        eyeContact: this.extractEyeContact(analyses),
+        eyebrowPosition: this.extractEyebrowPosition(analyses),
+        facialTension: this.extractFacialTension(analyses),
+        blinkRate: this.extractBlinkRate(analyses, media.duration),
+        headMovement: this.extractHeadMovement(analyses),
+        affect: this.extractAffect(analyses),
+        facePresenceQuality: analyses.length / media.videoFrames.length,
+        overallQuality: this.extractOverallQuality(analyses)
       };
 
       console.log('[VisualExtractor] ✅ Features extracted:', features);
@@ -75,7 +111,7 @@ export class BaselineVisualExtractor {
       }
       
       throw new MultimodalError(
-        'Failed to extract visual features',
+        'Failed to extract visual features: ' + (error instanceof Error ? error.message : 'Unknown error'),
         MultimodalErrorCode.FEATURE_EXTRACTION_FAILED,
         true
       );
@@ -83,195 +119,199 @@ export class BaselineVisualExtractor {
   }
 
   /**
-   * Analyze a single video frame
-   * 
-   * NOTE: This is a SIMPLIFIED implementation using basic image analysis.
-   * For production, we should use:
-   * - face-api.js (client-side face detection)
-   * - OR AWS Rekognition (server-side, more accurate)
-   * 
-   * For now, we'll use placeholder heuristics based on image properties.
+   * Convert Blob to base64 string
    */
-  private async analyzeFrame(frameBlob: Blob): Promise<FrameAnalysis> {
+  private async blobToBase64(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(frameBlob);
-
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-          URL.revokeObjectURL(url);
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Simple heuristic analysis
-        // TODO: Replace with actual face detection library in Phase 1.5
-        const analysis = this.analyzeImageData(imageData);
-        
-        URL.revokeObjectURL(url);
-        resolve(analysis);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64Data = base64.split(',')[1] || base64;
+        resolve(base64Data);
       };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error('Failed to load image'));
-      };
-
-      img.src = url;
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
   }
 
   /**
-   * Analyze image data to extract basic features
-   * 
-   * PLACEHOLDER: This uses simple heuristics.
-   * TODO: Integrate face-api.js or similar library for real face detection
+   * Extract smile frequency (% of frames smiling)
    */
-  private analyzeImageData(imageData: ImageData): FrameAnalysis {
-    const { data } = imageData;
-    
-    // Calculate basic image statistics
-    const brightness = this.calculateBrightness(data);
-    const contrast = this.calculateContrast(data);
-
-    // For now, use probabilistic defaults + slight variation based on image properties
-    // This ensures the module works end-to-end, even if features aren't perfect yet
-    
-    return {
-      faceDetected: brightness > 0.2 && contrast > 0.1, // Simple heuristic
-      smiling: Math.random() > 0.6, // TODO: Replace with real smile detection
-      smileIntensity: 0.3 + (brightness * 0.4), // Brighter images tend to be happier (rough proxy)
-      lookingAtCamera: Math.random() > 0.5, // TODO: Replace with gaze detection
-      eyebrowRaise: 0.3 + (Math.random() * 0.2), // TODO: Replace with landmark detection
-      tension: 0.3 + (contrast * 0.3), // Higher contrast might indicate tension (rough proxy)
-      eyesOpen: brightness > 0.25, // Simple heuristic
-      affect: (brightness - 0.5) * 2, // Map brightness to affect (-1 to 1)
-      quality: Math.min(brightness * 2, 1.0)
-    };
+  private extractSmileFrequency(analyses: RekognitionFrame[]): number {
+    const smilingFrames = analyses.filter(a => a.smile?.value === true).length;
+    return smilingFrames / analyses.length;
   }
 
   /**
-   * Calculate average brightness
+   * Extract average smile intensity
    */
-  private calculateBrightness(data: Uint8ClampedArray): number {
-    let sum = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      // Luminance formula
-      sum += (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    }
-    return sum / (data.length / 4);
+  private extractSmileIntensity(analyses: RekognitionFrame[]): number {
+    const smileConfidences = analyses
+      .filter(a => a.smile?.value === true)
+      .map(a => a.smile.confidence / 100);
+    
+    return smileConfidences.length > 0
+      ? this.mean(smileConfidences)
+      : 0;
   }
 
   /**
-   * Calculate image contrast
+   * Extract eye contact ratio (eyes open + forward gaze)
    */
-  private calculateContrast(data: Uint8ClampedArray): number {
-    const brightness = this.calculateBrightness(data);
-    let variance = 0;
+  private extractEyeContact(analyses: RekognitionFrame[]): number {
+    const eyeContactFrames = analyses.filter(a => {
+      const eyesOpen = a.eyesOpen?.value === true;
+      const yaw = a.pose?.yaw || 0;
+      const pitch = a.pose?.pitch || 0;
+      
+      // Consider "eye contact" if eyes open and head relatively straight
+      // Yaw (left-right): -15 to +15 degrees
+      // Pitch (up-down): -10 to +10 degrees
+      const lookingStraight = Math.abs(yaw) < 15 && Math.abs(pitch) < 10;
+      
+      return eyesOpen && lookingStraight;
+    }).length;
     
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const pixelBrightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      variance += Math.pow(pixelBrightness - brightness, 2);
-    }
-    
-    return Math.sqrt(variance / (data.length / 4));
+    return eyeContactFrames / analyses.length;
   }
 
   /**
-   * Estimate blink rate from frame sequence
+   * Extract eyebrow position (stress/concern indicator)
+   * Derived from "SURPRISED" emotion
    */
-  private estimateBlinkRate(frames: FrameAnalysis[], duration: number): number {
+  private extractEyebrowPosition(analyses: RekognitionFrame[]): number {
+    const surpriseScores = analyses.map(a => {
+      const surprised = a.emotions?.find(e => e.type === 'SURPRISED');
+      return surprised ? surprised.confidence / 100 : 0;
+    });
+    
+    return this.mean(surpriseScores);
+  }
+
+  /**
+   * Extract facial tension
+   * Derived from mouth closed + negative emotions
+   */
+  private extractFacialTension(analyses: RekognitionFrame[]): number {
+    const tensionScores = analyses.map(a => {
+      const mouthClosed = a.mouthOpen?.value === false;
+      const angry = a.emotions?.find(e => e.type === 'ANGRY')?.confidence || 0;
+      const confused = a.emotions?.find(e => e.type === 'CONFUSED')?.confidence || 0;
+      
+      // Tension score: combination of closed mouth and negative emotions
+      let tension = 0;
+      if (mouthClosed) tension += 0.3;
+      tension += (angry / 100) * 0.4;
+      tension += (confused / 100) * 0.3;
+      
+      return Math.min(1, tension);
+    });
+    
+    return this.mean(tensionScores);
+  }
+
+  /**
+   * Extract blink rate (blinks per minute)
+   * Detect transitions from eyes open to eyes closed
+   */
+  private extractBlinkRate(analyses: RekognitionFrame[], duration: number): number {
     let blinks = 0;
     let previousEyesOpen = true;
 
-    for (const frame of frames) {
-      if (!frame.eyesOpen && previousEyesOpen) {
+    for (const analysis of analyses) {
+      const currentEyesOpen = analysis.eyesOpen?.value === true;
+      
+      // Detect blink (transition from open to closed)
+      if (!currentEyesOpen && previousEyesOpen) {
         blinks++;
       }
-      previousEyesOpen = frame.eyesOpen;
+      
+      previousEyesOpen = currentEyesOpen;
     }
 
-    // Blinks per minute
+    // Convert to blinks per minute
     return (blinks / duration) * 60;
   }
 
   /**
-   * Estimate head movement from frame sequence
-   * (simplified - would need landmark tracking for accuracy)
+   * Extract head movement (variance in pose)
    */
-  private estimateHeadMovement(frames: FrameAnalysis[]): number {
-    // Placeholder: use quality variation as proxy for movement
-    // More movement = more blur = lower quality variance
-    const qualities = frames.map(f => f.quality);
-    const variance = this.calculateVariance(qualities);
-    return Math.min(1, variance * 2);
+  private extractHeadMovement(analyses: RekognitionFrame[]): number {
+    const yawValues = analyses.map(a => a.pose?.yaw || 0);
+    const pitchValues = analyses.map(a => a.pose?.pitch || 0);
+    const rollValues = analyses.map(a => a.pose?.roll || 0);
+    
+    const yawVariance = this.variance(yawValues);
+    const pitchVariance = this.variance(pitchValues);
+    const rollVariance = this.variance(rollValues);
+    
+    // Combine variances and normalize to 0-1
+    const totalMovement = (yawVariance + pitchVariance + rollVariance) / 3;
+    return Math.min(1, totalMovement / 100); // Normalize (typical variance 0-100 degrees²)
   }
 
   /**
-   * Assess overall quality of visual data
+   * Extract overall affect (-1 to +1)
+   * Composite of emotions weighted by type
    */
-  private assessOverallQuality(validFrames: FrameAnalysis[], totalFrames: number): number {
-    let quality = 1.0;
+  private extractAffect(analyses: RekognitionFrame[]): number {
+    const affectScores = analyses.map(a => {
+      if (!a.emotions || a.emotions.length === 0) return 0;
+      
+      let affect = 0;
+      
+      // Positive emotions (add to affect)
+      const happy = a.emotions.find(e => e.type === 'HAPPY')?.confidence || 0;
+      const calm = a.emotions.find(e => e.type === 'CALM')?.confidence || 0;
+      affect += (happy / 100) * 1.0;
+      affect += (calm / 100) * 0.5;
+      
+      // Negative emotions (subtract from affect)
+      const sad = a.emotions.find(e => e.type === 'SAD')?.confidence || 0;
+      const angry = a.emotions.find(e => e.type === 'ANGRY')?.confidence || 0;
+      const disgusted = a.emotions.find(e => e.type === 'DISGUSTED')?.confidence || 0;
+      const fear = a.emotions.find(e => e.type === 'FEAR')?.confidence || 0;
+      affect -= (sad / 100) * 1.0;
+      affect -= (angry / 100) * 0.8;
+      affect -= (disgusted / 100) * 0.7;
+      affect -= (fear / 100) * 0.9;
+      
+      return affect;
+    });
+    
+    const avgAffect = this.mean(affectScores);
+    return Math.max(-1, Math.min(1, avgAffect));
+  }
 
-    // Penalize if too few frames
-    if (totalFrames < 30) quality *= 0.7;
-    if (totalFrames < 15) quality *= 0.5;
-
-    // Penalize if low face detection rate
-    const detectionRate = validFrames.length / totalFrames;
-    if (detectionRate < 0.5) quality *= 0.6;
-    if (detectionRate < 0.3) quality *= 0.4;
-
-    // Penalize if average frame quality is low
-    const avgFrameQuality = this.calculateMean(validFrames.map(f => f.quality));
-    quality *= avgFrameQuality;
-
-    return Math.max(0, Math.min(1, quality));
+  /**
+   * Extract overall quality of visual data
+   */
+  private extractOverallQuality(analyses: RekognitionFrame[]): number {
+    const confidences = analyses.map(a => a.confidence / 100);
+    const brightnesses = analyses.map(a => a.brightness / 100);
+    const sharpnesses = analyses.map(a => a.sharpness / 100);
+    
+    const avgConfidence = this.mean(confidences);
+    const avgBrightness = this.mean(brightnesses);
+    const avgSharpness = this.mean(sharpnesses);
+    
+    // Overall quality is weighted combination
+    return (avgConfidence * 0.5) + (avgBrightness * 0.25) + (avgSharpness * 0.25);
   }
 
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
 
-  private calculateMean(values: number[]): number {
+  private mean(values: number[]): number {
     if (values.length === 0) return 0;
-    return values.reduce((a, b) => a + b, 0) / values.length;
+    return values.reduce((sum, val) => sum + val, 0) / values.length;
   }
 
-  private calculateVariance(values: number[]): number {
+  private variance(values: number[]): number {
     if (values.length < 2) return 0;
-    const mean = this.calculateMean(values);
-    return values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    const avg = this.mean(values);
+    return values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length;
   }
 }
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface FrameAnalysis {
-  faceDetected: boolean;
-  smiling: boolean;
-  smileIntensity: number;
-  lookingAtCamera: boolean;
-  eyebrowRaise: number;
-  tension: number;
-  eyesOpen: boolean;
-  affect: number; // -1 to 1
-  quality: number; // 0 to 1
-}
-
