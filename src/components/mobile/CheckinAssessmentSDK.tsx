@@ -1,0 +1,533 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useConversation } from '@elevenlabs/react';
+import { motion } from 'framer-motion';
+import { Button } from '../ui/button';
+import { useAuth } from '../../contexts/AuthContext';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
+import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
+import { CheckinEnrichmentService } from '../../services/multimodal/checkin';
+
+interface CheckinAssessmentSDKProps {
+  onBack?: () => void;
+  onComplete?: () => void;
+}
+
+interface Message {
+  role: 'agent' | 'user';
+  content: string;
+  timestamp: number;
+}
+
+export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSDKProps) {
+  const { user } = useAuth();
+  const [showConversation, setShowConversation] = useState(false);
+  const [requestingPermissions, setRequestingPermissions] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [processingPhase, setProcessingPhase] = useState<'extracting' | 'analyzing' | 'saving'>('extracting');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  // Multimodal capture
+  const mediaCaptureRef = useRef<MediaCapture | null>(null);
+  const captureStartTimeRef = useRef<number>(0);
+
+  // Transcript state
+  const [transcript, setTranscript] = useState('');
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  // Initialize the ElevenLabs conversation hook
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('[CheckinSDK] ✅ Connected to ElevenLabs');
+    },
+    onDisconnect: () => {
+      console.log('[CheckinSDK] 🔌 Disconnected from ElevenLabs');
+    },
+    onMessage: (message) => {
+      console.log('[CheckinSDK] 📩 Message received:', message);
+      
+      const newMessage: Message = {
+        role: message.source === 'ai' ? 'agent' : 'user',
+        content: message.message,
+        timestamp: Date.now()
+      };
+      
+      // Update messages for UI display
+      setMessages(prev => [...prev, newMessage]);
+
+      // Append to transcript
+      setTranscript(prev => prev + `${message.source === 'ai' ? 'agent' : 'user'}: ${message.message}\n`);
+    },
+    onError: (error) => {
+      console.error('[CheckinSDK] ❌ Conversation error:', error);
+    }
+  });
+
+  // Load click sound
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSyBzvLZiTYIGWi77eafTRAMUKfj8LZjHAY4ktfyy3ksBSR3yPDdkEALFF+06eunVRQKRZ/g8r5sIQUsgs/y2Yk1CBlouu3mn00QDFA=');
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+  }, [messages]);
+
+  const handleStartAssessment = async () => {
+    console.log('[CheckinSDK] 🎯 Starting ElevenLabs SDK check-in');
+    setRequestingPermissions(true);
+
+    try {
+      console.log('[CheckinSDK] 🎤 Requesting microphone permission...');
+      
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[CheckinSDK] ✅ Audio permission granted');
+
+      // Start media capture for multimodal features
+      try {
+        console.log('[CheckinSDK] 📹 Starting multimodal media capture...');
+        mediaCaptureRef.current = new MediaCapture({
+          captureAudio: true,
+          captureVideo: true,
+          videoFrameRate: 0.5 // 0.5 frames per second (same as baseline)
+        });
+        await mediaCaptureRef.current.start();
+        captureStartTimeRef.current = Date.now();
+        console.log('[CheckinSDK] ✅ Media capture started');
+      } catch (captureError) {
+        console.warn('[CheckinSDK] ⚠️ Media capture failed, continuing anyway:', captureError);
+        // Continue - we can still save a check-in without multimodal data
+      }
+
+      // Show conversation UI
+      setShowConversation(true);
+      setStartedAt(Date.now());
+      setTranscript('');
+      
+      // Wait a moment for UI to render, then start the conversation
+      setTimeout(async () => {
+        try {
+          console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
+          
+          const sid = await conversation.startSession({
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx' // Check-in agent ID
+          });
+
+          console.log('[CheckinSDK] ✅ Session started with ID:', sid);
+          setSessionId(sid);
+
+        } catch (error) {
+          console.error('[CheckinSDK] ❌ Failed to start conversation:', error);
+          alert('Failed to start conversation. Please try again.');
+          setShowConversation(false);
+          
+          // Cleanup media capture
+          if (mediaCaptureRef.current) {
+            mediaCaptureRef.current.cancel();
+            mediaCaptureRef.current = null;
+          }
+        }
+      }, 500);
+
+    } catch (error) {
+      console.error('[CheckinSDK] ❌ Permission request failed:', error);
+      alert('Microphone access is required for check-ins. Please check your browser settings and try again.');
+    } finally {
+      setRequestingPermissions(false);
+    }
+  };
+
+  const handleFinish = async () => {
+    console.log('[CheckinSDK] 🏁 Finish button clicked');
+    
+    // Show saving state immediately
+    setIsSaving(true);
+    
+    // Play click sound and haptics
+    try {
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+      }
+      await Haptics.impact({ style: ImpactStyle.Heavy });
+    } catch (e) {
+      console.log('[CheckinSDK] Haptics/audio not available:', e);
+    }
+
+    // End the conversation
+    try {
+      await conversation.endSession();
+      console.log('[CheckinSDK] ✅ Conversation ended');
+    } catch (error) {
+      console.error('[CheckinSDK] Error ending conversation:', error);
+    }
+
+    // Process check-in data (including multimodal enrichment)
+    await processCheckinData();
+  };
+
+  const processCheckinData = async () => {
+    console.log('[CheckinSDK] 📊 Processing check-in data...');
+
+    // Phase 1: Extracting (3 seconds)
+    setProcessingPhase('extracting');
+
+    const endedAt = Date.now();
+    const duration = startedAt ? (endedAt - startedAt) / 1000 : 0;
+
+    console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
+
+    // Validate we have a reasonable transcript
+    if (transcript.length < 50) {
+      console.error('[CheckinSDK] ❌ Transcript too short');
+      setErrorMessage(
+        'We didn\'t capture enough conversation data for this check-in. ' +
+        'Please try again and make sure to have a conversation with Jodie.'
+      );
+      setShowErrorModal(true);
+      setIsSaving(false);
+      return;
+    }
+
+    // Phase 2: Analyzing (stop media capture + multimodal enrichment)
+    setTimeout(() => setProcessingPhase('analyzing'), 3000);
+    
+    // Stop media capture and get blobs
+    let capturedMedia: any = null;
+    let enrichmentResult: any = null;
+    
+    if (mediaCaptureRef.current) {
+      try {
+        console.log('[CheckinSDK] 📹 Stopping media capture...');
+        capturedMedia = await mediaCaptureRef.current.stop();
+        console.log('[CheckinSDK] ✅ Media captured:', {
+          audioSize: capturedMedia.audioBlob?.size,
+          videoFrames: capturedMedia.videoFrames?.length
+        });
+
+        // Run the check-in multimodal enrichment pipeline
+        console.log('[CheckinSDK] 🔬 Running check-in multimodal enrichment...');
+        const enrichmentService = new CheckinEnrichmentService();
+        
+        enrichmentResult = await enrichmentService.enrichCheckin({
+          audioBlob: capturedMedia.audioBlob,
+          videoFrames: capturedMedia.videoFrames,
+          transcript: transcript,
+          duration: duration,
+          userId: user?.id || ''
+        });
+
+        console.log('[CheckinSDK] ✅ Check-in enrichment complete:', {
+          finalScore: enrichmentResult.dashboardData.mindMeasureScore,
+          audioFeatures: enrichmentResult.audioFeatures ? 'extracted' : 'failed',
+          visualFeatures: enrichmentResult.visualFeatures ? 'extracted' : 'failed',
+          textFeatures: enrichmentResult.textFeatures ? 'extracted' : 'failed'
+        });
+
+      } catch (captureError) {
+        console.error('[CheckinSDK] ⚠️ Media capture or enrichment failed:', captureError);
+        // Continue without multimodal data
+      }
+    } else {
+      console.warn('[CheckinSDK] ⚠️ No media capture available');
+    }
+
+    // Phase 3: Saving (2 seconds)
+    setTimeout(() => setProcessingPhase('saving'), 6000);
+
+    // Save to database
+    try {
+      console.log('[CheckinSDK] 💾 Saving check-in to database...');
+
+      // Import BackendServiceFactory
+      const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
+      const backendService = BackendServiceFactory.getService();
+
+      // Prepare check-in data
+      const checkinData: any = {
+        user_id: user?.id,
+        session_id: sessionId,
+        transcript: transcript,
+        started_at: startedAt ? new Date(startedAt).toISOString() : new Date().toISOString(),
+        ended_at: new Date(endedAt).toISOString(),
+        duration_seconds: Math.round(duration)
+      };
+
+      // Add multimodal data if available
+      if (enrichmentResult) {
+        const { dashboardData, fusion, audioFeatures, visualFeatures, textFeatures, textAnalysis } = enrichmentResult;
+
+        checkinData.score = dashboardData.mindMeasureScore;
+        checkinData.final_score = dashboardData.mindMeasureScore;
+        checkinData.direction_of_change = dashboardData.directionOfChange;
+        checkinData.risk_level = dashboardData.riskLevel;
+        
+        // Store detailed analysis
+        checkinData.analysis = JSON.stringify({
+          // Fusion results
+          fusion_scores: {
+            audio_score: fusion.audioScore,
+            visual_score: fusion.visualScore,
+            text_score: fusion.textScore,
+            audio_confidence: fusion.audioConfidence,
+            visual_confidence: fusion.visualConfidence,
+            text_confidence: fusion.textConfidence,
+            fused_deviation: fusion.fusedDeviation,
+            uncertainty: fusion.uncertainty
+          },
+          // Text analysis (user-facing)
+          conversation_summary: textAnalysis.conversationSummary,
+          keywords_positive: textAnalysis.keywordsPositive,
+          keywords_negative: textAnalysis.keywordsNegative,
+          risk_assessment: textAnalysis.riskAssessment,
+          // Raw features
+          audio_features: audioFeatures,
+          visual_features: visualFeatures,
+          text_features: textFeatures,
+          // Dashboard data
+          contributing_factors: dashboardData.contributingFactors,
+          risk_reasons: dashboardData.riskReasons
+        });
+
+        // Store feature JSONs
+        checkinData.audio_features_json = audioFeatures ? JSON.stringify(audioFeatures) : null;
+        checkinData.visual_features_json = visualFeatures ? JSON.stringify(visualFeatures) : null;
+        checkinData.text_features_json = textFeatures ? JSON.stringify(textFeatures) : null;
+        checkinData.scoring_breakdown_json = JSON.stringify(fusion);
+      }
+
+      // Insert into check_ins table
+      const { data: insertedCheckin, error: insertError } = await backendService.database
+        .from('check_ins')
+        .insert(checkinData)
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      console.log('[CheckinSDK] ✅ Check-in saved:', insertedCheckin);
+
+      // Wait for saving phase to complete
+      setTimeout(async () => {
+        setIsSaving(false);
+        
+        // Show success and navigate back
+        if (onComplete) {
+          onComplete();
+        }
+      }, 8000); // Total 8 seconds (3 + 3 + 2)
+
+    } catch (error) {
+      console.error('[CheckinSDK] ❌ Failed to save check-in:', error);
+      setErrorMessage('Failed to save your check-in. Please try again.');
+      setShowErrorModal(true);
+      setIsSaving(false);
+    }
+  };
+
+  // If showing conversation, render the chat interface
+  if (showConversation) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 flex flex-col">
+        {/* Processing overlay */}
+        {isSaving && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 animate-gradient">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 opacity-30">
+              <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 via-transparent to-blue-500/20 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-bl from-pink-500/20 via-transparent to-purple-500/20 animate-pulse delay-1000"></div>
+            </div>
+
+            {/* Floating orbs */}
+            <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-float"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl animate-float-delayed"></div>
+
+            {/* Content */}
+            <div className="relative z-10 flex flex-col items-center space-y-8 px-8">
+              {/* Glass-morphism card with logo */}
+              <div className="backdrop-blur-xl bg-white/10 rounded-3xl p-8 shadow-2xl border border-white/20">
+                <img 
+                  src={mindMeasureLogo} 
+                  alt="Mind Measure" 
+                  className="w-24 h-24 mx-auto animate-pulse-slow"
+                />
+              </div>
+
+              {/* Processing message */}
+              <div className="text-center space-y-3">
+                <h2 className="text-3xl font-light text-white tracking-wide">
+                  {processingPhase === 'extracting' && 'Extracting Features'}
+                  {processingPhase === 'analyzing' && 'Analyzing Patterns'}
+                  {processingPhase === 'saving' && 'Saving Your Check-in'}
+                </h2>
+                <p className="text-white/70 text-lg">
+                  {processingPhase === 'extracting' && 'Capturing audio and visual features...'}
+                  {processingPhase === 'analyzing' && 'Running multimodal analysis...'}
+                  {processingPhase === 'saving' && 'Finalizing your results...'}
+                </p>
+              </div>
+
+              {/* Progress indicator */}
+              <div className="w-64 h-1 bg-white/20 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400"
+                  initial={{ width: '0%' }}
+                  animate={{ width: '100%' }}
+                  transition={{ duration: 8, ease: 'linear' }}
+                />
+              </div>
+            </div>
+
+            <style>{`
+              @keyframes gradient {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+              }
+              @keyframes float {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                50% { transform: translate(20px, 20px) scale(1.1); }
+              }
+              @keyframes float-delayed {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                50% { transform: translate(-20px, -20px) scale(1.1); }
+              }
+              @keyframes pulse-slow {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.8; transform: scale(1.05); }
+              }
+              .animate-gradient {
+                background-size: 200% 200%;
+                animation: gradient 3s ease infinite;
+              }
+              .animate-float {
+                animation: float 6s ease-in-out infinite;
+              }
+              .animate-float-delayed {
+                animation: float-delayed 6s ease-in-out infinite;
+              }
+              .animate-pulse-slow {
+                animation: pulse-slow 2s ease-in-out infinite;
+              }
+              .delay-1000 {
+                animation-delay: 1s;
+              }
+            `}</style>
+          </div>
+        )}
+
+        {/* Error modal */}
+        {showErrorModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Check-in Incomplete</h3>
+              <p className="text-gray-600 mb-6">{errorMessage}</p>
+              <Button
+                onClick={() => {
+                  setShowErrorModal(false);
+                  setShowConversation(false);
+                  setMessages([]);
+                  setTranscript('');
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+              >
+                Try Again
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <h1 className="text-lg font-medium text-gray-900">Daily Check-in</h1>
+          <Button
+            onClick={handleFinish}
+            disabled={messages.length < 4} // Require at least 2 exchanges
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Finish
+          </Button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white'
+                    : 'bg-white/90 text-gray-900 shadow-sm'
+                }`}
+              >
+                <p className="text-sm leading-relaxed">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Microphone indicator (always active during conversation) */}
+        <div className="bg-white/80 backdrop-blur-sm border-t border-gray-200 px-4 py-4 text-center">
+          <div className="flex items-center justify-center space-x-2 text-gray-600">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm">Listening...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Initial welcome screen
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 flex flex-col">
+      {/* Header with logo */}
+      <div className="text-center pt-8 mb-8">
+        <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+          <img
+            src={mindMeasureLogo}
+            alt="Mind Measure"
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <h1 className="text-3xl text-gray-900 mb-3">Daily Check-in</h1>
+        <p className="text-gray-600 leading-relaxed text-base">
+          Ready for your mental wellness check-in with Jodie?
+        </p>
+      </div>
+
+      {/* Start button */}
+      <div className="flex-1 flex items-center justify-center">
+        <Button
+          onClick={handleStartAssessment}
+          disabled={requestingPermissions}
+          className="w-full max-w-sm h-16 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-0 shadow-2xl text-lg backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 rounded-2xl"
+        >
+          {requestingPermissions ? 'Starting...' : 'Start Check-in'}
+        </Button>
+      </div>
+
+      {/* Back button */}
+      {onBack && (
+        <div className="mt-8">
+          <Button
+            onClick={onBack}
+            variant="ghost"
+            className="w-full text-gray-600"
+          >
+            Back to Dashboard
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
