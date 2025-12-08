@@ -190,19 +190,19 @@ export const MobileAppStructure: React.FC = () => {
         return <DashboardScreen
           onNeedHelp={() => setCurrentScreen('help')}
           onCheckIn={() => setCurrentScreen('checkin')}
-          onResetBaseline={() => {
+          onRetakeBaseline={() => {
             console.log('🔄 Retaking baseline from developer mode');
             setOnboardingScreen('baseline_welcome');
           }}
         />;
       case 'checkin':
-        // Show welcome screen with user's first name, then start conversation
+        // Show welcome screen with user's first name
         const firstName = user?.user_metadata?.first_name || 'there';
         return <CheckInWelcome userName={firstName} onStartCheckIn={() => setCurrentScreen('checkin_assessment')} />;
       case 'checkin_assessment':
         return (
           <CheckInAssessmentSDK
-            onBack={() => setCurrentScreen('checkin')}
+            onBack={() => setCurrentScreen('dashboard')}
             onComplete={() => {
               console.log('✅ Check-in complete');
               setCurrentScreen('dashboard');
@@ -230,7 +230,7 @@ export const MobileAppStructure: React.FC = () => {
       <div className="pb-24">
         {renderContent()}
       </div>
-      {!onboardingScreen && ['dashboard', 'checkin', 'buddies', 'help'].includes(currentScreen) && (
+      {!onboardingScreen && ['dashboard', 'checkin', 'checkin_assessment', 'buddies', 'help'].includes(currentScreen) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/60 shadow-lg">
           <div className="flex items-center justify-around px-2 py-3">
             {navItems.map((item) => {

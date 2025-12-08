@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
-import { assessmentEngineClient, type CheckInStatus } from '@/services/assessmentEngineClient';
 import {
   extractAssessmentFromTranscript,
   calculateClinicalScores,
@@ -46,12 +45,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   });
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-
-  // Assessment Engine state
-  const [checkInId, setCheckInId] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [processingPhase, setProcessingPhase] = useState<string>('');
-  const [engineResult, setEngineResult] = useState<CheckInStatus | null>(null);
 
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
@@ -103,17 +96,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       
       await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('[SDK] ✅ Audio permission granted');
-
-      // Start Assessment Engine baseline check-in
-      console.log('[SDK] 📡 Starting Assessment Engine baseline...');
-      try {
-        const result = await assessmentEngineClient.startCheckIn('baseline');
-        setCheckInId(result.checkInId);
-        console.log('[SDK] ✅ Assessment Engine baseline started:', result.checkInId);
-      } catch (error) {
-        console.error('[SDK] ⚠️ Assessment Engine start failed (continuing anyway):', error);
-        // Continue without Assessment Engine - graceful degradation
-      }
 
       // Show conversation UI and initialize assessment state
       setShowConversation(true);
@@ -458,49 +440,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
       console.log('[SDK] 🎉 Baseline assessment completed successfully!');
 
-      // If Assessment Engine baseline was started, complete it
-      if (checkInId) {
-        setIsProcessing(true);
-        setProcessingPhase('Completing baseline analysis...');
-        
-        try {
-          console.log('[SDK] 📡 Completing Assessment Engine baseline...');
-
-          await assessmentEngineClient.completeCheckIn(checkInId, {
-            type: 'baseline',
-            hasAudio: true,
-            hasVideo: false,
-            transcript: assessmentState.transcript
-          });
-
-          console.log('[SDK] ✅ Assessment Engine baseline marked complete');
-          setProcessingPhase('Processing multimodal baseline data...');
-
-          // Poll for results
-          const result = await assessmentEngineClient.pollCheckInStatus(
-            checkInId,
-            (status) => {
-              console.log('[SDK] Poll update:', status.status);
-              if (status.status === 'PROCESSING') {
-                setProcessingPhase('Establishing personal baseline features...');
-              }
-            }
-          );
-
-          console.log('[SDK] 🎉 Assessment Engine baseline complete!', result);
-          setEngineResult(result);
-          setIsProcessing(false);
-
-          // Show results briefly
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-        } catch (error) {
-          console.error('[SDK] ⚠️ Assessment Engine completion error:', error);
-          setIsProcessing(false);
-          // Continue - baseline is already saved to database
-        }
-      }
-
       // Reload the app to force useUserAssessmentHistory to re-query
       // This ensures the dashboard access gate sees the new baseline assessment
       window.location.reload();
@@ -510,197 +449,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       alert('There was an error saving your assessment. Please try again or contact support.');
     }
   };
-
-  // Show processing screen (Assessment Engine analysis)
-  if (isProcessing || engineResult) {
-    return (
-      <div style={{ 
-        position: 'fixed', 
-        inset: 0, 
-        display: 'flex', 
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)',
-        padding: '2rem'
-      }}>
-        <div style={{ textAlign: 'center', maxWidth: '28rem' }}>
-          <img
-            src={mindMeasureLogo}
-            alt="Mind Measure"
-            style={{
-              width: '6rem',
-              height: '6rem',
-              margin: '0 auto 2rem',
-              objectFit: 'contain'
-            }}
-          />
-
-          {!engineResult ? (
-            <>
-              <div style={{ 
-                width: '4rem', 
-                height: '4rem', 
-                margin: '0 auto 1.5rem',
-                border: '4px solid #e5e7eb',
-                borderTop: '4px solid #a855f7',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-
-              <h2 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: '600',
-                marginBottom: '0.75rem',
-                color: '#111827'
-              }}>
-                Establishing Your Baseline
-              </h2>
-
-              <p style={{ 
-                fontSize: '1rem',
-                color: '#6b7280',
-                marginBottom: '2rem'
-              }}>
-                {processingPhase}
-              </p>
-
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.75rem',
-                  marginBottom: '0.75rem'
-                }}>
-                  <div style={{ 
-                    width: '1.5rem', 
-                    height: '1.5rem',
-                    borderRadius: '50%',
-                    backgroundColor: '#10b981',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <span style={{ color: '#6b7280' }}>Baseline conversation complete</span>
-                </div>
-
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.75rem',
-                  marginBottom: '0.75rem'
-                }}>
-                  <div style={{ 
-                    width: '1.5rem', 
-                    height: '1.5rem',
-                    borderRadius: '50%',
-                    backgroundColor: processingPhase.includes('baseline data') ? '#a855f7' : '#e5e7eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {processingPhase.includes('baseline data') && (
-                      <div style={{ 
-                        width: '0.5rem', 
-                        height: '0.5rem',
-                        backgroundColor: 'white',
-                        borderRadius: '50%'
-                      }} />
-                    )}
-                  </div>
-                  <span style={{ color: '#6b7280' }}>Extracting baseline features</span>
-                </div>
-
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.75rem'
-                }}>
-                  <div style={{ 
-                    width: '1.5rem', 
-                    height: '1.5rem',
-                    borderRadius: '50%',
-                    backgroundColor: processingPhase.includes('personal baseline') ? '#a855f7' : '#e5e7eb',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {processingPhase.includes('personal baseline') && (
-                      <div style={{ 
-                        width: '0.5rem', 
-                        height: '0.5rem',
-                        backgroundColor: 'white',
-                        borderRadius: '50%'
-                      }} />
-                    )}
-                  </div>
-                  <span style={{ color: '#6b7280' }}>Creating personal baseline profile</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ 
-                width: '5rem', 
-                height: '5rem',
-                margin: '0 auto 1.5rem',
-                borderRadius: '50%',
-                backgroundColor: '#10b981',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <path d="M33.3333 10L15 28.3333L6.66666 20" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-
-              <h2 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: '600',
-                marginBottom: '0.75rem',
-                color: '#111827'
-              }}>
-                Baseline Established!
-              </h2>
-
-              <p style={{ 
-                fontSize: '1rem',
-                color: '#6b7280',
-                marginBottom: '1rem'
-              }}>
-                Your personal baseline has been captured and will be used to track your mental wellness journey
-              </p>
-
-              {engineResult.score !== undefined && (
-                <div style={{ 
-                  fontSize: '3rem',
-                  fontWeight: '700',
-                  background: 'linear-gradient(to right, #a855f7, #ec4899)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  marginTop: '1rem'
-                }}>
-                  {Math.round(engineResult.score)}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   // Show conversation UI
   if (showConversation) {
