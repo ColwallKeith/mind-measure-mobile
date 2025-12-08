@@ -31,82 +31,89 @@ export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessme
     onStartAssessment();
   };
 
-  // What to Expect Screen (second screen)
+  // What to Expect Screen (second screen) - EXACT replica of working version
   if (showWhatToExpect) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col px-6">
-        {/* Header */}
-        <div className="text-center pt-16 pb-6">
-          <h2 className="text-2xl font-medium text-gray-800">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center p-6">
+        {/* Mind Measure Title with Logo */}
+        <div className="text-center mb-8">
+          <motion.div
+            className="w-24 h-24 mx-auto mb-6"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          >
+            <img
+              src={mindMeasureLogo}
+              alt="Mind Measure"
+              className="w-full h-full object-contain"
+            />
+          </motion.div>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 bg-clip-text text-transparent mb-3">
+            Mind Measure
+          </h1>
+          <p className="text-gray-600 text-xl">
             Your Baseline Assessment
-          </h2>
+          </p>
         </div>
 
-        {/* Card - positioned high, not centered */}
-        <div className="pt-4">
-          <Card className="bg-white/90 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border-0">
-            {/* Logo */}
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 flex items-center justify-center">
-                <img
-                  src={mindMeasureLogo}
-                  alt="Mind Measure"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            </div>
-
+        {/* Card with "What to expect" */}
+        <motion.div
+          className="w-full max-w-2xl"
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-white/95 backdrop-blur-lg shadow-2xl rounded-3xl p-12 border-0">
             {/* Title */}
-            <h3 className="text-2xl font-semibold text-gray-900 text-center mb-6">
+            <h3 className="text-4xl font-bold text-gray-900 text-center mb-10">
               What to expect
             </h3>
 
-            {/* Bullet points */}
-            <div className="space-y-4 text-gray-700">
-              <div className="flex items-start gap-3">
-                <span className="text-purple-500 mt-1 text-lg">•</span>
-                <p className="flex-1 text-base">Five questions from Jodie</p>
+            {/* Bullet points with generous spacing */}
+            <div className="space-y-6 text-gray-700 text-xl mb-12">
+              <div className="flex items-start gap-5">
+                <span className="text-purple-500 mt-1.5 text-2xl font-bold">•</span>
+                <p className="flex-1 leading-relaxed">Five questions from Jodie</p>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-purple-500 mt-1 text-lg">•</span>
-                <p className="flex-1 text-base">3-5 minutes max</p>
+              <div className="flex items-start gap-5">
+                <span className="text-purple-500 mt-1.5 text-2xl font-bold">•</span>
+                <p className="flex-1 leading-relaxed">3-5 minutes max</p>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-purple-500 mt-1 text-lg">•</span>
-                <p className="flex-1 text-base leading-relaxed">
+              <div className="flex items-start gap-5">
+                <span className="text-purple-500 mt-1.5 text-2xl font-bold">•</span>
+                <p className="flex-1 leading-relaxed">
                   We use your camera so make sure you are looking at the screen
                 </p>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-purple-500 mt-1 text-lg">•</span>
-                <p className="flex-1 text-base leading-relaxed">
+              <div className="flex items-start gap-5">
+                <span className="text-purple-500 mt-1.5 text-2xl font-bold">•</span>
+                <p className="flex-1 leading-relaxed">
                   We analyse your voice to understand your mood
                 </p>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-purple-500 mt-1 text-lg">•</span>
-                <p className="flex-1 text-base leading-relaxed">
+              <div className="flex items-start gap-5">
+                <span className="text-purple-500 mt-1.5 text-2xl font-bold">•</span>
+                <p className="flex-1 leading-relaxed">
                   We delete any voice and images we collect as soon as we have analysed them
                 </p>
               </div>
             </div>
-          </Card>
-        </div>
 
-        {/* Button - clearly separated with generous spacing */}
-        <div className="mt-8 mb-12">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              onClick={handleStart}
-              className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold text-lg rounded-2xl shadow-2xl border-0 transition-all duration-300"
+            {/* Button INSIDE card */}
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              Start Baseline Assessment
-            </Button>
-          </motion.div>
-        </div>
+              <Button
+                onClick={handleStart}
+                className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold text-xl rounded-2xl shadow-2xl border-0 transition-all duration-300"
+              >
+                Start Your Baseline Assessment
+              </Button>
+            </motion.div>
+          </Card>
+        </motion.div>
       </div>
     );
   }
