@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run critical layout checks before allowing commit
+echo "🔍 Running pre-commit checks..."
+
+npm run check-layout
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Pre-commit checks failed!"
+  echo "   Fix the errors above before committing."
+  echo ""
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed!"
+
