@@ -1,14 +1,20 @@
 /**
  * Check-in Visual Feature Extractor
  * 
- * Extracts 18 visual features from video frames using AWS Rekognition:
- * - 7 facial expression features
- * - 3 gaze/attention features
- * - 5 movement/behavior features
+ * Extracts 13 visual features from video frames using AWS Rekognition:
+ * - 6 facial expression features
+ * - 2 gaze/attention features
+ * - 2 movement/behavior features
  * - 3 affect/emotion features
  * 
- * Key difference from baseline: Temporal analysis (frequency, duration, stability)
- * and behavioral indicators (fidgeting, gestures, posture shifts).
+ * Optimized for 0.5fps still-frame analysis (not true video).
+ * 
+ * Excluded features (require >5fps video):
+ * - smileDuration (needs continuous tracking)
+ * - blinkRate (blinks happen between frames)
+ * - fidgetingRate (micro-movements need high fps)
+ * - gestureFrequency (hand movements happen between frames)
+ * - postureShift (too coarse at 0.5fps)
  */
 
 import type { CapturedMedia } from '../../types';
@@ -167,7 +173,7 @@ export class CheckinVisualExtractor {
   }
   
   // ==========================================================================
-  // FACIAL EXPRESSION FEATURES (7 features)
+  // FACIAL EXPRESSION FEATURES (6 features)
   // ==========================================================================
   
   private extractFacialExpressionFeatures(data: RekognitionResponse) {
@@ -177,7 +183,6 @@ export class CheckinVisualExtractor {
       return {
         smileFrequency: 0,
         smileIntensity: 0,
-        smileDuration: 0,
         eyebrowRaiseFrequency: 0,
         eyebrowFurrowFrequency: 0,
         mouthTension: 0,
@@ -197,11 +202,6 @@ export class CheckinVisualExtractor {
     const smileIntensity = smileIntensities.length > 0
       ? smileIntensities.reduce((sum, i) => sum + i, 0) / smileIntensities.length
       : 0;
-    
-    // Smile duration (average continuous smile length)
-    const smileDuration = this.computeEventDuration(
-      validFrames.map(f => f.faceDetails?.Smile?.Value || false)
-    );
     
     // Eyebrow analysis (from emotions/landmarks)
     const eyebrowRaiseFrames = validFrames.filter(f => {
@@ -238,7 +238,6 @@ export class CheckinVisualExtractor {
     return {
       smileFrequency,
       smileIntensity,
-      smileDuration,
       eyebrowRaiseFrequency,
       eyebrowFurrowFrequency,
       mouthTension,
@@ -247,7 +246,7 @@ export class CheckinVisualExtractor {
   }
   
   // ==========================================================================
-  // GAZE/ATTENTION FEATURES (3 features)
+  // GAZE/ATTENTION FEATURES (2 features)
   // ==========================================================================
   
   private extractGazeAttentionFeatures(data: RekognitionResponse) {
@@ -256,8 +255,7 @@ export class CheckinVisualExtractor {
     if (validFrames.length === 0) {
       return {
         eyeContact: 0,
-        gazeStability: 0,
-        blinkRate: 0
+        gazeStability: 0
       };
     }
     
@@ -290,26 +288,14 @@ export class CheckinVisualExtractor {
     // Lower std = higher stability
     const gazeStability = Math.max(0, 1 - (averageStd / 30)); // Normalize
     
-    // Blink rate (estimate from eyes closed)
-    const eyesClosedFrames = validFrames.filter(f => 
-      f.faceDetails?.EyesOpen?.Value === false && 
-      f.faceDetails.EyesOpen.Confidence > 50
-    );
-    
-    // Approximate blinks per minute (assuming 0.5fps, 2 seconds per frame)
-    const frameDuration = 2; // seconds (0.5 fps)
-    const totalMinutes = (validFrames.length * frameDuration) / 60;
-    const blinkRate = totalMinutes > 0 ? eyesClosedFrames.length / totalMinutes : 0;
-    
     return {
       eyeContact,
-      gazeStability,
-      blinkRate
+      gazeStability
     };
   }
   
   // ==========================================================================
-  // MOVEMENT/BEHAVIOR FEATURES (5 features)
+  // MOVEMENT/BEHAVIOR FEATURES (2 features)
   // ==========================================================================
   
   private extractMovementBehaviorFeatures(data: RekognitionResponse) {
@@ -318,10 +304,7 @@ export class CheckinVisualExtractor {
     if (validFrames.length === 0) {
       return {
         headMovement: 0,
-        headStability: 0,
-        fidgetingRate: 0,
-        gestureFrequency: 0,
-        postureShift: 0
+        headStability: 0
       };
     }
     
@@ -347,39 +330,9 @@ export class CheckinVisualExtractor {
     // Head stability (inverse of movement)
     const headStability = Math.max(0, 1 - (headMovement / 30)); // Normalize
     
-    // Fidgeting rate (small rapid movements)
-    const fidgetingMoves = poseChanges.filter(c => c > 2 && c < 10).length;
-    const frameDuration = 2; // seconds (0.5 fps)
-    const totalMinutes = (validFrames.length * frameDuration) / 60;
-    const fidgetingRate = totalMinutes > 0 ? fidgetingMoves / totalMinutes : 0;
-    
-    // Gesture frequency (larger movements)
-    const gestureMoves = poseChanges.filter(c => c > 10).length;
-    const gestureFrequency = totalMinutes > 0 ? gestureMoves / totalMinutes : 0;
-    
-    // Posture shift (change in face position in frame)
-    const positionChanges: number[] = [];
-    for (let i = 1; i < validFrames.length; i++) {
-      const prev = validFrames[i - 1].faceDetails?.BoundingBox;
-      const curr = validFrames[i].faceDetails?.BoundingBox;
-      
-      if (prev && curr) {
-        const xChange = Math.abs((curr.Left || 0) - (prev.Left || 0));
-        const yChange = Math.abs((curr.Top || 0) - (prev.Top || 0));
-        positionChanges.push(xChange + yChange);
-      }
-    }
-    
-    const postureShift = positionChanges.length > 0
-      ? positionChanges.reduce((sum, c) => sum + c, 0) / positionChanges.length
-      : 0;
-    
     return {
       headMovement,
-      headStability,
-      fidgetingRate,
-      gestureFrequency,
-      postureShift
+      headStability
     };
   }
   
@@ -457,36 +410,6 @@ export class CheckinVisualExtractor {
   // ==========================================================================
   // HELPER FUNCTIONS
   // ==========================================================================
-  
-  /**
-   * Compute average duration of continuous events
-   */
-  private computeEventDuration(events: boolean[]): number {
-    if (events.length === 0) return 0;
-    
-    const durations: number[] = [];
-    let currentDuration = 0;
-    
-    for (const event of events) {
-      if (event) {
-        currentDuration++;
-      } else if (currentDuration > 0) {
-        durations.push(currentDuration);
-        currentDuration = 0;
-      }
-    }
-    
-    if (currentDuration > 0) {
-      durations.push(currentDuration);
-    }
-    
-    if (durations.length === 0) return 0;
-    
-    const avgFrames = durations.reduce((sum, d) => sum + d, 0) / durations.length;
-    const frameDuration = 2; // 0.5 fps = 2 seconds per frame
-    
-    return avgFrames * frameDuration;
-  }
   
   /**
    * Compute standard deviation of a series

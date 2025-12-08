@@ -52,30 +52,25 @@ export interface CheckinAudioFeatures {
 }
 
 // ============================================================================
-// VISUAL FEATURES (18 total)
+// VISUAL FEATURES (13 total - optimized for 0.5fps still-frame analysis)
 // ============================================================================
 
 export interface CheckinVisualFeatures {
-  // Facial Expression (7 features)
+  // Facial Expression (6 features)
   smileFrequency: number;         // % frames with smile
   smileIntensity: number;         // Average smile strength (0-1)
-  smileDuration: number;          // Average smile length (seconds)
   eyebrowRaiseFrequency: number;  // % frames with raised eyebrows
   eyebrowFurrowFrequency: number; // % frames with furrowed brows
   mouthTension: number;           // Lip tightness (0-1)
   facialSymmetry: number;         // Left-right symmetry (0-1)
   
-  // Gaze/Attention (3 features)
+  // Gaze/Attention (2 features)
   eyeContact: number;             // % frames looking at camera
   gazeStability: number;          // Consistency of gaze direction
-  blinkRate: number;              // Blinks per minute
   
-  // Movement/Behavior (5 features)
-  headMovement: number;           // Average head motion
+  // Movement/Behavior (2 features)
+  headMovement: number;           // Average head motion between frames
   headStability: number;          // Steadiness of head position
-  fidgetingRate: number;          // Micro-movements per minute
-  gestureFrequency: number;       // Hand gestures per minute
-  postureShift: number;           // Body position changes
   
   // Affect/Emotion (3 features)
   emotionalValence: number;       // Positive/negative emotion (-1 to 1)
@@ -86,6 +81,13 @@ export interface CheckinVisualFeatures {
   facePresenceQuality: number;    // % frames with clear face
   overallQuality: number;         // Overall visual quality (0-1)
   framesAnalyzed: number;         // Total frames processed
+  
+  // Note: Removed from v1 (require true video at >5fps):
+  // - smileDuration (needs continuous tracking)
+  // - blinkRate (blinks happen between 0.5fps frames)
+  // - fidgetingRate (micro-movements need high fps)
+  // - gestureFrequency (hand movements happen between frames)
+  // - postureShift (too coarse at 0.5fps)
 }
 
 // ============================================================================
