@@ -43,3 +43,4 @@ Each ADR should follow the template in `000-template.md` and include:
 - [Documenting Architecture Decisions by Michael Nygard](http://thinkrelevance.com/blog/2011/11/15/documenting-architecture-decisions)
 - [ADR GitHub](https://adr.github.io/)
 
+

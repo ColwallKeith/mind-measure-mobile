@@ -230,3 +230,4 @@ const sessionId = await conversation.startSession({
 - **2025-12-08**: Documented after rollback incident revealed need for ADRs
 - **2025-12-08**: Added to `scripts/check-layout.js` verification
 
+

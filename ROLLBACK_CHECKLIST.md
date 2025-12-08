@@ -380,3 +380,4 @@ After completing a rollback, document what happened:
 - [POSTMORTEM_2025_12_08.md](./POSTMORTEM_2025_12_08.md) - Example of what can go wrong
 - [docs/adr/](./docs/adr/) - Architecture decisions that might be affected by rollbacks
 
+
