@@ -58,11 +58,11 @@ export class BaselineScoring {
     return {
       clinicalScore,
       clinicalWeight: 0.7,
-      audioScore,
-      visualScore,
-      multimodalScore,
+      audioScore: Math.round(audioScore),
+      visualScore: Math.round(visualScore),
+      multimodalScore: Math.round(multimodalScore),
       multimodalWeight: 0.3,
-      finalScore: Math.round(finalScore * 10) / 10, // Round to 1 decimal
+      finalScore: Math.round(finalScore), // Round to whole number
       confidence
     };
   }
