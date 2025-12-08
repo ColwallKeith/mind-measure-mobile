@@ -34,80 +34,78 @@ export function BaselineAssessmentScreen({ onStartAssessment }: BaselineAssessme
   // What to Expect Screen (second screen)
   if (showWhatToExpect) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col px-6">
         {/* Header */}
-        <div className="text-center pt-8 pb-4 px-6">
-          <h2 className="text-xl font-light text-gray-700">
+        <div className="text-center pt-8 pb-6">
+          <h2 className="text-2xl font-medium text-gray-800">
             Your Baseline Assessment
           </h2>
         </div>
 
-        {/* Main content - centered vertically */}
-        <div className="flex-1 flex items-center justify-center px-6 pb-24">
-          <div className="w-full max-w-md">
-            <Card className="bg-white/80 backdrop-blur-sm shadow-xl rounded-3xl p-8 border-0">
-              {/* Logo */}
-              <div className="flex justify-center mb-6">
-                <div className="w-16 h-16 flex items-center justify-center">
-                  <img
-                    src={mindMeasureLogo}
-                    alt="Mind Measure"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+        {/* Card - positioned high, not centered */}
+        <div className="pt-4">
+          <Card className="bg-white/90 backdrop-blur-sm shadow-2xl rounded-3xl p-8 border-0">
+            {/* Logo */}
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 flex items-center justify-center">
+                <img
+                  src={mindMeasureLogo}
+                  alt="Mind Measure"
+                  className="w-full h-full object-contain"
+                />
               </div>
-
-              {/* Title */}
-              <h3 className="text-2xl font-semibold text-gray-900 text-center mb-6">
-                What to expect
-              </h3>
-
-              {/* Bullet points */}
-              <div className="space-y-4 text-gray-700 mb-6">
-                <div className="flex items-start gap-3">
-                  <span className="text-purple-500 mt-1">•</span>
-                  <p className="flex-1 text-base">Five questions from Jodie</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-purple-500 mt-1">•</span>
-                  <p className="flex-1 text-base">3-5 minutes max</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-purple-500 mt-1">•</span>
-                  <p className="flex-1 text-base leading-relaxed">
-                    We use your camera so make sure you are looking at the screen
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-purple-500 mt-1">•</span>
-                  <p className="flex-1 text-base leading-relaxed">
-                    We analyse your voice to understand your mood
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-purple-500 mt-1">•</span>
-                  <p className="flex-1 text-base leading-relaxed">
-                    We delete any voice and images we collect as soon as we have analysed them
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Start button - OUTSIDE card with spacing */}
-            <div className="mt-6">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  onClick={handleStart}
-                  className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium text-lg rounded-2xl shadow-lg border-0 transition-all duration-300"
-                >
-                  Start Baseline Assessment
-                </Button>
-              </motion.div>
             </div>
-          </div>
+
+            {/* Title */}
+            <h3 className="text-2xl font-semibold text-gray-900 text-center mb-6">
+              What to expect
+            </h3>
+
+            {/* Bullet points */}
+            <div className="space-y-4 text-gray-700">
+              <div className="flex items-start gap-3">
+                <span className="text-purple-500 mt-1 text-lg">•</span>
+                <p className="flex-1 text-base">Five questions from Jodie</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-purple-500 mt-1 text-lg">•</span>
+                <p className="flex-1 text-base">3-5 minutes max</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-purple-500 mt-1 text-lg">•</span>
+                <p className="flex-1 text-base leading-relaxed">
+                  We use your camera so make sure you are looking at the screen
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-purple-500 mt-1 text-lg">•</span>
+                <p className="flex-1 text-base leading-relaxed">
+                  We analyse your voice to understand your mood
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-purple-500 mt-1 text-lg">•</span>
+                <p className="flex-1 text-base leading-relaxed">
+                  We delete any voice and images we collect as soon as we have analysed them
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Button - clearly separated with generous spacing */}
+        <div className="mt-8 mb-12">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              onClick={handleStart}
+              className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold text-lg rounded-2xl shadow-2xl border-0 transition-all duration-300"
+            >
+              Start Baseline Assessment
+            </Button>
+          </motion.div>
         </div>
       </div>
     );
