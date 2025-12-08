@@ -33,19 +33,49 @@ export class BaselineScoring {
     
     // Normalize audio features to 0-100 scale
     const audioScore = this.normalizeAudioFeatures(audioFeatures);
-    console.log('[BaselineScoring] Audio score:', audioScore.toFixed(2));
+    console.log('[BaselineScoring] Audio score:', audioScore);
     
     // Normalize visual features to 0-100 scale
     const visualScore = this.normalizeVisualFeatures(visualFeatures);
-    console.log('[BaselineScoring] Visual score:', visualScore.toFixed(2));
+    console.log('[BaselineScoring] Visual score:', visualScore);
+    
+    // Check for NaN values
+    if (isNaN(audioScore) || isNaN(visualScore)) {
+      console.error('[BaselineScoring] ❌ NaN detected in multimodal scores - falling back to clinical only');
+      return {
+        clinicalScore: Math.round(clinicalScore),
+        clinicalWeight: 1.0,
+        audioScore: null,
+        visualScore: null,
+        multimodalScore: null,
+        multimodalWeight: 0,
+        finalScore: Math.round(clinicalScore),
+        confidence: 0.5
+      };
+    }
     
     // Combine audio and visual into single multimodal score
     const multimodalScore = (audioScore + visualScore) / 2;
-    console.log('[BaselineScoring] Multimodal score:', multimodalScore.toFixed(2));
+    console.log('[BaselineScoring] Multimodal score:', multimodalScore);
     
     // Compute final weighted score: 70% clinical + 30% multimodal
     const finalScore = (clinicalScore * 0.7) + (multimodalScore * 0.3);
-    console.log('[BaselineScoring] Final score:', finalScore.toFixed(2));
+    console.log('[BaselineScoring] Final score:', finalScore);
+    
+    // Validate final score
+    if (isNaN(finalScore) || !isFinite(finalScore)) {
+      console.error('[BaselineScoring] ❌ Invalid final score - falling back to clinical only');
+      return {
+        clinicalScore: Math.round(clinicalScore),
+        clinicalWeight: 1.0,
+        audioScore: Math.round(audioScore),
+        visualScore: Math.round(visualScore),
+        multimodalScore: Math.round(multimodalScore),
+        multimodalWeight: 0,
+        finalScore: Math.round(clinicalScore),
+        confidence: 0.5
+      };
+    }
     
     // Assess overall confidence
     const confidence = this.computeConfidence(
@@ -53,10 +83,10 @@ export class BaselineScoring {
       visualFeatures,
       clinicalScore
     );
-    console.log('[BaselineScoring] Confidence:', confidence.toFixed(2));
+    console.log('[BaselineScoring] Confidence:', confidence);
     
     return {
-      clinicalScore,
+      clinicalScore: Math.round(clinicalScore),
       clinicalWeight: 0.7,
       audioScore: Math.round(audioScore),
       visualScore: Math.round(visualScore),
@@ -71,50 +101,75 @@ export class BaselineScoring {
    * Normalize audio features to 0-100 scale
    * 
    * Strategy: Each feature contributes equally, normalized to expected ranges
+   * Handles null/undefined values gracefully
    */
   private static normalizeAudioFeatures(features: BaselineAudioFeatures): number {
     const scores: number[] = [];
 
     // Pitch features (higher pitch variability = potential stress)
     // Mean pitch: 85-300 Hz range, optimal around 150-180 Hz
-    const pitchScore = 100 - Math.abs(features.meanPitch - 165) / 2;
-    scores.push(this.clamp(pitchScore, 0, 100));
+    if (features.meanPitch != null && !isNaN(features.meanPitch)) {
+      const pitchScore = 100 - Math.abs(features.meanPitch - 165) / 2;
+      scores.push(this.clamp(pitchScore, 0, 100));
+    }
 
     // Pitch variability: 0-50 Hz typical, lower is better (more stable)
-    const pitchVarScore = 100 - (features.pitchVariability * 2);
-    scores.push(this.clamp(pitchVarScore, 0, 100));
+    if (features.pitchVariability != null && !isNaN(features.pitchVariability)) {
+      const pitchVarScore = 100 - (features.pitchVariability * 2);
+      scores.push(this.clamp(pitchVarScore, 0, 100));
+    }
 
     // Speaking rate: 80-200 wpm typical, optimal around 140-160 wpm
-    const rateScore = 100 - Math.abs(features.speakingRate - 150) / 2;
-    scores.push(this.clamp(rateScore, 0, 100));
+    if (features.speakingRate != null && !isNaN(features.speakingRate)) {
+      const rateScore = 100 - Math.abs(features.speakingRate - 150) / 2;
+      scores.push(this.clamp(rateScore, 0, 100));
+    }
 
     // Pause frequency: 2-8 per minute typical, optimal around 4-6
-    const pauseFreqScore = 100 - Math.abs(features.pauseFrequency - 5) * 10;
-    scores.push(this.clamp(pauseFreqScore, 0, 100));
+    if (features.pauseFrequency != null && !isNaN(features.pauseFrequency)) {
+      const pauseFreqScore = 100 - Math.abs(features.pauseFrequency - 5) * 10;
+      scores.push(this.clamp(pauseFreqScore, 0, 100));
+    }
 
     // Pause duration: 0.3-1.0s typical, optimal around 0.5s
-    const pauseDurScore = 100 - Math.abs(features.pauseDuration - 0.5) * 100;
-    scores.push(this.clamp(pauseDurScore, 0, 100));
+    if (features.pauseDuration != null && !isNaN(features.pauseDuration)) {
+      const pauseDurScore = 100 - Math.abs(features.pauseDuration - 0.5) * 100;
+      scores.push(this.clamp(pauseDurScore, 0, 100));
+    }
 
     // Voice energy: higher is generally better (more engaged)
-    const energyScore = features.voiceEnergy * 100;
-    scores.push(this.clamp(energyScore, 0, 100));
+    if (features.voiceEnergy != null && !isNaN(features.voiceEnergy)) {
+      const energyScore = features.voiceEnergy * 100;
+      scores.push(this.clamp(energyScore, 0, 100));
+    }
 
-    // Jitter: lower is better (more stable voice)
-    const jitterScore = (1 - features.jitter) * 100;
-    scores.push(this.clamp(jitterScore, 0, 100));
+    // Jitter: lower is better (more stable voice) - OPTIONAL
+    if (features.jitter != null && !isNaN(features.jitter)) {
+      const jitterScore = (1 - features.jitter) * 100;
+      scores.push(this.clamp(jitterScore, 0, 100));
+    }
 
     // Shimmer: lower is better (better voice quality)
-    const shimmerScore = (1 - features.shimmer) * 100;
-    scores.push(this.clamp(shimmerScore, 0, 100));
+    if (features.shimmer != null && !isNaN(features.shimmer)) {
+      const shimmerScore = (1 - features.shimmer) * 100;
+      scores.push(this.clamp(shimmerScore, 0, 100));
+    }
 
     // Harmonic ratio: higher is better (clearer voice)
-    const harmonicScore = features.harmonicRatio * 100;
-    scores.push(this.clamp(harmonicScore, 0, 100));
+    if (features.harmonicRatio != null && !isNaN(features.harmonicRatio)) {
+      const harmonicScore = features.harmonicRatio * 100;
+      scores.push(this.clamp(harmonicScore, 0, 100));
+    }
+
+    // If no valid features, return neutral score
+    if (scores.length === 0) {
+      console.warn('[BaselineScoring] No valid audio features - returning neutral score');
+      return 50;
+    }
 
     // Weight by quality
     const weightedScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-    return weightedScore * features.quality;
+    return weightedScore * (features.quality || 0.5);
   }
 
   /**
