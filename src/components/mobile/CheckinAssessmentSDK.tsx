@@ -115,6 +115,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       return context;
     } catch (error) {
       console.error('[CheckinSDK] Failed to load user context:', error);
+      console.error('[CheckinSDK] Error details:', error instanceof Error ? error.message : JSON.stringify(error));
       
       // Fallback: use auth metadata if profile query fails
       const fallbackContext = {
@@ -127,6 +128,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         isFirstTime: true,
         platform: 'mobile'
       };
+      console.log('[CheckinSDK] ✅ Using fallback context with name:', fallbackContext.user.name);
       setUserContext(fallbackContext);
       return fallbackContext;
     }
@@ -287,13 +289,26 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       setStartedAt(Date.now());
       setTranscript('');
       
+      // Load user context FIRST (before starting session)
+      console.log('[CheckinSDK] 📋 Loading user context before session...');
+      const context = await loadUserContext();
+      
+      // Prepare context for sending after connection
+      if (context) {
+        const contextText = formatContextForAgent(context);
+        if (contextText) {
+          console.log('[CheckinSDK] ✅ Context prepared and ready');
+          console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
+          pendingContextRef.current = contextText;
+        }
+      } else {
+        console.warn('[CheckinSDK] ⚠️ No context available - will use fallback greeting');
+      }
+      
       // Wait a moment for UI to render, then start the conversation
       setTimeout(async () => {
         try {
           console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
-          
-          // Load user context for personalized conversation
-          const context = await loadUserContext();
           
           const sid = await conversation.startSession({
             agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx'
@@ -301,18 +316,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
-
-          // Prepare context to send when connection is established
-          if (context) {
-            const contextText = formatContextForAgent(context);
-            if (contextText) {
-              console.log('[CheckinSDK] 📋 Context prepared, will send after connection establishes');
-              console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
-              pendingContextRef.current = contextText;
-            }
-          } else {
-            console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
-          }
 
         } catch (error) {
           console.error('[CheckinSDK] ❌ Failed to start conversation:', error);
