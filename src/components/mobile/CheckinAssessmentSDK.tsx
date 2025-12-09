@@ -208,6 +208,8 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
     onConnect: () => {
       console.log('[CheckinSDK] ✅ Connected to ElevenLabs');
       
+      // TEMPORARILY DISABLED: Testing if context causes disconnect
+      /*
       // Send pending context now that connection is established
       if (pendingContextRef.current && !contextSentRef.current) {
         console.log('[CheckinSDK] 📤 Sending pending context after connection');
@@ -219,6 +221,8 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           console.error('[CheckinSDK] ❌ Failed to send context after connection:', error);
         }
       }
+      */
+      console.log('[CheckinSDK] ⚠️ Context sending DISABLED for testing');
     },
     onDisconnect: () => {
       console.log('[CheckinSDK] 🔌 Disconnected from ElevenLabs');
