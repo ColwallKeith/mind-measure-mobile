@@ -49,17 +49,17 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
       const backendService = BackendServiceFactory.getService();
 
-      // Get user profile data
+      // Get user profile data - use maybeSingle() to handle no results gracefully
       const { data: profile } = await backendService.database
         .from('profiles')
-        .select('first_name, last_name, university, course, year_of_study')
-        .eq('id', user.id)
-        .single();
+        .select('first_name, last_name, university_id, course, year_of_study')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      // Get recent assessment history for context
+      // Get recent assessments from fusion_outputs
       const { data: recentAssessments } = await backendService.database
-        .from('assessment_sessions')
-        .select('assessment_type, created_at, meta')
+        .from('fusion_outputs')
+        .select('analysis, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(3);
@@ -67,32 +67,134 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       // Get wellness trends
       const { data: wellnessData } = await backendService.database
         .from('fusion_outputs')
-        .select('score, created_at')
+        .select('score, final_score, analysis, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
+      // Get user's first name from profile or auth metadata
+      const firstName = profile?.first_name || user.user_metadata?.first_name || user.user_metadata?.given_name || 'there';
+      const lastName = profile?.last_name || user.user_metadata?.last_name || user.user_metadata?.family_name || '';
+
+      // Parse assessment types from analysis JSON
+      const assessmentHistory = (recentAssessments || []).map((a: any) => {
+        let analysisData: any = {};
+        try {
+          analysisData = typeof a.analysis === 'string' ? JSON.parse(a.analysis) : a.analysis || {};
+        } catch (e) {}
+        return {
+          assessment_type: analysisData.assessment_type || 'unknown',
+          created_at: a.created_at,
+          themes: analysisData.themes || [],
+          summary: analysisData.conversation_summary || ''
+        };
+      });
+
       const context = {
         user: {
-          name: profile?.first_name || 'there',
-          fullName: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
-          university: profile?.university,
+          name: firstName,
+          fullName: `${firstName} ${lastName}`.trim() || 'there',
+          university: profile?.university_id,
           course: profile?.course,
           yearOfStudy: profile?.year_of_study
         },
-        assessmentHistory: recentAssessments || [],
+        assessmentHistory: assessmentHistory,
         wellnessTrends: wellnessData || [],
-        isFirstTime: !recentAssessments || recentAssessments.length === 0,
+        isFirstTime: !assessmentHistory || assessmentHistory.length === 0 || 
+          assessmentHistory.every((a: any) => a.assessment_type === 'baseline'),
         platform: 'mobile'
       };
 
-      console.log('[CheckinSDK] ✅ User context loaded:', context);
+      console.log('[CheckinSDK] ✅ User context loaded:', {
+        userName: context.user.name,
+        assessmentCount: context.assessmentHistory.length,
+        isFirstTime: context.isFirstTime
+      });
+
       setUserContext(context);
       return context;
     } catch (error) {
       console.error('[CheckinSDK] Failed to load user context:', error);
-      return null;
+      
+      // Fallback: use auth metadata if profile query fails
+      const fallbackContext = {
+        user: {
+          name: user.user_metadata?.first_name || user.user_metadata?.given_name || 'there',
+          fullName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || 'there'
+        },
+        assessmentHistory: [],
+        wellnessTrends: [],
+        isFirstTime: true,
+        platform: 'mobile'
+      };
+      setUserContext(fallbackContext);
+      return fallbackContext;
     }
+  };
+
+  // Format context for ElevenLabs agent
+  const formatContextForAgent = (context: any) => {
+    if (!context) return '';
+
+    const { user: userProfile, assessmentHistory = [], wellnessTrends = [] } = context;
+
+    const formatDate = (isoString?: string) => {
+      if (!isoString) return 'unknown date';
+      return new Date(isoString).toLocaleDateString('en-GB', {
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+
+    const assessmentsSummary = assessmentHistory.length
+      ? assessmentHistory
+          .map((assessment: any, index: number) => {
+            const assessmentType = assessment.assessment_type || 'check-in';
+            return `${index + 1}. ${assessmentType} on ${formatDate(assessment.created_at)}`;
+          })
+          .join('\n')
+      : 'No previous check-ins recorded.';
+
+    const trendSummary = wellnessTrends.length
+      ? wellnessTrends
+          .map((trend: any, index: number) => {
+            const score = trend.score ?? trend.final_score ?? trend.mind_measure_score;
+            const prefix = typeof score === 'number' ? `score ${score}` : 'score unavailable';
+            return `${index + 1}. ${prefix} on ${formatDate(trend.created_at)}`;
+          })
+          .join('\n')
+      : 'No trend data yet.';
+
+    // Get previous themes/topics if available
+    const previousThemes = assessmentHistory
+      .filter((a: any) => a.themes && a.themes.length > 0)
+      .flatMap((a: any) => a.themes)
+      .slice(0, 5);
+    
+    const previousTopics = previousThemes.length > 0
+      ? `In previous conversations, they mentioned: ${previousThemes.join(', ')}.`
+      : '';
+
+    return [
+      `IMPORTANT: The student's name is ${userProfile?.name || 'there'}. Address them by name naturally in conversation.`,
+      '',
+      `You are speaking with ${userProfile?.fullName || userProfile?.name || 'the student'}.`,
+      userProfile?.university ? `University: ${userProfile.university}` : null,
+      userProfile?.course ? `Course: ${userProfile.course}` : null,
+      userProfile?.yearOfStudy ? `Year of study: ${userProfile.yearOfStudy}` : null,
+      '',
+      context.isFirstTime 
+        ? 'This is their first check-in. Focus on making them comfortable and explaining how these check-ins work.'
+        : 'They have checked in before. Reference their history naturally.',
+      '',
+      'RECENT ASSESSMENT HISTORY:',
+      assessmentsSummary,
+      '',
+      'WELLNESS TREND:',
+      trendSummary,
+      '',
+      previousTopics
+    ].filter(Boolean).join('\n');
   };
 
   // Initialize the ElevenLabs conversation hook
@@ -177,27 +279,24 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           // Load user context for personalized conversation
           const context = await loadUserContext();
           
-          // Build context string for Jodie
-          let firstMessage = undefined;
-          if (context) {
-            const name = context.user.name;
-            firstMessage = `Hi ${name}! Ready for your check-in today? How are you feeling?`;
-            console.log('[CheckinSDK] 📋 Personalized first message:', firstMessage);
-          }
-          
           const sid = await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx',
-            ...(firstMessage && { 
-              overrides: {
-                agent: {
-                  firstMessage: firstMessage
-                }
-              }
-            })
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx'
           });
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
+
+          // Send context to agent for personalization
+          if (context) {
+            const contextText = formatContextForAgent(context);
+            if (contextText) {
+              console.log('[CheckinSDK] 📤 Sending context to agent');
+              console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
+              conversation.sendContextualUpdate(contextText);
+            }
+          } else {
+            console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
+          }
 
         } catch (error) {
           console.error('[CheckinSDK] ❌ Failed to start conversation:', error);
