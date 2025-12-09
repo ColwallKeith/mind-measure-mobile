@@ -39,6 +39,61 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const [transcript, setTranscript] = useState('');
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userContext, setUserContext] = useState<any>(null);
+
+  // Load user context for personalized conversations
+  const loadUserContext = async () => {
+    if (!user?.id) return null;
+    try {
+      console.log('[CheckinSDK] Loading user context...');
+      const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
+      const backendService = BackendServiceFactory.getService();
+
+      // Get user profile data
+      const { data: profile } = await backendService.database
+        .from('profiles')
+        .select('first_name, last_name, university, course, year_of_study')
+        .eq('id', user.id)
+        .single();
+
+      // Get recent assessment history for context
+      const { data: recentAssessments } = await backendService.database
+        .from('assessment_sessions')
+        .select('assessment_type, created_at, meta')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      // Get wellness trends
+      const { data: wellnessData } = await backendService.database
+        .from('fusion_outputs')
+        .select('score, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      const context = {
+        user: {
+          name: profile?.first_name || 'there',
+          fullName: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
+          university: profile?.university,
+          course: profile?.course,
+          yearOfStudy: profile?.year_of_study
+        },
+        assessmentHistory: recentAssessments || [],
+        wellnessTrends: wellnessData || [],
+        isFirstTime: !recentAssessments || recentAssessments.length === 0,
+        platform: 'mobile'
+      };
+
+      console.log('[CheckinSDK] ✅ User context loaded:', context);
+      setUserContext(context);
+      return context;
+    } catch (error) {
+      console.error('[CheckinSDK] Failed to load user context:', error);
+      return null;
+    }
+  };
 
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
@@ -120,7 +175,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
           
           const sid = await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx' // Check-in agent ID
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx'
           });
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
