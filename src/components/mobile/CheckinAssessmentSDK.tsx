@@ -197,10 +197,26 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
     ].filter(Boolean).join('\n');
   };
 
+  // Track if context has been sent
+  const contextSentRef = useRef(false);
+  const pendingContextRef = useRef<string | null>(null);
+
   // Initialize the ElevenLabs conversation hook
   const conversation = useConversation({
     onConnect: () => {
       console.log('[CheckinSDK] ✅ Connected to ElevenLabs');
+      
+      // Send pending context now that connection is established
+      if (pendingContextRef.current && !contextSentRef.current) {
+        console.log('[CheckinSDK] 📤 Sending pending context after connection');
+        try {
+          conversation.sendContextualUpdate(pendingContextRef.current);
+          contextSentRef.current = true;
+          console.log('[CheckinSDK] ✅ Context sent successfully after connection');
+        } catch (error) {
+          console.error('[CheckinSDK] ❌ Failed to send context after connection:', error);
+        }
+      }
     },
     onDisconnect: () => {
       console.log('[CheckinSDK] 🔌 Disconnected from ElevenLabs');
@@ -286,25 +302,17 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
 
-          // Wait for connection to stabilize before sending context
-          setTimeout(() => {
-            // Send context to agent for personalization
-            if (context) {
-              const contextText = formatContextForAgent(context);
-              if (contextText) {
-                console.log('[CheckinSDK] 📤 Sending context to agent');
-                console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
-                try {
-                  conversation.sendContextualUpdate(contextText);
-                  console.log('[CheckinSDK] ✅ Context sent successfully');
-                } catch (error) {
-                  console.error('[CheckinSDK] ❌ Failed to send context:', error);
-                }
-              }
-            } else {
-              console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
+          // Prepare context to send when connection is established
+          if (context) {
+            const contextText = formatContextForAgent(context);
+            if (contextText) {
+              console.log('[CheckinSDK] 📋 Context prepared, will send after connection establishes');
+              console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
+              pendingContextRef.current = contextText;
             }
-          }, 1000); // Wait 1 second after session starts
+          } else {
+            console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
+          }
 
         } catch (error) {
           console.error('[CheckinSDK] ❌ Failed to start conversation:', error);
