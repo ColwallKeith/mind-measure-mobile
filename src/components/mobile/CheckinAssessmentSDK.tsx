@@ -286,17 +286,25 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
 
-          // Send context to agent for personalization
-          if (context) {
-            const contextText = formatContextForAgent(context);
-            if (contextText) {
-              console.log('[CheckinSDK] 📤 Sending context to agent');
-              console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
-              conversation.sendContextualUpdate(contextText);
+          // Wait for connection to stabilize before sending context
+          setTimeout(() => {
+            // Send context to agent for personalization
+            if (context) {
+              const contextText = formatContextForAgent(context);
+              if (contextText) {
+                console.log('[CheckinSDK] 📤 Sending context to agent');
+                console.log('[CheckinSDK] 📋 Context preview:', contextText.substring(0, 200) + '...');
+                try {
+                  conversation.sendContextualUpdate(contextText);
+                  console.log('[CheckinSDK] ✅ Context sent successfully');
+                } catch (error) {
+                  console.error('[CheckinSDK] ❌ Failed to send context:', error);
+                }
+              }
+            } else {
+              console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
             }
-          } else {
-            console.warn('[CheckinSDK] ⚠️ No context available to send to agent');
-          }
+          }, 1000); // Wait 1 second after session starts
 
         } catch (error) {
           console.error('[CheckinSDK] ❌ Failed to start conversation:', error);
