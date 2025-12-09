@@ -1,140 +1,224 @@
 /**
- * Check-in Multimodal Enrichment Service
+ * Simplified Check-in Enrichment Service
  * 
- * Main orchestrator for check-in multimodal processing.
- * Coordinates all extractors, analyzers, fusion, and assembly.
+ * Uses:
+ * - 50% Bedrock text analysis
+ * - 50% Baseline multimodal (audio + visual from baseline enrichment)
  */
 
-import type { CapturedMedia } from '../types';
-import type {
-  CheckinEnrichmentInput,
-  CheckinEnrichmentResult
-} from './types';
+import { BedrockTextAnalyzer } from './analyzers/bedrockTextAnalyzer';
+import { BaselineEnrichmentService } from '../baseline/enrichmentService';
+import type { TextAnalysisContext } from './analyzers/bedrockTextAnalyzer';
 
-import { CheckinAudioExtractor } from './extractors/audioFeatures';
-import { CheckinVisualExtractor } from './extractors/visualFeatures';
-import { CheckinTextAnalyzer } from './analyzers/textAnalyzer';
-import { CheckinFusionEngine } from './fusion/fusionEngine';
-import { DashboardAssembler } from './assembly/dashboardAssembler';
+export interface CheckinEnrichmentInput {
+  userId: string;
+  transcript: string;
+  audioBlob?: Blob;
+  videoFrames?: ImageData[];
+  duration: number;
+  sessionId?: string;
+  // Context from previous check-ins
+  previousThemes?: string[];
+  previousScore?: number;
+  previousDirection?: string;
+  studentFirstName?: string;
+}
+
+export interface CheckinEnrichmentResult {
+  // Final scores
+  mind_measure_score: number;
+  finalScore: number;
+  
+  // Text analysis (50%)
+  themes: string[];
+  keywords: string[];
+  risk_level: string;
+  direction_of_change: string;
+  conversation_summary: string;
+  drivers_positive: string[];
+  drivers_negative: string[];
+  
+  // Multimodal (50%)
+  audio_features?: any;
+  visual_features?: any;
+  
+  // Modality breakdown
+  modalities: {
+    text: {
+      score: number;
+      confidence: number;
+    };
+    audio?: {
+      score: number;
+      confidence: number;
+    };
+    visual?: {
+      score: number;
+      confidence: number;
+    };
+  };
+  
+  // Metadata
+  assessment_type: string;
+  session_id?: string;
+  transcript_length: number;
+  duration: number;
+  processing_time_ms: number;
+  warnings: string[];
+}
 
 export class CheckinEnrichmentService {
-  private audioExtractor: CheckinAudioExtractor;
-  private visualExtractor: CheckinVisualExtractor;
-  private textAnalyzer: CheckinTextAnalyzer;
-  private fusionEngine: CheckinFusionEngine;
-  private assembler: DashboardAssembler;
+  private textAnalyzer: BedrockTextAnalyzer;
+  private baselineEnrichment: BaselineEnrichmentService;
   
   constructor() {
-    this.audioExtractor = new CheckinAudioExtractor();
-    this.visualExtractor = new CheckinVisualExtractor();
-    this.textAnalyzer = new CheckinTextAnalyzer();
-    this.fusionEngine = new CheckinFusionEngine();
-    this.assembler = new DashboardAssembler();
+    this.textAnalyzer = new BedrockTextAnalyzer();
+    this.baselineEnrichment = new BaselineEnrichmentService();
   }
   
-  /**
-   * Enrich check-in with full multimodal analysis
-   */
   async enrichCheckIn(input: CheckinEnrichmentInput): Promise<CheckinEnrichmentResult> {
-    console.log('[CheckinEnrichment] 🎯 Starting check-in enrichment...');
+    console.log('[CheckinEnrichment] 🎯 Starting check-in enrichment (Bedrock + Baseline)...');
     const startTime = Date.now();
     const warnings: string[] = [];
-    const errors: string[] = [];
     
     try {
-      // Create captured media object
-      const capturedMedia: CapturedMedia = {
-        audio: input.audioBlob,
-        videoFrames: input.videoFrames,
-        duration: input.duration,
-        startTime: input.startTime,
-        endTime: input.endTime
+      // 1. Text Analysis via Bedrock (50% weight)
+      console.log('[CheckinEnrichment] 📝 Running Bedrock text analysis...');
+      const textContext: TextAnalysisContext = {
+        checkinId: input.sessionId || 'unknown',
+        studentFirstName: input.studentFirstName,
+        previousTextThemes: input.previousThemes,
+        previousMindMeasureScore: input.previousScore,
+        previousDirectionOfChange: input.previousDirection as any
       };
       
-      // Extract features in parallel
-      console.log('[CheckinEnrichment] 🔄 Running multimodal + text analysis in parallel...');
-      
-      const [
-        audioResult,
-        visualResult,
-        textResult
-      ] = await Promise.allSettled([
-        this.audioExtractor.extract(capturedMedia),
-        this.visualExtractor.extract(capturedMedia),
-        this.textAnalyzer.analyze(input.transcript)
-      ]);
-      
-      // Handle results
-      const audioFeatures = audioResult.status === 'fulfilled' ? audioResult.value : null;
-      const visualFeatures = visualResult.status === 'fulfilled' ? visualResult.value : null;
-      const textAnalysis = textResult.status === 'fulfilled' ? textResult.value : null;
-      
-      // Collect warnings for failed extractions
-      if (audioResult.status === 'rejected') {
-        warnings.push('Audio feature extraction failed');
-        console.warn('[CheckinEnrichment] ⚠️ Audio extraction failed:', audioResult.reason);
-      }
-      
-      if (visualResult.status === 'rejected') {
-        warnings.push('Visual feature extraction failed');
-        console.warn('[CheckinEnrichment] ⚠️ Visual extraction failed:', visualResult.reason);
-      }
-      
-      if (textResult.status === 'rejected') {
-        errors.push('Text analysis failed');
-        console.error('[CheckinEnrichment] ❌ Text analysis failed:', textResult.reason);
-        // Text is critical - can't continue without it
-        throw new Error('Text analysis is required but failed');
-      }
-      
-      // Fusion (requires at least text analysis)
-      console.log('[CheckinEnrichment] 🧠 Running fusion engine...');
-      const fusionResult = await this.fusionEngine.fuse({
-        audioFeatures,
-        visualFeatures,
-        textAnalysis: textAnalysis!,
-        baseline: input.baselineData
+      const textResult = await this.textAnalyzer.analyzeText(input.transcript, textContext);
+      console.log('[CheckinEnrichment] ✅ Text analysis complete:', {
+        score: textResult.text_score,
+        uncertainty: textResult.uncertainty,
+        themes: textResult.themes
       });
       
-      // Assemble dashboard data
-      console.log('[CheckinEnrichment] 📦 Assembling dashboard data...');
-      const dashboardData = this.assembler.assemble(
-        fusionResult,
-        textAnalysis!,
-        audioFeatures,
-        visualFeatures,
-        input.checkInId,
-        input.userId
-      );
+      // 2. Multimodal Analysis via Baseline Enrichment (50% weight)
+      console.log('[CheckinEnrichment] 🎙️📹 Running baseline multimodal (audio + visual)...');
+      let multimodalResult = null;
+      let audioScore = 50;
+      let visualScore = 50;
+      let audioConfidence = 0;
+      let visualConfidence = 0;
       
+      try {
+        multimodalResult = await this.baselineEnrichment.enrichBaseline({
+          userId: input.userId,
+          clinicalScore: 50, // No clinical questions in check-in
+          audioBlob: input.audioBlob,
+          videoFrames: input.videoFrames,
+          duration: input.duration
+        });
+        
+        console.log('[CheckinEnrichment] ✅ Multimodal complete:', {
+          audioScore: multimodalResult.audioScore,
+          visualScore: multimodalResult.visualScore
+        });
+        
+        audioScore = multimodalResult.audioScore || 50;
+        visualScore = multimodalResult.visualScore || 50;
+        audioConfidence = multimodalResult.audioQuality || 0;
+        visualConfidence = multimodalResult.visualQuality || 0;
+        
+      } catch (multimodalError: any) {
+        console.warn('[CheckinEnrichment] ⚠️ Multimodal enrichment failed:', multimodalError?.message);
+        warnings.push('Multimodal features unavailable');
+      }
+      
+      // 3. Fusion: Dynamic weighting based on what succeeded
+      console.log('[CheckinEnrichment] 🧠 Fusing scores with dynamic weighting...');
+      
+      let finalScore: number;
+      let textWeight: number;
+      let multimodalWeight: number;
+      
+      if (!multimodalResult) {
+        // Text only (audio/visual failed)
+        console.log('[CheckinEnrichment] Using text-only scoring (100% text)');
+        textWeight = 1.0;
+        multimodalWeight = 0;
+        finalScore = Math.round(textResult.text_score);
+        warnings.push('Multimodal features unavailable - using text-only score');
+      } else {
+        // Normal 50/50 split
+        console.log('[CheckinEnrichment] Using 50% text, 50% multimodal');
+        textWeight = 0.5;
+        multimodalWeight = 0.5;
+        
+        const audioScore = multimodalResult.audioScore || 50;
+        const visualScore = multimodalResult.visualScore || 50;
+        
+        // Within multimodal: equal weight to audio and visual
+        const multimodalScore = (audioScore * 0.5) + (visualScore * 0.5);
+        finalScore = Math.round((textResult.text_score * textWeight) + (multimodalScore * multimodalWeight));
+      }
+      
+      console.log('[CheckinEnrichment] 📊 Final score breakdown:', {
+        text: textResult.text_score,
+        textWeight,
+        audio: multimodalResult?.audioScore || 'N/A',
+        visual: multimodalResult?.visualScore || 'N/A',
+        multimodalWeight,
+        final: finalScore
+      });
+      
+      // 4. Assemble result
       const processingTime = Date.now() - startTime;
-      console.log(`[CheckinEnrichment] ✅ Enrichment complete in ${processingTime}ms`);
-      console.log(`[CheckinEnrichment] Score: ${dashboardData.mindMeasureScore}, Direction: ${dashboardData.directionOfChange}`);
       
-      return {
-        success: true,
-        dashboardData,
-        warnings,
-        errors,
-        processingTimeMs: processingTime
+      const result: CheckinEnrichmentResult = {
+        mind_measure_score: finalScore,
+        finalScore: finalScore,
+        
+        // Text analysis
+        themes: textResult.themes,
+        keywords: textResult.keywords,
+        risk_level: textResult.risk_level,
+        direction_of_change: textResult.direction_of_change,
+        conversation_summary: textResult.conversation_summary,
+        drivers_positive: textResult.drivers_positive,
+        drivers_negative: textResult.drivers_negative,
+        
+        // Multimodal features
+        audio_features: multimodalResult?.audio_features,
+        visual_features: multimodalResult?.visual_features,
+        
+        // Modality breakdown
+        modalities: {
+          text: {
+            score: textResult.text_score,
+            confidence: 1 - textResult.uncertainty
+          },
+          audio: multimodalResult ? {
+            score: multimodalResult.audioScore || 50,
+            confidence: multimodalResult.audioQuality || 0
+          } : undefined,
+          visual: multimodalResult ? {
+            score: multimodalResult.visualScore || 50,
+            confidence: multimodalResult.visualQuality || 0
+          } : undefined
+        },
+        
+        // Metadata
+        assessment_type: 'checkin',
+        session_id: input.sessionId,
+        transcript_length: input.transcript.length,
+        duration: input.duration,
+        processing_time_ms: processingTime,
+        warnings
       };
       
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
+      console.log('[CheckinEnrichment] ✅ Enrichment complete in', processingTime, 'ms');
+      return result;
+      
+    } catch (error: any) {
       console.error('[CheckinEnrichment] ❌ Enrichment failed:', error);
-      
-      errors.push(error instanceof Error ? error.message : String(error));
-      
-      throw error; // Let caller handle the error
+      throw error;
     }
   }
 }
-
-// Export convenience function
-export async function enrichCheckIn(
-  input: CheckinEnrichmentInput
-): Promise<CheckinEnrichmentResult> {
-  const service = new CheckinEnrichmentService();
-  return service.enrichCheckIn(input);
-}
-
