@@ -21,7 +21,7 @@ interface Message {
 
 export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSDKProps) {
   const { user } = useAuth();
-  const [showConversation, setShowConversation] = useState(false);
+  const [showConversation, setShowConversation] = useState(true); // Start directly in conversation mode
   const [requestingPermissions, setRequestingPermissions] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +77,11 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
+
+  // Auto-start conversation when component mounts
+  useEffect(() => {
+    handleStartAssessment();
+  }, []);
 
   const handleStartAssessment = async () => {
     console.log('[CheckinSDK] 🎯 Starting ElevenLabs SDK check-in');
@@ -442,8 +447,19 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           </div>
         )}
 
-        {/* Header */}
-        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        {/* Header - matching baseline with proper safe area padding */}
+        <div style={{ 
+          paddingTop: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
+          paddingBottom: '0.75rem',
+          paddingLeft: '1rem',
+          paddingRight: '1rem',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(8px)',
+          borderBottom: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
           <h1 className="text-lg font-medium text-gray-900">Daily Check-in</h1>
           <Button
             onClick={handleFinish}
@@ -486,48 +502,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
     );
   }
 
-  // Initial welcome screen
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 flex flex-col">
-      {/* Header with logo */}
-      <div className="text-center pt-8 mb-8">
-        <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-          <img
-            src={mindMeasureLogo}
-            alt="Mind Measure"
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <h1 className="text-3xl text-gray-900 mb-3">Daily Check-in</h1>
-        <p className="text-gray-600 leading-relaxed text-base">
-          Ready for your mental wellness check-in with Jodie?
-        </p>
-      </div>
-
-      {/* Start button */}
-      <div className="flex-1 flex items-center justify-center">
-        <Button
-          onClick={handleStartAssessment}
-          disabled={requestingPermissions}
-          className="w-full max-w-sm h-16 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-0 shadow-2xl text-lg backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 rounded-2xl"
-        >
-          {requestingPermissions ? 'Starting...' : 'Start Check-in'}
-        </Button>
-      </div>
-
-      {/* Back button */}
-      {onBack && (
-        <div className="mt-8">
-          <Button
-            onClick={onBack}
-            variant="ghost"
-            className="w-full text-gray-600"
-          >
-            Back to Dashboard
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+  // Component auto-starts, no welcome screen needed
+  return null;
 }
 
