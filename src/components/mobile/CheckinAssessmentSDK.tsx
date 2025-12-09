@@ -174,8 +174,26 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         try {
           console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
           
+          // Load user context for personalized conversation
+          const context = await loadUserContext();
+          
+          // Build context string for Jodie
+          let firstMessage = undefined;
+          if (context) {
+            const name = context.user.name;
+            firstMessage = `Hi ${name}! Ready for your check-in today? How are you feeling?`;
+            console.log('[CheckinSDK] 📋 Personalized first message:', firstMessage);
+          }
+          
           const sid = await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx'
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx',
+            ...(firstMessage && { 
+              overrides: {
+                agent: {
+                  firstMessage: firstMessage
+                }
+              }
+            })
           });
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
