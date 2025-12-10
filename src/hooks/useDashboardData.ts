@@ -201,17 +201,42 @@ export function useDashboardData(): DashboardData {
           console.warn('Failed to parse analysis field:', e);
         }
         
-        // Only include detailed conversation data for check-ins, not baseline assessments
-        const isBaselineOnly = analysisData.assessment_type === 'baseline';
+        // Include detailed conversation data for check-ins from the actual analysis data
+        const isCheckin = analysisData.assessment_type === 'checkin';
+        const isBaseline = analysisData.assessment_type === 'baseline';
+        
         latestSession = {
           id: latestSessionWithScore.id,
           createdAt: new Date(latestSessionWithScore.created_at).toLocaleDateString('en-GB'),
-          summary: isBaselineOnly ? null : 'Assessment completed successfully.', // conversation_summary doesn't exist for baseline
-          themes: isBaselineOnly ? [] : ['wellbeing', 'mood', 'energy'], // No themes for baseline
-          moodScore: Math.round(currentScore / 10), // Convert 0-100 to 0-10
-          driverPositive: isBaselineOnly ? [] : ['positive outlook', 'good energy'],
-          driverNegative: isBaselineOnly ? [] : ['stress', 'fatigue'],
+          // Read actual conversation summary from check-in, null for baseline
+          summary: isCheckin 
+            ? (analysisData.conversation_summary || 'Check-in completed.') 
+            : null,
+          // Read actual themes from check-in data
+          themes: analysisData.themes || [],
+          // Read actual mood score (1-10 scale) - extracted from conversation by Bedrock
+          // For check-ins: use mood_score directly (1-10)
+          // For baselines: derive from score (0-100 → 1-10)
+          moodScore: analysisData.mood_score 
+            || Math.round(currentScore / 10),  // Fallback: convert 0-100 to 1-10
+          // Read actual positive drivers from check-in data
+          driverPositive: analysisData.driver_positive 
+            || analysisData.drivers_positive 
+            || [],
+          // Read actual negative drivers from check-in data
+          driverNegative: analysisData.driver_negative 
+            || analysisData.drivers_negative 
+            || [],
         };
+        
+        console.log('📊 Latest session analysis:', {
+          type: analysisData.assessment_type,
+          summary: latestSession.summary?.substring(0, 50),
+          themes: latestSession.themes,
+          moodScore: latestSession.moodScore,
+          driverPositive: latestSession.driverPositive,
+          driverNegative: latestSession.driverNegative
+        });
       }
       
       // Recent activity from all sessions (parse analysis to get assessment_type)

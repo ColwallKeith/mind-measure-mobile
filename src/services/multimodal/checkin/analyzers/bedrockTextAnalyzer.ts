@@ -12,6 +12,9 @@ export interface TextAnalysisResult {
   risk_level: RiskLevel;
   direction_of_change: DirectionOfChange;
   
+  // Explicit mood rating from user (1-10 scale, extracted from conversation)
+  mood_score: number;
+  
   // 0–100 score for text modality only
   text_score: number;
   

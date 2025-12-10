@@ -180,12 +180,10 @@ export class AWSBrowserAuthService implements AuthService {
     });
     
     if (!userPoolId || !clientId) {
-      console.warn('AWS Cognito configuration missing - auth features will be limited');
-      console.log('🔍 Missing values:', {
-        userPoolId: userPoolId,
-        clientId: clientId
-      });
-      // Use fallback values to prevent crashes
+      // Note: This is EXPECTED in production - we use token-based auth via cognito-api-client
+      // not full Amplify in-browser. Auth works via tokens restored from native storage.
+      console.log('🔧 Browser Cognito config not set (expected - using token-based auth)');
+      // Use fallback values to prevent crashes - actual auth uses different pathway
       this.userPoolId = userPoolId || 'fallback-pool-id';
       this.clientId = clientId || 'fallback-client-id';
     } else {
@@ -196,11 +194,12 @@ export class AWSBrowserAuthService implements AuthService {
   }
   private async authApiCall(endpoint: string, body: any): Promise<any> {
     // Check if we have valid configuration
+    // Note: In production, auth goes through cognito-api-client, not this pathway
     if (this.userPoolId === 'fallback-pool-id' || this.clientId === 'fallback-client-id') {
-      console.warn('AWS Cognito not properly configured - returning mock auth response');
+      // This is expected - actual auth uses token-based cognito-api-client
       return {
         success: false,
-        error: 'AWS Cognito configuration missing',
+        error: 'Using token-based auth pathway instead',
         session: null
       };
     }
@@ -595,11 +594,12 @@ export class AWSBrowserBackendService implements BackendService {
     this.functions = new AWSBrowserFunctionsService(config);
     
     // Make storage service optional - only create if S3 bucket is configured
+    // Note: S3 is intentionally not configured - we stream to Rekognition directly
+    // and don't persist raw media. This is expected behavior.
     if (config.s3BucketName) {
       this.storage = new AWSBrowserStorageService(config);
     } else {
-      console.warn('⚠️ S3 bucket not configured - storage features will be limited');
-      // Create a minimal storage service that throws helpful errors
+      // Expected in production - no raw media persistence, direct API streaming instead
       this.storage = {
         uploadFile: async () => { throw new Error('S3 storage not configured'); },
         downloadFile: async () => { throw new Error('S3 storage not configured'); },

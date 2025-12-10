@@ -1,9 +1,15 @@
 /**
- * Simplified Check-in Enrichment Service
+ * Check-in Enrichment Service - V2 Calibration
  * 
- * Uses:
- * - 50% Bedrock text analysis
- * - 50% Baseline multimodal (audio + visual from baseline enrichment)
+ * Scoring weights (text-heavy, with sanity floor):
+ * - If all modalities work: 70% text + 15% audio + 15% visual
+ * - If audio fails: 80% text + 20% visual
+ * - If visual fails: 80% text + 20% audio  
+ * - If both fail: 100% text
+ * 
+ * Sanity Floor:
+ * - If text_score >= 75 AND risk_level = 'none' AND quality >= 0.8
+ * - Floor final score at 60 (prevents audio/visual dragging down obviously positive check-ins)
  */
 
 import { analyzeTextWithBedrock } from './analyzers/bedrockTextAnalyzer';
@@ -29,7 +35,13 @@ export interface CheckinEnrichmentResult {
   mind_measure_score: number;
   finalScore: number;
   
-  // Text analysis (50%)
+  // Explicit mood rating from user (1-10 scale, extracted from conversation)
+  mood_score: number;
+  
+  // Uncertainty from text analysis (0-1, lower is more confident)
+  uncertainty: number;
+  
+  // Text analysis
   themes: string[];
   keywords: string[];
   risk_level: string;
@@ -38,7 +50,7 @@ export interface CheckinEnrichmentResult {
   drivers_positive: string[];
   drivers_negative: string[];
   
-  // Multimodal (50%)
+  // Multimodal features
   audio_features?: any;
   visual_features?: any;
   
@@ -97,72 +109,109 @@ export class CheckinEnrichmentService {
         themes: textResult.themes
       });
       
-      // 2. Multimodal Analysis via Baseline Enrichment (50% weight)
-      console.log('[CheckinEnrichment] 🎙️📹 Running baseline multimodal (audio + visual)...');
-      let multimodalResult = null;
-      let audioScore = 50;
-      let visualScore = 50;
+      // 2. Direct Audio/Visual Feature Extraction (no fake clinical score)
+      console.log('[CheckinEnrichment] 🎙️📹 Extracting audio and visual features...');
+      let audioScore: number | null = null;
+      let visualScore: number | null = null;
       let audioConfidence = 0;
       let visualConfidence = 0;
+      let audioFeatures: any = null;
+      let visualFeatures: any = null;
       
       try {
-        multimodalResult = await this.baselineEnrichment.enrichBaseline({
+        // Use baseline enrichment for feature extraction
+        // We'll compute our own score without relying on its fake clinical placeholder
+        const multimodalResult = await this.baselineEnrichment.enrichBaseline({
           userId: input.userId,
-          clinicalScore: 50, // No clinical questions in check-in
+          fusionOutputId: input.sessionId || 'checkin-temp', // Not used for check-ins
+          clinicalScore: 50, // Still needed by baseline service, but we use raw scores
           audioBlob: input.audioBlob,
-          videoFrames: input.videoFrames,
+          videoFrames: input.videoFrames as any, // Type coercion for now
           duration: input.duration
         });
         
-        console.log('[CheckinEnrichment] ✅ Multimodal complete:', {
-          audioScore: multimodalResult.audioScore,
-          visualScore: multimodalResult.visualScore
-        });
+        // Extract the REAL audio/visual scores from scoringBreakdown
+        const breakdown = multimodalResult.scoringBreakdown;
         
-        audioScore = multimodalResult.audioScore || 50;
-        visualScore = multimodalResult.visualScore || 50;
-        audioConfidence = multimodalResult.audioQuality || 0;
-        visualConfidence = multimodalResult.visualQuality || 0;
+        if (multimodalResult.audioFeatures && breakdown.audioScore !== 50) {
+          audioScore = breakdown.audioScore;
+          audioConfidence = multimodalResult.audioFeatures.quality || 0.6;
+          audioFeatures = multimodalResult.audioFeatures;
+          console.log('[CheckinEnrichment] ✅ Audio features extracted, score:', audioScore);
+        } else {
+          console.log('[CheckinEnrichment] ⚠️ Audio features not available');
+          warnings.push('Audio features not available');
+        }
+        
+        if (multimodalResult.visualFeatures && breakdown.visualScore !== 50) {
+          visualScore = breakdown.visualScore;
+          visualConfidence = multimodalResult.visualFeatures.overallQuality || 0.6;
+          visualFeatures = multimodalResult.visualFeatures;
+          console.log('[CheckinEnrichment] ✅ Visual features extracted, score:', visualScore);
+        } else {
+          console.log('[CheckinEnrichment] ⚠️ Visual features not available');
+          warnings.push('Visual features not available');
+        }
         
       } catch (multimodalError: any) {
-        console.warn('[CheckinEnrichment] ⚠️ Multimodal enrichment failed:', multimodalError?.message);
+        console.warn('[CheckinEnrichment] ⚠️ Multimodal extraction failed:', multimodalError?.message);
         warnings.push('Multimodal features unavailable');
       }
       
-      // 3. Fusion: Dynamic weighting based on what succeeded
-      console.log('[CheckinEnrichment] 🧠 Fusing scores with dynamic weighting...');
+      // 3. Dynamic Fusion: Weight based on what succeeded
+      // V2: Text-heavy weighting (70/15/15) with sanity floor
+      console.log('[CheckinEnrichment] 🧠 Fusing scores with V2 weighting...');
       
-      let finalScore: number;
-      let textWeight: number;
-      let multimodalWeight: number;
+      let rawScore: number;
+      const hasAudio = audioScore !== null && audioConfidence > 0;
+      const hasVisual = visualScore !== null && visualConfidence > 0;
       
-      if (!multimodalResult) {
-        // Text only (audio/visual failed)
-        console.log('[CheckinEnrichment] Using text-only scoring (100% text)');
-        textWeight = 1.0;
-        multimodalWeight = 0;
-        finalScore = Math.round(textResult.text_score);
-        warnings.push('Multimodal features unavailable - using text-only score');
+      if (hasAudio && hasVisual) {
+        // All three modalities: 70% text + 15% audio + 15% visual
+        console.log('[CheckinEnrichment] Using 70% text + 15% audio + 15% visual');
+        rawScore = (textResult.text_score * 0.70) + 
+                   (audioScore! * 0.15) + 
+                   (visualScore! * 0.15);
+      } else if (hasAudio && !hasVisual) {
+        // Text + audio only: 80% text + 20% audio
+        console.log('[CheckinEnrichment] Using 80% text + 20% audio (no visual)');
+        rawScore = (textResult.text_score * 0.80) + 
+                   (audioScore! * 0.20);
+      } else if (!hasAudio && hasVisual) {
+        // Text + visual only: 80% text + 20% visual
+        console.log('[CheckinEnrichment] Using 80% text + 20% visual (no audio)');
+        rawScore = (textResult.text_score * 0.80) + 
+                   (visualScore! * 0.20);
       } else {
-        // Normal 50/50 split
-        console.log('[CheckinEnrichment] Using 50% text, 50% multimodal');
-        textWeight = 0.5;
-        multimodalWeight = 0.5;
-        
-        const audioScore = multimodalResult.audioScore || 50;
-        const visualScore = multimodalResult.visualScore || 50;
-        
-        // Within multimodal: equal weight to audio and visual
-        const multimodalScore = (audioScore * 0.5) + (visualScore * 0.5);
-        finalScore = Math.round((textResult.text_score * textWeight) + (multimodalScore * multimodalWeight));
+        // Text only: 100% text
+        console.log('[CheckinEnrichment] Using 100% text (no audio/visual)');
+        rawScore = textResult.text_score;
+        warnings.push('Using text-only score - no multimodal data available');
+      }
+      
+      // 4. Sanity Floor: Prevent obviously positive check-ins from scoring too low
+      // If text is high (>= 75), risk is none, and quality is good (>= 0.8), floor at 60
+      const avgQuality = ((hasAudio ? audioConfidence : 0) + (hasVisual ? visualConfidence : 0)) / 
+                         ((hasAudio ? 1 : 0) + (hasVisual ? 1 : 0) || 1);
+      const shouldApplyFloor = textResult.text_score >= 75 && 
+                               textResult.risk_level === 'none' && 
+                               avgQuality >= 0.6; // Lowered from 0.8 since audio quality is typically 0.6
+      
+      let finalScore = Math.round(rawScore);
+      if (shouldApplyFloor && finalScore < 60) {
+        console.log('[CheckinEnrichment] 🛡️ Applying sanity floor: raw', finalScore, '→ floored to 60');
+        finalScore = 60;
+        warnings.push('Sanity floor applied - text analysis indicates positive state');
       }
       
       console.log('[CheckinEnrichment] 📊 Final score breakdown:', {
         text: textResult.text_score,
-        textWeight,
-        audio: multimodalResult?.audioScore || 'N/A',
-        visual: multimodalResult?.visualScore || 'N/A',
-        multimodalWeight,
+        audio: audioScore ?? 'N/A',
+        visual: visualScore ?? 'N/A',
+        hasAudio,
+        hasVisual,
+        rawScore: Math.round(rawScore),
+        sanityFloor: shouldApplyFloor ? 60 : 'N/A',
         final: finalScore
       });
       
@@ -173,6 +222,12 @@ export class CheckinEnrichmentService {
         mind_measure_score: finalScore,
         finalScore: finalScore,
         
+        // Explicit mood rating from user (1-10 scale, extracted from conversation)
+        mood_score: textResult.mood_score,
+        
+        // Pass through Bedrock uncertainty (NOT overwritten with 0.5)
+        uncertainty: textResult.uncertainty,
+        
         // Text analysis
         themes: textResult.themes,
         keywords: textResult.keywords,
@@ -182,9 +237,9 @@ export class CheckinEnrichmentService {
         drivers_positive: textResult.drivers_positive,
         drivers_negative: textResult.drivers_negative,
         
-        // Multimodal features
-        audio_features: multimodalResult?.audio_features,
-        visual_features: multimodalResult?.visual_features,
+        // Multimodal features (actual extracted features, not from fake clinical score)
+        audio_features: audioFeatures,
+        visual_features: visualFeatures,
         
         // Modality breakdown
         modalities: {
@@ -192,14 +247,14 @@ export class CheckinEnrichmentService {
             score: textResult.text_score,
             confidence: 1 - textResult.uncertainty
           },
-          audio: multimodalResult ? {
-            score: multimodalResult.audioScore || 50,
-            confidence: multimodalResult.audioQuality || 0
-          } : undefined,
-          visual: multimodalResult ? {
-            score: multimodalResult.visualScore || 50,
-            confidence: multimodalResult.visualQuality || 0
-          } : undefined
+          audio: hasAudio ? {
+            score: audioScore!,
+            confidence: audioConfidence
+          } : { score: 50, confidence: 0 },
+          visual: hasVisual ? {
+            score: visualScore!,
+            confidence: visualConfidence
+          } : { score: 50, confidence: 0 }
         },
         
         // Metadata

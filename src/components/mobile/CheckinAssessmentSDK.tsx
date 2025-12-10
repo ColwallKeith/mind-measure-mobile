@@ -192,7 +192,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         capturedMedia = await mediaCaptureRef.current.stop();
         setIsCapturingMedia(false);
         console.log('[CheckinSDK] ✅ Media captured:', {
-          audioSize: capturedMedia.audioBlob?.size,
+          audioSize: capturedMedia.audio?.size,  // Fixed: was audioBlob, MediaCapture returns 'audio'
           videoFrames: capturedMedia.videoFrames?.length
         });
       }
@@ -207,7 +207,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         enrichmentResult = await enrichmentService.enrichCheckIn({
           userId: user!.id,
           transcript,
-          audioBlob: capturedMedia?.audioBlob,
+          audioBlob: capturedMedia?.audio,  // Fixed: MediaCapture returns 'audio' not 'audioBlob'
           videoFrames: capturedMedia?.videoFrames,
           duration,
           sessionId: sessionId || undefined,
@@ -222,51 +222,101 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
       // Save to database
       setProcessingPhase('saving');
-      console.log('[CheckinSDK] 💾 Saving check-in to database... [v2-dec10]');
+      console.log('[CheckinSDK] 💾 Saving check-in to database... [v3-dec10]');
 
-      const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
-      const backendService = BackendServiceFactory.getService();
-
-      // Create analysis - mark as check-in type
-      const analysis = enrichmentResult 
-        ? {
-            ...enrichmentResult,
-            assessment_type: 'checkin',
-            session_id: sessionId,
-            transcript_length: transcript.length,
-            duration
-          }
-        : {
-            assessment_type: 'checkin',
-            mind_measure_score: 50,
-            transcript_summary: 'Check-in completed',
-            conversation_duration: duration,
-            session_id: sessionId
-          };
-
-      const finalScore = enrichmentResult?.finalScore || enrichmentResult?.mind_measure_score || 50;
+      // Step 1: Import backend service
+      console.log('[CheckinSDK] Step 1: Importing BackendServiceFactory...');
+      const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
+      console.log('[CheckinSDK] Step 1: ✅ Import successful');
       
+      // Step 2: Get service instance (same pattern as BaselineAssessmentSDK)
+      console.log('[CheckinSDK] Step 2: Getting backend service...');
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+      console.log('[CheckinSDK] Step 2: ✅ Got backend service');
+
+      // Step 3: Build analysis object - normalize field names for DB compatibility
+      console.log('[CheckinSDK] Step 3: Building analysis object...');
+      const analysis = {
+        assessment_type: 'checkin',
+        mind_measure_score: enrichmentResult?.mind_measure_score ?? enrichmentResult?.finalScore ?? 50,
+        
+        // Explicit mood rating from user (1-10 scale, extracted from conversation by Bedrock)
+        mood_score: enrichmentResult?.mood_score ?? 5,
+        
+        // Normalize to old field names for DB compatibility
+        driver_positive: enrichmentResult?.drivers_positive ?? enrichmentResult?.driver_positive ?? [],
+        driver_negative: enrichmentResult?.drivers_negative ?? enrichmentResult?.driver_negative ?? [],
+        
+        themes: enrichmentResult?.themes ?? [],
+        keywords: enrichmentResult?.keywords ?? [],
+        modalities: enrichmentResult?.modalities ?? {},
+        
+        risk_level: enrichmentResult?.risk_level ?? 'none',
+        direction_of_change: enrichmentResult?.direction_of_change ?? 'same',
+        uncertainty: enrichmentResult?.uncertainty ?? 0.5,  // Now passed through from Bedrock
+        conversation_summary: enrichmentResult?.conversation_summary ?? '',
+        
+        // Session info - separate internal ID from provider ID
+        check_in_id: crypto.randomUUID(),           // Our internal UUID
+        session_id: sessionId,                       // ElevenLabs conv_xxx
+        elevenlabs_session_id: sessionId,            // Explicit provider reference
+        transcript_length: transcript.length,
+        duration,
+        processing_time_ms: enrichmentResult?.processing_time_ms,
+        warnings: enrichmentResult?.warnings ?? []
+      };
+      console.log('[CheckinSDK] Step 3: ✅ Analysis built with keys:', Object.keys(analysis));
+
+      // Step 4: Calculate final score
+      console.log('[CheckinSDK] Step 4: Calculating final score...');
+      const finalScore = Math.round(enrichmentResult?.finalScore ?? enrichmentResult?.mind_measure_score ?? 50);
+      console.log('[CheckinSDK] Step 4: ✅ Final score:', finalScore);
+      
+      // Step 5: Stringify analysis
+      console.log('[CheckinSDK] Step 5: Stringifying analysis...');
+      let analysisJson: string;
+      try {
+        analysisJson = JSON.stringify(analysis);
+        console.log('[CheckinSDK] Step 5: ✅ Analysis stringified, length:', analysisJson.length);
+      } catch (stringifyError: any) {
+        console.error('[CheckinSDK] Step 5: ❌ JSON.stringify failed:', stringifyError?.message);
+        throw stringifyError;
+      }
+      
+      // Step 6: Build fusion data payload
+      console.log('[CheckinSDK] Step 6: Building fusion data...');
       const fusionData = {
         user_id: user!.id,
         score: finalScore,
-        analysis: JSON.stringify(analysis), // Must stringify for JSONB column
+        final_score: finalScore,  // Set same as score for consistency with baseline
+        analysis: analysisJson,
         created_at: new Date().toISOString()
       };
-      
-      console.log('[CheckinSDK] 📤 Saving fusion data:', {
+      console.log('[CheckinSDK] Step 6: ✅ Fusion data built:', {
         user_id: fusionData.user_id,
         score: fusionData.score,
-        analysisKeys: Object.keys(analysis)
+        final_score: fusionData.final_score,
+        analysis_length: analysisJson.length
       });
 
-      console.log('[CheckinSDK] 📡 Calling database insert...');
+      // Step 7: Insert into database
+      console.log('[CheckinSDK] Step 7: 📡 Calling database insert...');
       const { data: fusionResult, error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
+      console.log('[CheckinSDK] Step 7: Insert returned:', { 
+        hasData: !!fusionResult, 
+        hasError: !!fusionError,
+        errorType: typeof fusionError,
+        errorValue: fusionError
+      });
       
       if (fusionError || !fusionResult) {
-        console.error('[CheckinSDK] ❌ Failed to save check-in');
-        console.error('[CheckinSDK] ❌ Error:', fusionError);
+        console.error('[CheckinSDK] ❌ Database insert failed');
+        console.error('[CheckinSDK] ❌ Error value:', fusionError);
+        console.error('[CheckinSDK] ❌ Error JSON:', JSON.stringify(fusionError));
         console.error('[CheckinSDK] ❌ Result:', fusionResult);
-        throw new Error(fusionError || 'Database insert returned no data');
+        throw new Error(typeof fusionError === 'string' ? fusionError : JSON.stringify(fusionError) || 'Database insert returned no data');
       }
 
       const savedId = Array.isArray(fusionResult) ? fusionResult[0]?.id : fusionResult?.id;
@@ -281,8 +331,18 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         onComplete();
       }
 
-    } catch (error) {
-      console.error('[CheckinSDK] ❌ Failed to save check-in:', error);
+    } catch (error: any) {
+      // Comprehensive error logging for iOS WebView debugging
+      console.error('[CheckinSDK] ❌ CATCH BLOCK - Failed to save check-in');
+      console.error('[CheckinSDK] ❌ Error type:', typeof error);
+      console.error('[CheckinSDK] ❌ Error name:', error?.name);
+      console.error('[CheckinSDK] ❌ Error message:', error?.message);
+      console.error('[CheckinSDK] ❌ Error stack:', error?.stack?.substring(0, 500));
+      try {
+        console.error('[CheckinSDK] ❌ Error JSON:', JSON.stringify(error, Object.getOwnPropertyNames(error || {})));
+      } catch (e) {
+        console.error('[CheckinSDK] ❌ Could not stringify error');
+      }
       setIsSaving(false);
       setErrorMessage('Failed to save your check-in. Please try again.');
       setShowErrorModal(true);

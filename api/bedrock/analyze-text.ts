@@ -22,6 +22,9 @@ export interface TextAnalysisResult {
   risk_level: RiskLevel;
   direction_of_change: DirectionOfChange;
   
+  // Explicit mood rating from conversation (1-10 scale, as stated by user)
+  mood_score: number;
+  
   // 0–100 score for text modality only
   text_score: number;
   
@@ -58,6 +61,7 @@ interface TextAnalysisResult {
   keywords: string[];
   risk_level: "none" | "mild" | "moderate" | "high";
   direction_of_change: "better" | "worse" | "same" | "unclear";
+  mood_score: number; // integer 1 to 10, extracted from user's explicit answer to "what is your mood on a scale of 1-10"
   text_score: number; // integer 0 to 100
   uncertainty: number; // number between 0 and 1, where 0 is very certain and 1 is very uncertain
   drivers_positive: string[];
@@ -81,6 +85,11 @@ Guidance:
   - "worse" if they say they feel lower, more stressed, more anxious or more overwhelmed than usual.
   - "same" if they say they feel similar to usual or give no reason to think it is better or worse.
   - "unclear" if the direction is not obvious.
+
+- "mood_score" is the explicit 1-10 rating the user gives when asked "on a scale of 1 to 10, what is your mood?" or similar.
+  - Look for phrases like "I would say it's an 8" or "about a 7" or "maybe 6 out of 10".
+  - Extract the exact number they state (1-10).
+  - If they don't give a number, estimate based on their overall tone: 7-8 for positive, 5-6 for neutral, 3-4 for struggling.
 
 - "text_score" is an overall 0 to 100 wellbeing score for this conversation only, based only on what they said in the text:
   - 70 to 100 for mainly positive, calm, manageable days with no risk language.
@@ -111,6 +120,7 @@ function getEmptyResult(summary: string): TextAnalysisResult {
     keywords: [],
     risk_level: "none",
     direction_of_change: "unclear",
+    mood_score: 5,  // Neutral default
     text_score: 50,
     uncertainty: 0.9,
     drivers_positive: [],
@@ -121,6 +131,19 @@ function getEmptyResult(summary: string): TextAnalysisResult {
 }
 
 function validateAndSanitize(parsed: any): TextAnalysisResult {
+  // Validate mood_score (1-10 scale from user's explicit answer)
+  if (
+    typeof parsed.mood_score !== "number" ||
+    Number.isNaN(parsed.mood_score) ||
+    parsed.mood_score < 1 ||
+    parsed.mood_score > 10
+  ) {
+    console.warn('[Bedrock API] Invalid mood_score, defaulting to 5');
+    parsed.mood_score = 5;
+  } else {
+    parsed.mood_score = Math.round(parsed.mood_score);
+  }
+  
   // Validate text_score
   if (
     typeof parsed.text_score !== "number" ||
