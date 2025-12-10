@@ -222,7 +222,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
       // Save to database
       setProcessingPhase('saving');
-      console.log('[CheckinSDK] 💾 Saving check-in to database...');
+      console.log('[CheckinSDK] 💾 Saving check-in to database... [v2-dec10]');
 
       const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
       const backendService = BackendServiceFactory.getService();
