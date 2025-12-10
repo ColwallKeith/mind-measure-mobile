@@ -100,17 +100,20 @@ export class AWSBrowserDatabaseService implements DatabaseService {
   }
   async insert<T = any>(table: string, data: Partial<T> | Partial<T>[], options?: any): Promise<InsertResult<T>> {
     try {
+      console.log('[AWSBrowserService] 📝 Insert to table:', table);
       const result = await this.apiCall('/insert', 'POST', { table, data, options });
+      console.log('[AWSBrowserService] ✅ Insert successful:', result?.data?.id || 'no id');
       return {
         data: result.data,
         error: null
       };
     } catch (error: any) {
-      // For baseline assessment, fail silently to avoid blocking ElevenLabs
-      console.warn('⚠️ Database insert failed (failing silently for baseline):', error);
+      console.error('[AWSBrowserService] ❌ Database insert failed:', error);
+      console.error('[AWSBrowserService] ❌ Error message:', error?.message || String(error));
+      // Return the actual error so callers can handle it
       return {
         data: null,
-        error: null // Return null error to avoid blocking UI
+        error: error?.message || 'Database insert failed'
       };
     }
   }

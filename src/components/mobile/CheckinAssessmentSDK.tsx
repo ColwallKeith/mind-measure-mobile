@@ -259,15 +259,18 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         analysisKeys: Object.keys(analysis)
       });
 
+      console.log('[CheckinSDK] 📡 Calling database insert...');
       const { data: fusionResult, error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
       
-      if (fusionError) {
-        console.error('[CheckinSDK] ❌ Failed to save check-in:', fusionError);
-        console.error('[CheckinSDK] ❌ Error details:', JSON.stringify(fusionError, null, 2));
-        throw fusionError;
+      if (fusionError || !fusionResult) {
+        console.error('[CheckinSDK] ❌ Failed to save check-in');
+        console.error('[CheckinSDK] ❌ Error:', fusionError);
+        console.error('[CheckinSDK] ❌ Result:', fusionResult);
+        throw new Error(fusionError || 'Database insert returned no data');
       }
 
-      console.log('[CheckinSDK] ✅ Check-in saved successfully:', fusionResult);
+      const savedId = Array.isArray(fusionResult) ? fusionResult[0]?.id : fusionResult?.id;
+      console.log('[CheckinSDK] ✅ Check-in saved successfully with ID:', savedId);
 
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 1000));
