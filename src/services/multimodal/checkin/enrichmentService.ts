@@ -6,7 +6,7 @@
  * - 50% Baseline multimodal (audio + visual from baseline enrichment)
  */
 
-import { BedrockTextAnalyzer } from './analyzers/bedrockTextAnalyzer';
+import { analyzeTextWithBedrock } from './analyzers/bedrockTextAnalyzer';
 import { BaselineEnrichmentService } from '../baseline/enrichmentService';
 import type { TextAnalysisContext } from './analyzers/bedrockTextAnalyzer';
 
@@ -68,11 +68,9 @@ export interface CheckinEnrichmentResult {
 }
 
 export class CheckinEnrichmentService {
-  private textAnalyzer: BedrockTextAnalyzer;
   private baselineEnrichment: BaselineEnrichmentService;
   
   constructor() {
-    this.textAnalyzer = new BedrockTextAnalyzer();
     this.baselineEnrichment = new BaselineEnrichmentService();
   }
   
@@ -92,7 +90,7 @@ export class CheckinEnrichmentService {
         previousDirectionOfChange: input.previousDirection as any
       };
       
-      const textResult = await this.textAnalyzer.analyzeText(input.transcript, textContext);
+      const textResult = await analyzeTextWithBedrock(input.transcript, textContext);
       console.log('[CheckinEnrichment] ✅ Text analysis complete:', {
         score: textResult.text_score,
         uncertainty: textResult.uncertainty,
