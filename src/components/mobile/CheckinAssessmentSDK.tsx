@@ -141,15 +141,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           
           // ONLY DIFFERENCE FROM BASELINE: different agent ID + pass variables
           const sid = await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx', // Check-in agent
-            // Pass variables for first message template
-            overrides: {
-              agent: {
-                prompt: {
-                  prompt: `student_first_name: ${user?.user_metadata?.first_name || user?.user_metadata?.given_name || 'there'}`
-                }
-              }
-            }
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx' // Check-in agent
           });
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);

@@ -3,6 +3,7 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
+            "@aws-sdk/client-bedrock-runtime": "^3.947.0",
             "@aws-sdk/client-cognito-identity-provider": "^3.894.0",
             "@aws-sdk/client-lambda": "^3.899.0",
             "@aws-sdk/client-rds": "^3.895.0",
