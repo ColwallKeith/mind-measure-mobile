@@ -45,6 +45,14 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const pendingContextRef = useRef<string | null>(null);
   const contextSentRef = useRef(false);
   const backendServiceRef = useRef<any>(null);
+  
+  // Previous check-in context for Phase 2
+  const [previousContext, setPreviousContext] = useState<{
+    lastThemes: string;
+    lastMood: string;
+    daysSince: string;
+    lastSummary: string;
+  } | null>(null);
 
   // Initialize the ElevenLabs conversation hook - SAME AS BASELINE
   const conversation = useConversation({
@@ -79,6 +87,73 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Fetch previous check-in context for Phase 2
+  const fetchPreviousContext = async (): Promise<{
+    lastThemes: string;
+    lastMood: string;
+    daysSince: string;
+    lastSummary: string;
+  } | null> => {
+    try {
+      console.log('[CheckinSDK] 📋 Fetching previous check-in context...');
+      const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+      
+      // Get the most recent check-in for this user (matches useDashboardData pattern)
+      const { data: sessions, error } = await backendService.database.select(
+        'fusion_outputs',
+        {
+          columns: ['id', 'score', 'analysis', 'created_at'],
+          filters: { user_id: user!.id },
+          orderBy: [{ column: 'created_at', ascending: false }]
+        }
+      ) as { data: any[] | null; error: any };
+      
+      if (error || !sessions || sessions.length === 0) {
+        console.log('[CheckinSDK] 📋 No previous check-ins found');
+        return null;
+      }
+      
+      // Find the most recent CHECK-IN (not baseline)
+      const lastCheckin = sessions.find((s: any) => {
+        const analysis = typeof s.analysis === 'string' ? JSON.parse(s.analysis) : s.analysis;
+        return analysis?.assessment_type === 'checkin';
+      });
+      
+      if (!lastCheckin) {
+        console.log('[CheckinSDK] 📋 No previous check-ins found (only baselines)');
+        return null;
+      }
+      
+      const analysis = typeof lastCheckin.analysis === 'string' 
+        ? JSON.parse(lastCheckin.analysis) 
+        : lastCheckin.analysis;
+      
+      // Calculate days since last check-in
+      const lastDate = new Date(lastCheckin.created_at);
+      const now = new Date();
+      const diffMs = now.getTime() - lastDate.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      // Extract context
+      const context = {
+        lastThemes: (analysis.themes || []).slice(0, 3).join(', ') || 'general wellbeing',
+        lastMood: String(analysis.mood_score || ''),
+        daysSince: String(diffDays),
+        lastSummary: (analysis.conversation_summary || '').substring(0, 100) || ''
+      };
+      
+      console.log('[CheckinSDK] ✅ Previous context loaded:', context);
+      return context;
+      
+    } catch (err) {
+      console.warn('[CheckinSDK] ⚠️ Could not fetch previous context:', err);
+      return null;
+    }
+  };
 
   // Auto-start on mount - SAME AS BASELINE
   useEffect(() => {
@@ -141,13 +216,36 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
           console.log('[CheckinSDK] 👤 User name for context:', firstName);
           
+          // Phase 2: Fetch previous check-in context
+          const prevContext = await fetchPreviousContext();
+          setPreviousContext(prevContext);
+          
+          // Build dynamic variables for agent
+          const dynamicVars: Record<string, string> = {
+            user_name: firstName
+          };
+          
+          // Add previous context if available
+          if (prevContext) {
+            dynamicVars.last_themes = prevContext.lastThemes;
+            dynamicVars.last_mood = prevContext.lastMood;
+            dynamicVars.days_since_checkin = prevContext.daysSince;
+            dynamicVars.last_summary = prevContext.lastSummary;
+            console.log('[CheckinSDK] 📋 Previous context being passed:', dynamicVars);
+          } else {
+            // Provide defaults so placeholders don't show raw
+            dynamicVars.last_themes = '';
+            dynamicVars.last_mood = '';
+            dynamicVars.days_since_checkin = '';
+            dynamicVars.last_summary = '';
+            console.log('[CheckinSDK] 📋 No previous context - first check-in');
+          }
+          
           // Pass user context via dynamicVariables
-          // Agent prompt should include {{user_name}} placeholder
+          // Agent prompt can include: {{user_name}}, {{last_themes}}, {{last_mood}}, {{days_since_checkin}}, {{last_summary}}
           const sid = await conversation.startSession({
             agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx', // Check-in agent
-            dynamicVariables: {
-              user_name: firstName
-            }
+            dynamicVariables: dynamicVars
           } as any); // Type assertion needed for dynamicVariables
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
