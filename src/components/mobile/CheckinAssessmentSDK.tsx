@@ -50,8 +50,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const conversation = useConversation({
     onConnect: () => {
       console.log('[CheckinSDK] ✅ Connected to ElevenLabs');
-      // Context sending disabled - agent will use default greeting
-      console.log('[CheckinSDK] ⚠️ Context sending disabled for now');
+      console.log('[CheckinSDK] 📋 Context: user_name passed via dynamicVariables');
     },
     onDisconnect: () => {
       console.log('[CheckinSDK] 🔌 Disconnected from ElevenLabs');
@@ -137,12 +136,19 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       // Wait a moment for UI to render, then start the conversation
       setTimeout(async () => {
         try {
+          // Get user's first name for personalised greeting
+          const firstName = user?.user_metadata?.first_name || 'there';
           console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
+          console.log('[CheckinSDK] 👤 User name for context:', firstName);
           
-          // ONLY DIFFERENCE FROM BASELINE: different agent ID + pass variables
+          // Pass user context via dynamicVariables
+          // Agent prompt should include {{user_name}} placeholder
           const sid = await conversation.startSession({
-            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx' // Check-in agent
-          });
+            agentId: 'agent_7501k3hpgd5gf8ssm3c3530jx8qx', // Check-in agent
+            dynamicVariables: {
+              user_name: firstName
+            }
+          } as any); // Type assertion needed for dynamicVariables
 
           console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
