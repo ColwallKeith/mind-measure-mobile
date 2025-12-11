@@ -1,5 +1,36 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { cognitoApiClient } from '../services/cognito-api-client';
+import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
+
+// Helper to record user login to database
+async function recordUserLogin(userId: string, email: string) {
+  try {
+    console.log('[Auth] 📊 Recording login for:', email);
+    const backendService = BackendServiceFactory.createService(
+      BackendServiceFactory.getEnvironmentConfig()
+    );
+    
+    // Update the profiles table with updated_at timestamp
+    // Note: last_login_at and login_count columns need to be added to DB
+    // For now, just update updated_at which always exists
+    const { error } = await backendService.database.update(
+      'profiles',
+      {
+        updated_at: new Date().toISOString()
+      },
+      { user_id: userId }
+    );
+    
+    if (error) {
+      console.warn('[Auth] ⚠️ Failed to record login:', error);
+    } else {
+      console.log('[Auth] ✅ Login recorded (updated_at)');
+    }
+  } catch (err) {
+    console.warn('[Auth] ⚠️ Error recording login:', err);
+    // Don't fail the login if recording fails
+  }
+}
 
 export interface AuthUser {
   id: string;
@@ -94,6 +125,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
       }
       setUser(result.data.user);
+      
+      // Record the login to database (async, don't block)
+      if (result.data.user?.id) {
+        recordUserLogin(result.data.user.id, result.data.user.email);
+      }
+      
       return { error: null };
     } catch (error) {
       console.error('Sign in error:', error);

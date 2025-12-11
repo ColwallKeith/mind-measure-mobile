@@ -1,43 +1,24 @@
-import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock } from 'lucide-react';
+import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock, Loader2 } from 'lucide-react';
+import { useUniversityResources } from '@/hooks/useUniversityResources';
+
 const mindMeasureLogo = "https://api.mindmeasure.co.uk/storage/marketing/MM%20logo%20square.png";
+
 export function HelpScreen() {
+  const { resources, loading, hasData } = useUniversityResources();
+
   const handleCall = (number: string) => {
-    window.location.href = `tel:${number}`;
+    // Clean the number for tel: protocol
+    const cleanNumber = number.replace(/\s+/g, '').replace(/[^\d+]/g, '');
+    window.location.href = `tel:${cleanNumber}`;
   };
+
   const handleVisit = (url: string) => {
     window.open(url, '_blank');
   };
-  // Simulated user university detection based on email domain
-  const userUniversity = 'University of Worcester'; // This would come from user's email domain
-  const userLocation = 'Worcester';
-  // Sample local resources based on detected university
-  const localResources = [
-    {
-      name: 'University of Worcester Counselling Service',
-      description: 'Free confidential counselling for all University of Worcester students',
-      phone: '01905 855000',
-      website: 'https://www.worcester.ac.uk/student-life/student-support/counselling/',
-      hours: 'Mon-Fri 9am-5pm'
-    },
-    {
-      name: 'University of Worcester Student Support',
-      description: '24/7 emergency support line for Worcester students',
-      phone: '01905 855111',
-      website: 'https://www.worcester.ac.uk/student-life/student-support/',
-      hours: '24/7'
-    },
-    {
-      name: 'Worcester Mental Health Services',
-      description: 'Free and confidential support for young people in Worcester',
-      phone: '01905 855222',
-      website: 'https://www.worcester.ac.uk/student-life/student-support/mental-health/',
-      hours: 'Mon-Fri 10am-6pm'
-    }
-  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6">
       {/* Header */}
@@ -52,6 +33,7 @@ export function HelpScreen() {
         <h1 className="text-gray-900 mb-2">Find mental health support</h1>
         <p className="text-gray-600 text-sm">Personalised support resources for the UK</p>
       </div>
+
       {/* Urgent Help - Always Visible */}
       <Card className="border-2 border-red-200 shadow-lg backdrop-blur-xl bg-red-50/80 p-6">
         <div className="flex items-start gap-3 mb-4">
@@ -106,7 +88,8 @@ export function HelpScreen() {
           </div>
         </div>
       </Card>
-      {/* Local Student Support Section */}
+
+      {/* Local Student Support Section - Now from CMS */}
       <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
@@ -117,56 +100,170 @@ export function HelpScreen() {
             <p className="text-indigo-700 text-sm">Resources specific to your university</p>
           </div>
         </div>
-        <div className="space-y-4">
-          <div className="p-3 bg-indigo-50/60 rounded-lg backdrop-blur-sm border border-indigo-200">
-            <p className="text-indigo-800 text-sm flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Detected: {userUniversity}
-            </p>
-            <p className="text-indigo-600 text-xs mt-1">Based on your university email address</p>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+            <span className="ml-2 text-indigo-600">Loading your university resources...</span>
           </div>
-          <div className="space-y-3">
-            <h4 className="text-indigo-900">Your local support services:</h4>
-            {localResources.map((resource, index) => (
-              <div key={index} className="p-4 bg-indigo-50/60 rounded-xl backdrop-blur-sm">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                    <Building2 className="w-4 h-4 text-indigo-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h5 className="text-indigo-900 mb-1">{resource.name}</h5>
-                    <p className="text-indigo-700 text-sm mb-2">{resource.description}</p>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="w-3 h-3 text-indigo-500" />
-                      <span className="text-indigo-600 text-xs">{resource.hours}</span>
+        ) : resources ? (
+          <div className="space-y-4">
+            <div className="p-3 bg-indigo-50/60 rounded-lg backdrop-blur-sm border border-indigo-200">
+              <p className="text-indigo-800 text-sm flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                {resources.name}
+              </p>
+              {resources.address && (
+                <p className="text-indigo-600 text-xs mt-1">{resources.address}</p>
+              )}
+            </div>
+
+            {/* Emergency Contacts from CMS */}
+            {resources.emergency_contacts.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-indigo-900 font-medium">Emergency Contacts:</h4>
+                {resources.emergency_contacts.map((contact, index) => (
+                  <div key={contact.id || index} className="p-4 bg-red-50/60 rounded-xl backdrop-blur-sm border border-red-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Phone className="w-4 h-4 text-red-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h5 className="text-red-900 font-medium">{contact.name}</h5>
+                          {contact.is_24_hour && (
+                            <span className="text-xs bg-red-200 text-red-800 px-2 py-0.5 rounded-full">24/7</span>
+                          )}
+                        </div>
+                        {contact.description && (
+                          <p className="text-red-700 text-sm mb-2">{contact.description}</p>
+                        )}
+                        {contact.phone && (
+                          <Button
+                            onClick={() => handleCall(contact.phone!)}
+                            className="bg-red-500 hover:bg-red-600 text-white h-9"
+                          >
+                            <Phone className="w-4 h-4 mr-2" />
+                            Call {contact.phone}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleVisit(resource.website)}
-                        variant="outline"
-                        className="bg-white/60 border-indigo-200 text-indigo-700 hover:bg-indigo-50 h-9"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Visit
-                      </Button>
-                      {resource.phone && (
-                        <Button
-                          onClick={() => handleCall(resource.phone)}
-                          className="bg-indigo-500 hover:bg-indigo-600 text-white h-9"
-                        >
-                          <Phone className="w-4 h-4 mr-2" />
-                          Call
-                        </Button>
-                      )}
-                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Mental Health Services from CMS */}
+            {resources.mental_health_services.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-indigo-900 font-medium">Mental Health Services:</h4>
+                {resources.mental_health_services.map((service, index) => (
+                  <div key={service.id || index} className="p-4 bg-indigo-50/60 rounded-xl backdrop-blur-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-indigo-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Heart className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h5 className="text-indigo-900 font-medium">{service.name}</h5>
+                        <p className="text-indigo-700 text-sm mb-2">{service.description}</p>
+                        {service.availability && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <Clock className="w-3 h-3 text-indigo-500" />
+                            <span className="text-indigo-600 text-xs">{service.availability}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {service.website && (
+                            <Button
+                              onClick={() => handleVisit(service.website!)}
+                              variant="outline"
+                              className="bg-white/60 border-indigo-200 text-indigo-700 hover:bg-indigo-50 h-9"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Visit
+                            </Button>
+                          )}
+                          {service.phone && (
+                            <Button
+                              onClick={() => handleCall(service.phone!)}
+                              className="bg-indigo-500 hover:bg-indigo-600 text-white h-9"
+                            >
+                              <Phone className="w-4 h-4 mr-2" />
+                              Call
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Local Resources from CMS */}
+            {resources.local_resources.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-indigo-900 font-medium">Local Resources:</h4>
+                {resources.local_resources.map((resource, index) => (
+                  <div key={resource.id || index} className="p-4 bg-green-50/60 rounded-xl backdrop-blur-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                        <Building2 className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h5 className="text-green-900 font-medium">{resource.name}</h5>
+                        <p className="text-green-700 text-sm mb-2">{resource.description}</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {resource.website && (
+                            <Button
+                              onClick={() => handleVisit(resource.website!)}
+                              variant="outline"
+                              className="bg-white/60 border-green-200 text-green-700 hover:bg-green-50 h-9"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                              Visit
+                            </Button>
+                          )}
+                          {resource.phone && (
+                            <Button
+                              onClick={() => handleCall(resource.phone!)}
+                              className="bg-green-500 hover:bg-green-600 text-white h-9"
+                            >
+                              <Phone className="w-4 h-4 mr-2" />
+                              Call
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* No CMS data yet - show placeholder */}
+            {!hasData && (
+              <div className="p-4 bg-gray-50/60 rounded-xl backdrop-blur-sm text-center">
+                <p className="text-gray-600 text-sm">
+                  Your university's support resources are being set up.
+                </p>
+                <p className="text-gray-500 text-xs mt-1">
+                  Contact {resources.contact_email || 'your university'} for local support.
+                </p>
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="p-4 bg-gray-50/60 rounded-xl backdrop-blur-sm text-center">
+            <p className="text-gray-600 text-sm">
+              Sign in to see resources specific to your university.
+            </p>
+          </div>
+        )}
       </Card>
-      {/* Support Services Accordion */}
+
+      {/* Support Services Accordion - National UK Resources (always shown) */}
       <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
         <h3 className="text-gray-900 mb-4">National UK support</h3>
         <Accordion type="multiple" className="space-y-3">
@@ -203,6 +300,7 @@ export function HelpScreen() {
               </div>
             </AccordionContent>
           </AccordionItem>
+
           <AccordionItem value="shout" className="border-0 bg-purple-50/60 rounded-xl backdrop-blur-sm">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center gap-3">
@@ -227,6 +325,7 @@ export function HelpScreen() {
               </Button>
             </AccordionContent>
           </AccordionItem>
+
           <AccordionItem value="mind" className="border-0 bg-green-50/60 rounded-xl backdrop-blur-sm">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center gap-3">
@@ -251,6 +350,7 @@ export function HelpScreen() {
               </Button>
             </AccordionContent>
           </AccordionItem>
+
           <AccordionItem value="student-space" className="border-0 bg-amber-50/60 rounded-xl backdrop-blur-sm">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center gap-3">
@@ -275,6 +375,7 @@ export function HelpScreen() {
               </Button>
             </AccordionContent>
           </AccordionItem>
+
           <AccordionItem value="papyrus" className="border-0 bg-rose-50/60 rounded-xl backdrop-blur-sm">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center gap-3">
@@ -310,12 +411,14 @@ export function HelpScreen() {
           </AccordionItem>
         </Accordion>
       </Card>
+
       {/* Footer Note */}
       <Card className="border-0 shadow-lg backdrop-blur-xl bg-gray-50/70 p-4">
         <p className="text-gray-600 text-sm text-center">
           If you are outside the UK, please use local emergency numbers and services in your country.
         </p>
       </Card>
+
       {/* Bottom padding for navigation */}
       <div className="h-24" />
     </div>
