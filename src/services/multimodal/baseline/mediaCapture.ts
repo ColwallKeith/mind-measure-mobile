@@ -20,7 +20,7 @@ export class MediaCapture {
 
   constructor(config: MediaCaptureConfig) {
     this.config = {
-      videoFrameRate: 1, // 1 frame per second by default
+      videoFrameRate: 0.5, // 0.5 fps (1 frame every 2 seconds) to stay under Vercel's 4.5MB limit
       audioSampleRate: 48000,
       ...config
     };
@@ -156,7 +156,7 @@ export class MediaCapture {
         if (blob) {
           this.videoFrames.push(blob);
         }
-      }, 'image/jpeg', 0.8);
+      }, 'image/jpeg', 0.6); // Reduced quality to 0.6 to minimize payload size
     } catch (error) {
       console.error('[MediaCapture] Failed to capture frame:', error);
     }

@@ -136,50 +136,24 @@ export class BaselineEnrichmentService {
         warnings.push('No video data available');
       }
 
-      // Compute final score
-      let scoringBreakdown: BaselineScoringBreakdown;
+      // Compute final score with dynamic reweighting
+      console.log('[EnrichmentService] 📊 Computing dynamically weighted score...');
       
-      if (audioFeatures || visualFeatures) {
-        // Have at least one modality - compute hybrid score
-        
-        // If missing one modality, create placeholder with neutral values
-        if (!audioFeatures) {
-          audioFeatures = this.createNeutralAudioFeatures();
-          warnings.push('Using neutral audio features');
-        }
-        
-        if (!visualFeatures) {
-          visualFeatures = this.createNeutralVisualFeatures();
-          warnings.push('Using neutral visual features');
-        }
-
-        console.log('[EnrichmentService] 📊 Computing 70/30 weighted score...');
-        scoringBreakdown = BaselineScoring.computeScore(
-          input.clinicalScore,
-          audioFeatures,
-          visualFeatures
-        );
-        
-        // Round to whole number
-        scoringBreakdown.finalScore = Math.round(scoringBreakdown.finalScore);
-        
-        console.log('[EnrichmentService] ✅ Final score:', scoringBreakdown.finalScore);
-      } else {
-        // No multimodal data - fall back to clinical only
-        console.log('[EnrichmentService] ⚠️ No multimodal data - using clinical score only');
-        warnings.push('No multimodal data available - using clinical score only');
-        
-        scoringBreakdown = {
-          clinicalScore: input.clinicalScore,
-          clinicalWeight: 1.0,
-          audioScore: input.clinicalScore,
-          visualScore: input.clinicalScore,
-          multimodalScore: input.clinicalScore,
-          multimodalWeight: 0,
-          finalScore: input.clinicalScore,
-          confidence: 0.7 // Lower confidence without multimodal
-        };
-      }
+      const audioFailed = !audioFeatures;
+      const visualFailed = !visualFeatures;
+      
+      const scoringBreakdown = BaselineScoring.computeScore(
+        input.clinicalScore,
+        audioFeatures,
+        visualFeatures,
+        audioFailed,
+        visualFailed
+      );
+      
+      // Round to whole number
+      scoringBreakdown.finalScore = Math.round(scoringBreakdown.finalScore);
+      
+      console.log('[EnrichmentService] ✅ Final score:', scoringBreakdown.finalScore);
 
       const processingTimeMs = Date.now() - startTime;
       console.log('[EnrichmentService] ✅ Enrichment complete in', processingTimeMs, 'ms');
