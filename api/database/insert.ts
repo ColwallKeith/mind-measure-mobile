@@ -48,7 +48,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     for (const record of records) {
       const columns = Object.keys(record);
-      const values = Object.values(record);
+      // Serialize arrays/objects to JSON strings for JSONB columns
+      const values = Object.values(record).map(value => {
+        if (Array.isArray(value) || (typeof value === 'object' && value !== null && !(value instanceof Date))) {
+          return JSON.stringify(value);
+        }
+        return value;
+      });
       const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
 
       let sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
