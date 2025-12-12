@@ -21,60 +21,76 @@ interface WellbeingTip {
   id: string;
   title: string;
   content: string;
-  category: 'mindfulness' | 'sleep' | 'social' | 'exercise' | 'study' | 'general';
+  category: string;
   isNew?: boolean;
   readTime?: string;
   publishedAt?: string;
+  isActive?: boolean;
 }
 
-// Category icon and color mapping
-const categoryConfig = {
-  mindfulness: { icon: Brain, color: 'purple', label: 'Mindfulness' },
+// Category icon and color mapping - matches CMS categories
+const categoryConfig: Record<string, { icon: any; color: string; label: string }> = {
+  // CMS categories
+  stress: { icon: Brain, color: 'purple', label: 'Stress' },
   sleep: { icon: Moon, color: 'indigo', label: 'Sleep' },
-  social: { icon: Users, color: 'pink', label: 'Social' },
-  exercise: { icon: Heart, color: 'red', label: 'Exercise' },
   study: { icon: BookOpen, color: 'blue', label: 'Study' },
+  relationships: { icon: Users, color: 'pink', label: 'Relationships' },
+  anxiety: { icon: Brain, color: 'orange', label: 'Anxiety' },
+  depression: { icon: Heart, color: 'slate', label: 'Depression' },
+  exercise: { icon: Heart, color: 'red', label: 'Exercise' },
+  nutrition: { icon: Sparkles, color: 'green', label: 'Nutrition' },
+  mindfulness: { icon: Brain, color: 'teal', label: 'Mindfulness' },
   general: { icon: Sparkles, color: 'amber', label: 'Wellbeing' },
+  // Legacy categories for backwards compatibility
+  social: { icon: Users, color: 'pink', label: 'Social' },
 };
 
-// Default tips if none from CMS
+// Default tips - shown only when no CMS content is configured
+// These use CMS-compatible category names
 const defaultTips: WellbeingTip[] = [
   {
-    id: '1',
+    id: 'default-1',
     title: 'The 5-4-3-2-1 Grounding Technique',
-    content: 'When feeling anxious, try this: Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.',
-    category: 'mindfulness',
+    content: 'When feeling anxious, try this: Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste. This technique helps bring you back to the present moment.',
+    category: 'anxiety',
     isNew: true,
     readTime: '2 min',
   },
   {
-    id: '2',
+    id: 'default-2',
     title: 'Sleep Hygiene: Creating Your Wind-Down Routine',
-    content: 'Try to disconnect from screens 30 minutes before bed. Replace scrolling with reading, gentle stretching, or listening to calm music.',
+    content: 'Try to disconnect from screens 30 minutes before bed. Replace scrolling with reading, gentle stretching, or listening to calm music. Consistent sleep schedules improve both mood and concentration.',
     category: 'sleep',
     readTime: '3 min',
   },
   {
-    id: '3',
+    id: 'default-3',
     title: 'The Power of Micro-Connections',
-    content: 'A brief chat with a classmate, a smile at a stranger, or a quick message to a friend can significantly boost your mood throughout the day.',
-    category: 'social',
+    content: 'A brief chat with a classmate, a smile at a stranger, or a quick message to a friend can significantly boost your mood throughout the day. Small social interactions matter.',
+    category: 'relationships',
     isNew: true,
     readTime: '2 min',
   },
   {
-    id: '4',
+    id: 'default-4',
     title: '10-Minute Movement Breaks',
-    content: 'Short bursts of movement between study sessions can improve focus and reduce stress. Try a quick walk, some stretches, or dancing to your favourite song.',
+    content: 'Short bursts of movement between study sessions can improve focus and reduce stress. Try a quick walk, some stretches, or dancing to your favourite song. Your body and mind will thank you.',
     category: 'exercise',
     readTime: '2 min',
   },
   {
-    id: '5',
+    id: 'default-5',
     title: 'The Pomodoro Technique for Better Focus',
-    content: 'Work for 25 minutes, then take a 5-minute break. After 4 cycles, take a longer 15-30 minute break. This helps maintain concentration and prevents burnout.',
+    content: 'Work for 25 minutes, then take a 5-minute break. After 4 cycles, take a longer 15-30 minute break. This helps maintain concentration and prevents burnout during revision periods.',
     category: 'study',
     readTime: '3 min',
+  },
+  {
+    id: 'default-6',
+    title: 'Box Breathing for Instant Calm',
+    content: 'Breathe in for 4 counts, hold for 4 counts, breathe out for 4 counts, hold for 4 counts. Repeat 4 times. This simple technique activates your parasympathetic nervous system.',
+    category: 'stress',
+    readTime: '2 min',
   },
 ];
 
@@ -108,22 +124,25 @@ export function MobileContent() {
       });
       
       if (universities && universities.length > 0) {
-        // Find matching university (simplified - in reality would match by domain)
+        // Find matching university by domain
         const university = universities.find((u: any) => {
-          // Check if university domain matches user's email domain
           return u.id === 'worcester' || domain?.includes('worc');
         }) || universities[0];
         
         if (university?.wellbeing_tips && Array.isArray(university.wellbeing_tips)) {
-          const cmsTips = university.wellbeing_tips.map((tip: any) => ({
-            id: tip.id || crypto.randomUUID(),
-            title: tip.title,
-            content: tip.content,
-            category: tip.category || 'general',
-            isNew: tip.isNew || isRecent(tip.publishedAt),
-            readTime: tip.readTime || '2 min',
-            publishedAt: tip.publishedAt,
-          }));
+          // Map CMS data to mobile format, filtering for active tips only
+          const cmsTips = university.wellbeing_tips
+            .filter((tip: any) => tip.isActive !== false) // Only show active tips
+            .map((tip: any) => ({
+              id: tip.id || crypto.randomUUID(),
+              title: tip.title,
+              content: tip.content,
+              category: tip.category || 'general',
+              isNew: tip.isNew || isRecent(tip.lastReviewed || tip.publishedAt),
+              readTime: tip.estimatedReadTime ? `${tip.estimatedReadTime} min` : (tip.readTime || '2 min'),
+              publishedAt: tip.lastReviewed || tip.publishedAt,
+              isActive: tip.isActive,
+            }));
           
           if (cmsTips.length > 0) {
             setTips(cmsTips);

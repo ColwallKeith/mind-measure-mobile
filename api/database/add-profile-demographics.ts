@@ -11,7 +11,7 @@ const dbConfig = {
   port: parseInt(process.env.AWS_AURORA_PORT || process.env.AWS_RDS_PORT || '5432'),
   database: process.env.AWS_AURORA_DATABASE || process.env.AWS_RDS_DATABASE || 'mindmeasure',
   user: process.env.AWS_AURORA_USERNAME || process.env.AWS_RDS_USERNAME || 'mindmeasure_admin',
-  password: process.env.AWS_AURORA_PASSWORD || process.env.AWS_RDS_PASSWORD,
+  password: process.env.AWS_AURORA_PASSWORD || process.env.AWS_RDS_PASSWORD || 'K31th50941964!',
   ssl: { rejectUnauthorized: false }
 };
 
