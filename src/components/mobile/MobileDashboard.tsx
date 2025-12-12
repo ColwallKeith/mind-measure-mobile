@@ -316,62 +316,52 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         </motion.div>
       )}
 
-      {/* Topics Discussed - Always show both cards for check-ins */}
-      {!isPostBaselineView && latestSession && (
+      {/* Topics Discussed - Positive/Negative drivers */}
+      {!isPostBaselineView && latestSession && (latestSession.driverPositive.length > 0 || latestSession.driverNegative.length > 0) && (
         <motion.div variants={itemVariants} className="space-y-3">
           <h3 className="text-gray-900">Topics Discussed</h3>
           <div className="space-y-3">
-            {/* Finding Pleasure In - always show */}
-            <Card className="border-0 shadow-sm backdrop-blur-xl bg-green-50/80 p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
-                <div className="flex-1">
-                  <p className="text-green-800 font-medium mb-2">Finding Pleasure In</p>
-                  <div className="flex flex-wrap gap-2">
-                    {latestSession.driverPositive.length > 0 ? (
-                      latestSession.driverPositive.map((tag) => (
+            {latestSession.driverPositive.length > 0 && (
+              <Card className="border-0 shadow-sm backdrop-blur-xl bg-green-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
+                  <div className="flex-1">
+                    <p className="text-green-800 font-medium mb-2">Finding Pleasure In</p>
+                    <div className="flex flex-wrap gap-2">
+                      {latestSession.driverPositive.map((tag) => (
                         <span
                           key={tag}
                           className="px-2 py-1 text-xs border border-green-300 text-green-700 bg-green-100/50 rounded"
                         >
                           {tag}
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-green-600/70 italic">
-                        Nothing specifically mentioned
-                      </span>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
             
-            {/* Causing Concern - always show */}
-            <Card className="border-0 shadow-sm backdrop-blur-xl bg-orange-50/80 p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-orange-500 rounded-full mt-2" />
-                <div className="flex-1">
-                  <p className="text-orange-800 font-medium mb-2">Causing Concern</p>
-                  <div className="flex flex-wrap gap-2">
-                    {latestSession.driverNegative.length > 0 ? (
-                      latestSession.driverNegative.map((tag) => (
+            {latestSession.driverNegative.length > 0 && (
+              <Card className="border-0 shadow-sm backdrop-blur-xl bg-orange-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2" />
+                  <div className="flex-1">
+                    <p className="text-orange-800 font-medium mb-2">Causing Concern</p>
+                    <div className="flex flex-wrap gap-2">
+                      {latestSession.driverNegative.map((tag) => (
                         <span
                           key={tag}
                           className="px-2 py-1 text-xs border border-orange-300 text-orange-700 bg-orange-100/50 rounded"
                         >
                           {tag}
                         </span>
-                      ))
-                    ) : (
-                      <span className="text-sm text-orange-600/70 italic">
-                        Nothing specifically mentioned
-                      </span>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
         </motion.div>
       )}

@@ -6,6 +6,7 @@ import { CheckinAssessmentSDK } from './CheckinAssessmentSDK';
 import { HelpScreen } from './HelpPage';
 import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
+import { MobileContent } from './MobileContent';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
 import { EmailVerificationScreen } from "./EmailVerificationScreen";
@@ -18,13 +19,12 @@ import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Home,
-  Heart,
-  TrendingUp,
-  HelpCircle,
+  BookOpen,
+  User,
   Users
 } from 'lucide-react';
-type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
-type Screen = MobileTab | 'profile' | 'settings' | 'checkin_welcome' | 'checkin_assessment';
+type MobileTab = 'dashboard' | 'content' | 'buddies' | 'profile';
+type Screen = MobileTab | 'settings' | 'checkin_welcome' | 'checkin_assessment';
 type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
@@ -138,9 +138,9 @@ export const MobileAppStructure: React.FC = () => {
 
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: Home },
-    { id: 'checkin', label: 'Check-in', icon: Heart },
+    { id: 'content', label: 'Content', icon: BookOpen },
     { id: 'buddies', label: 'Buddies', icon: Users },
-    { id: 'help', label: 'Help', icon: HelpCircle },
+    { id: 'profile', label: 'Profile', icon: User },
   ];
 
   const renderContent = () => {
@@ -212,10 +212,12 @@ export const MobileAppStructure: React.FC = () => {
         );
       case 'buddies':
         return <MobileBuddies />;
+      case 'content':
+        return <MobileContent />;
       case 'help':
         return <HelpScreen />;
       case 'profile':
-        return <MobileProfile onNavigateBack={handleNavigateBack} />;
+        return <MobileProfile />;
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:
@@ -230,7 +232,7 @@ export const MobileAppStructure: React.FC = () => {
       <div className="pb-24">
         {renderContent()}
       </div>
-      {!onboardingScreen && ['dashboard', 'checkin', 'checkin_assessment', 'buddies', 'help'].includes(currentScreen) && (
+      {!onboardingScreen && ['dashboard', 'content', 'buddies', 'profile', 'checkin_welcome', 'checkin_assessment'].includes(currentScreen) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/60 shadow-lg">
           <div className="flex items-center justify-around px-2 py-3">
             {navItems.map((item) => {
