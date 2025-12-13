@@ -54,6 +54,7 @@ interface ProfileData {
   course: string;
   subjects: string[];
   school: string;
+  department: string;
   faculty: string;
   living_situation: string;
   hall_of_residence: string;
@@ -69,14 +70,25 @@ interface ProfileData {
   profile_completed_at: string | null;
 }
 
+interface Department {
+  id: string;
+  name: string;
+  studentCount?: number | null;
+}
+
 interface AcademicStructure {
   faculties?: Array<{
     name: string;
-    schools?: Array<{ name: string; subjects?: string[] }>;
+    schools?: Array<{ 
+      name: string; 
+      subjects?: string[];
+      departments?: Department[];
+    }>;
   }>;
   schools?: Array<{
     name: string;
     subjects?: string[];
+    departments?: Department[];
   }>;
   halls_of_residence?: Array<{ name: string }>;
 }
@@ -98,6 +110,7 @@ const defaultProfile: Partial<ProfileData> = {
   course: '',
   subjects: [],
   school: '',
+  department: '',
   faculty: '',
   living_situation: '',
   hall_of_residence: '',
@@ -299,6 +312,7 @@ export function ProfileScreen() {
         course: profileData.course,
         subjects: profileData.subjects,
         school: profileData.school,
+        department: profileData.department,
         faculty: profileData.faculty,
         living_situation: profileData.living_situation,
         hall_of_residence: profileData.hall_of_residence,
@@ -417,6 +431,26 @@ export function ProfileScreen() {
     return [];
   };
 
+  const getDepartmentOptions = () => {
+    // Find departments for selected school
+    if (profileData.school) {
+      // Check in faculties->schools
+      for (const faculty of (academicStructure.faculties || [])) {
+        const school = faculty.schools?.find(s => s.name === profileData.school);
+        if (school?.departments && school.departments.length > 0) {
+          return school.departments.map(d => d.name);
+        }
+      }
+      // Check in direct schools
+      const school = academicStructure.schools?.find(s => s.name === profileData.school);
+      if (school?.departments && school.departments.length > 0) {
+        return school.departments.map(d => d.name);
+      }
+    }
+    // Fallback - no departments
+    return [];
+  };
+
   const getHallOptions = () => {
     if (academicStructure.halls_of_residence && academicStructure.halls_of_residence.length > 0) {
       return academicStructure.halls_of_residence.map(h => h.name);
@@ -456,6 +490,7 @@ export function ProfileScreen() {
   const profileCompletion = getProfileCompletion();
   const schoolOptions = getSchoolOptions();
   const subjectOptions = getSubjectOptions();
+  const departmentOptions = getDepartmentOptions();
   const hallOptions = getHallOptions();
 
   return (
@@ -786,6 +821,26 @@ export function ProfileScreen() {
                       className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
                     />
                   </div>
+
+                  {departmentOptions.length > 0 && (
+                    <div>
+                      <Label className="text-gray-700 text-xs">Department</Label>
+                      <Select 
+                        disabled={!isEditing} 
+                        value={profileData.department || ''}
+                        onValueChange={(v) => updateField('department', v)}
+                      >
+                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
+                          <SelectValue placeholder="Select your department..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departmentOptions.map(opt => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {subjectOptions.length > 0 && (
                     <div>
