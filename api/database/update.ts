@@ -44,7 +44,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Build UPDATE query
     const updateColumns = Object.keys(data);
-    const updateValues = Object.values(data);
+    // Serialize arrays/objects to JSON strings for JSONB columns
+    const updateValues = Object.values(data).map(value => {
+      if (Array.isArray(value) || (typeof value === 'object' && value !== null && !(value instanceof Date))) {
+        return JSON.stringify(value);
+      }
+      return value;
+    });
     
     const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
     
