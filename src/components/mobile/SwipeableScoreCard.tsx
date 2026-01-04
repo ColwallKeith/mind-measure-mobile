@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, ResponsiveContainer } from 'recharts';
 
 interface ScoreData {
   date: string;
@@ -121,13 +122,10 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Render 7-day bar chart - always show 7 days with baseline reference
+  // Render 7-day bar chart - Using Recharts like admin dashboard
   const render7DayBars = () => {
     const now = new Date();
-    const days = [];
-    
-    // Use baseline or average of all scores as reference
-    const referenceScore = baselineScore || avg7Day;
+    const chartData = [];
     
     // Generate last 7 days
     for (let i = 6; i >= 0; i--) {
@@ -142,86 +140,56 @@ export function SwipeableScoreCard({
         return checkInDate.getTime() === date.getTime();
       });
       
-      days.push({
-        date,
-        score: dayData?.score || null,
-        hasData: !!dayData
+      chartData.push({
+        day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()],
+        score: dayData?.score || 0
       });
     }
     
-    const checkInCount = days.filter(d => d.hasData).length;
-    const baselinePercent = (referenceScore / 100) * 100; // position from bottom
+    const checkInCount = chartData.filter(d => d.score > 0).length;
+    const referenceScore = baselineScore || avg7Day;
 
     return (
       <>
-        <div className="relative h-32 px-2 mt-4">
-          {/* Baseline reference line */}
-          <div 
-            className="absolute left-0 right-0 h-0.5 bg-white/40 z-10"
-            style={{ bottom: `${baselinePercent}%` }}
-          >
-            <span className="absolute -right-2 -top-3 text-[10px] text-white/70 font-medium">
-              {Math.round(referenceScore)}
-            </span>
-          </div>
+        <div className="mt-4 px-2">
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={chartData}>
+              <XAxis 
+                dataKey="day" 
+                stroke="rgba(255, 255, 255, 0.7)" 
+                tick={{ fill: 'rgba(255, 255, 255, 0.7)', fontSize: 11 }}
+                axisLine={{ stroke: 'rgba(255, 255, 255, 0.2)' }}
+              />
+              <Bar 
+                dataKey="score" 
+                fill="rgba(255, 255, 255, 0.5)" 
+                radius={[4, 4, 0, 0]}
+                animationDuration={800}
+              />
+            </BarChart>
+          </ResponsiveContainer>
           
-          {/* Bar chart container */}
-          <div className="flex items-end justify-between gap-1 h-full">
-            {days.map((day, index) => {
-              const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][day.date.getDay()];
-              
-              if (!day.hasData) {
-                // Empty day - show dot on baseline
-                return (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-1 h-full relative">
-                    <div 
-                      className="absolute w-1.5 h-1.5 bg-white/30 rounded-full"
-                      style={{ bottom: `${baselinePercent}%` }}
-                    />
-                    <span className="absolute -bottom-5 text-[10px] text-white/50 font-medium">
-                      {dayLabel}
-                    </span>
-                  </div>
-                );
-              }
-
-              // Calculate bar height as percentage from bottom
-              const scorePercent = (day.score! / 100) * 100;
-              const isAboveBaseline = day.score! >= referenceScore;
-              
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center gap-1 h-full relative">
-                  {/* Bar grows from bottom */}
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${scorePercent}%` }}
-                    transition={{ duration: 0.5, delay: index * 0.05 }}
-                    className={`absolute bottom-0 w-full ${
-                      isAboveBaseline ? 'bg-white/50' : 'bg-white/25'
-                    } rounded-t-lg`}
-                    style={{ minHeight: '4px' }}
-                  />
-                  <span className="absolute -bottom-5 text-[10px] text-white/70 font-medium">
-                    {dayLabel}
-                  </span>
-                </div>
-              );
-            })}
+          {/* Info bar */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+            <p className={`${colorScheme.textLight} text-xs`}>
+              {baselineScore ? 'Baseline' : 'Average'}: {Math.round(referenceScore)}
+            </p>
+            <p className={`${colorScheme.textLight} text-xs`}>
+              {checkInCount} check-in{checkInCount !== 1 ? 's' : ''}
+            </p>
           </div>
         </div>
         
-        <p className={`${colorScheme.textLight} text-xs mt-6 px-2 text-center`}>
-          {baselineScore 
-            ? `Baseline: ${Math.round(baselineScore)} • ` 
-            : `Average: ${avg7Day} • `}
-          {checkInCount} check-in{checkInCount !== 1 ? 's' : ''} in 7 days
-          {checkInCount < 4 && ' • Try checking in more regularly'}
-        </p>
+        {checkInCount < 4 && (
+          <p className={`${colorScheme.textLight} text-xs mt-2 px-4 text-center`}>
+            Try checking in more regularly for better monitoring
+          </p>
+        )}
       </>
     );
   };
 
-  // Render 30-day view - show bars only if 5+ check-ins
+  // Render 30-day view - Using Recharts
   const render30DayView = () => {
     const checkInCount = last30Days.length;
 
@@ -234,31 +202,30 @@ export function SwipeableScoreCard({
       );
     }
 
-    // Show condensed bar chart for 5+ check-ins
+    // Format data for Recharts
+    const chartData = last30Days.slice(0, 30).map((point, index) => ({
+      day: index + 1,
+      score: point.score
+    }));
+
     return (
       <>
-        <div className="flex items-end justify-between gap-0.5 h-24 px-2 mt-4">
-          {last30Days.slice(0, 30).map((point, index) => {
-            const height = (point.score / 100) * 100;
-            
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div className="w-full flex flex-col items-center justify-end h-20">
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${height}%` }}
-                    transition={{ duration: 0.5, delay: index * 0.02 }}
-                    className="w-full bg-white/40 rounded-t-sm"
-                    style={{ minHeight: '2px' }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+        <div className="mt-4 px-2">
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={chartData}>
+              <Bar 
+                dataKey="score" 
+                fill="rgba(255, 255, 255, 0.4)" 
+                radius={[2, 2, 0, 0]}
+                animationDuration={800}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+          
+          <p className={`${colorScheme.textLight} text-xs mt-2 text-center`}>
+            {checkInCount} check-ins in the last 30 days
+          </p>
         </div>
-        <p className={`${colorScheme.textLight} text-xs mt-3 px-2`}>
-          {checkInCount} check-ins in the last 30 days
-        </p>
       </>
     );
   };
