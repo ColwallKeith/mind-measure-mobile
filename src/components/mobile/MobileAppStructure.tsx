@@ -215,7 +215,7 @@ export const MobileAppStructure: React.FC = () => {
       case 'content':
         return <MobileContent />;
       case 'help':
-        return <HelpScreen />;
+        return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
         return <MobileProfile />;
       case 'settings':

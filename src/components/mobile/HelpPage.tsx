@@ -1,10 +1,14 @@
-import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock } from 'lucide-react';
+import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock, ArrowLeft } from 'lucide-react';
 
-export function HelpScreen() {
+interface HelpScreenProps {
+  onNavigateBack?: () => void;
+}
+
+export function HelpScreen({ onNavigateBack }: HelpScreenProps) {
   const handleCall = (number: string) => {
     window.location.href = `tel:${number}`;
   };
@@ -40,8 +44,22 @@ export function HelpScreen() {
   ];
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6">
+      {/* Back Button */}
+      {onNavigateBack && (
+        <div className="pt-4">
+          <Button
+            onClick={onNavigateBack}
+            variant="ghost"
+            className="text-gray-700 hover:text-gray-900 hover:bg-white/50 -ml-2"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to Dashboard
+          </Button>
+        </div>
+      )}
+      
       {/* Header */}
-      <div className="pt-8 text-center">
+      <div className="pt-4 text-center">
         <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
           <img
             src={mindMeasureLogo}
