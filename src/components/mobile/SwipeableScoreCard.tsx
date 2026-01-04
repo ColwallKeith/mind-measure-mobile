@@ -14,6 +14,7 @@ interface SwipeableScoreCardProps {
   trend?: 'up' | 'down' | 'stable';
   last7Days?: ScoreData[];
   last30Days?: ScoreData[];
+  baselineScore?: number; // User's baseline for comparison
 }
 
 type View = 'current' | '7day' | '30day';
@@ -23,7 +24,8 @@ export function SwipeableScoreCard({
   lastUpdated, 
   trend = 'stable',
   last7Days = [],
-  last30Days = []
+  last30Days = [],
+  baselineScore
 }: SwipeableScoreCardProps) {
   const [activeView, setActiveView] = useState<View>('current');
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -119,10 +121,13 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Render 7-day bar chart - always show 7 days
+  // Render 7-day bar chart - always show 7 days with baseline reference
   const render7DayBars = () => {
     const now = new Date();
     const days = [];
+    
+    // Use baseline or average of all scores as reference
+    const referenceScore = baselineScore || avg7Day;
     
     // Generate last 7 days
     for (let i = 6; i >= 0; i--) {
@@ -148,36 +153,84 @@ export function SwipeableScoreCard({
 
     return (
       <>
-        <div className="flex items-end justify-between gap-1 h-24 px-2 mt-4">
-          {days.map((day, index) => {
-            const height = day.score ? (day.score / 100) * 100 : 0;
-            const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][day.date.getDay()];
-            
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex flex-col items-center justify-end h-20">
-                  {day.hasData ? (
-                    <motion.div
-                      initial={{ height: 0 }}
-                      animate={{ height: `${height}%` }}
-                      transition={{ duration: 0.5, delay: index * 0.05 }}
-                      className="w-full bg-white/40 rounded-t-lg"
-                      style={{ minHeight: '4px' }}
-                    />
-                  ) : (
-                    <div className="w-full h-1 bg-white/10 rounded" />
-                  )}
+        <div className="relative px-2 mt-4">
+          {/* Baseline reference line */}
+          <div 
+            className="absolute left-0 right-0 h-0.5 bg-white/30"
+            style={{ top: `${100 - referenceScore}%` }}
+          >
+            <span className="absolute -right-2 -top-2 text-[9px] text-white/50">
+              {Math.round(referenceScore)}
+            </span>
+          </div>
+          
+          {/* Bar chart */}
+          <div className="flex items-end justify-between gap-1 h-32">
+            {days.map((day, index) => {
+              const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][day.date.getDay()];
+              
+              if (!day.hasData) {
+                return (
+                  <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="w-full flex flex-col items-center justify-end h-28">
+                      {/* Empty day - just show baseline dot */}
+                      <div 
+                        className="absolute w-1 h-1 bg-white/30 rounded-full"
+                        style={{ bottom: `${(referenceScore / 100) * 112}px` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-white/50 font-medium">
+                      {dayLabel}
+                    </span>
+                  </div>
+                );
+              }
+
+              const isAboveBaseline = day.score! >= referenceScore;
+              const barHeight = isAboveBaseline 
+                ? ((day.score! - referenceScore) / (100 - referenceScore)) * 50
+                : ((referenceScore - day.score!) / referenceScore) * 50;
+              
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full flex flex-col items-center h-28 relative">
+                    {/* Baseline position */}
+                    <div 
+                      className="absolute w-full flex flex-col items-center"
+                      style={{ bottom: `${(referenceScore / 100) * 112}px` }}
+                    >
+                      {/* Bar above or below baseline */}
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${barHeight}%` }}
+                        transition={{ duration: 0.5, delay: index * 0.05 }}
+                        className={`w-full ${
+                          isAboveBaseline 
+                            ? 'bg-white/50 rounded-t-lg' 
+                            : 'bg-white/30 rounded-b-lg transform translate-y-full'
+                        }`}
+                        style={{ 
+                          minHeight: '4px',
+                          transformOrigin: isAboveBaseline ? 'bottom' : 'top'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-white/70 font-medium">
+                    {dayLabel}
+                  </span>
                 </div>
-                <span className="text-[10px] text-white/70 font-medium">
-                  {dayLabel}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-        <p className={`${colorScheme.textLight} text-xs mt-3 px-2`}>
-          You have checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last seven days
-          {checkInCount < 4 && ', try checking in more regularly for better monitoring'}
+        
+        <p className={`${colorScheme.textLight} text-xs mt-3 px-2 text-center`}>
+          {baselineScore 
+            ? `Baseline: ${Math.round(baselineScore)} • ` 
+            : `Average: ${avg7Day} • `}
+          {checkInCount} check-in{checkInCount !== 1 ? 's' : ''} in 7 days
+          {checkInCount < 4 && ' • Try checking in more regularly'}
         </p>
       </>
     );

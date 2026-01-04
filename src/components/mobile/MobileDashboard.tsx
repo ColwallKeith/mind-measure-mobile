@@ -228,6 +228,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
             trend={latestScore.trend}
             last7Days={trendData.last7Days}
             last30Days={trendData.last30Days}
+            baselineScore={recentActivity.find(a => a.type === 'baseline')?.score}
           />
         </motion.div>
       ) : (
