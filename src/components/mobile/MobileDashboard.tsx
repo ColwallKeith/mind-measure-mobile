@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { MessageCircle, Activity, Shield, Loader2, GraduationCap } from 'lucide-react';
-import { ScoreCard } from './ScoreCard';
+import { SwipeableScoreCard } from './SwipeableScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
@@ -219,13 +219,15 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         )}
       </motion.div>
 
-      {/* Current Score Card */}
+      {/* Swipeable Score Card - Built on working foundation */}
       {latestScore ? (
         <motion.div variants={itemVariants}>
-          <ScoreCard
+          <SwipeableScoreCard
             score={latestScore.score}
             lastUpdated={latestScore.lastUpdated}
             trend={latestScore.trend}
+            last7Days={trendData.last7Days}
+            last30Days={trendData.last30Days}
           />
         </motion.div>
       ) : (

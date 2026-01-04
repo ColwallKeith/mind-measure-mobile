@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface ScoreData {
@@ -10,23 +9,21 @@ interface ScoreData {
 }
 
 interface SwipeableScoreCardProps {
-  currentScore: number;
-  currentDate: string;
-  trend: 'up' | 'down' | 'stable';
-  trendValue?: number;
-  last7Days: ScoreData[];
-  last30Days: ScoreData[];
+  score: number;
+  lastUpdated: string;
+  trend?: 'up' | 'down' | 'stable';
+  last7Days?: ScoreData[];
+  last30Days?: ScoreData[];
 }
 
 type View = 'current' | '7day' | '30day';
 
-export function SwipeableScoreCard({
-  currentScore,
-  currentDate,
-  trend,
-  trendValue,
-  last7Days,
-  last30Days
+export function SwipeableScoreCard({ 
+  score, 
+  lastUpdated, 
+  trend = 'stable',
+  last7Days = [],
+  last30Days = []
 }: SwipeableScoreCardProps) {
   const [activeView, setActiveView] = useState<View>('current');
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -34,80 +31,68 @@ export function SwipeableScoreCard({
   const [direction, setDirection] = useState<number>(0);
 
   const minSwipeDistance = 50;
-
-  // Debug logging
-  console.log('🎯 SwipeableScoreCard props:', {
-    currentScore,
-    currentDate,
-    trend,
-    trendValue,
-    last7Days: last7Days?.length,
-    last30Days: last30Days?.length,
-    activeView
-  });
-
-  // Safety check
-  if (!currentScore || currentScore === 0) {
-    console.error('❌ SwipeableScoreCard: Invalid currentScore:', currentScore);
-    return (
-      <Card className="border-0 shadow-lg overflow-hidden bg-red-500 p-6">
-        <div className="text-center text-white">
-          <p className="font-bold mb-2">⚠️ DEBUG MODE</p>
-          <p className="text-sm">Score data unavailable</p>
-          <p className="text-xs mt-2">currentScore: {String(currentScore)}</p>
-          <p className="text-xs">currentDate: {String(currentDate)}</p>
-        </div>
-      </Card>
-    );
-  }
-
-  // Add visible debug overlay
-  const debugMode = true;
-
   const views: View[] = ['current', '7day', '30day'];
   const currentIndex = views.indexOf(activeView);
 
-  // Get score category and color
-  const getScoreInfo = (score: number) => {
-    if (score >= 80) return { 
-      label: 'Excellent', 
-      color: 'text-green-600', 
-      bgColor: 'bg-green-600', 
-      badgeColor: 'bg-green-100 text-green-700',
-      message: "You're thriving today!"
-    };
-    if (score >= 60) return { 
-      label: 'Good', 
-      color: 'text-blue-600', 
-      bgColor: 'bg-blue-600', 
-      badgeColor: 'bg-blue-100 text-blue-700',
-      message: "You're doing well today."
-    };
-    if (score >= 40) return { 
-      label: 'Fair', 
-      color: 'text-amber-600', 
-      bgColor: 'bg-amber-600', 
-      badgeColor: 'bg-amber-100 text-amber-700',
-      message: "You're managing okay today."
-    };
-    return { 
-      label: 'Needs Attention', 
-      color: 'text-red-600', 
-      bgColor: 'bg-red-600', 
-      badgeColor: 'bg-red-100 text-red-700',
-      message: "Take care of yourself today."
-    };
+  // Helper functions from original ScoreCard
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'green';
+    if (score >= 60) return 'blue';
+    if (score >= 40) return 'amber';
+    return 'red';
+  };
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Needs Attention';
+  };
+
+  const getScoreMessage = (score: number) => {
+    if (score >= 80) return "You're thriving today!";
+    if (score >= 60) return "You're doing well today.";
+    if (score >= 40) return "You're managing okay.";
+    return "Let's work on improving.";
+  };
+
+  const colorSchemes = {
+    green: {
+      gradient: 'from-green-500/90 to-emerald-600/90',
+      textLight: 'text-green-100',
+      textMedium: 'text-green-200',
+      bgOverlay: 'from-green-400/20 to-emerald-400/10'
+    },
+    blue: {
+      gradient: 'from-blue-500/90 to-blue-600/90',
+      textLight: 'text-blue-100',
+      textMedium: 'text-blue-200',
+      bgOverlay: 'from-blue-400/20 to-blue-400/10'
+    },
+    amber: {
+      gradient: 'from-amber-500/90 to-orange-600/90',
+      textLight: 'text-amber-100',
+      textMedium: 'text-amber-200',
+      bgOverlay: 'from-amber-400/20 to-orange-400/10'
+    },
+    red: {
+      gradient: 'from-red-500/90 to-rose-600/90',
+      textLight: 'text-red-100',
+      textMedium: 'text-red-200',
+      bgOverlay: 'from-red-400/20 to-rose-400/10'
+    }
   };
 
   // Calculate averages
   const avg7Day = last7Days.length > 0 
     ? Math.round(last7Days.reduce((sum, d) => sum + d.score, 0) / last7Days.length)
-    : currentScore;
+    : score;
   
   const avg30Day = last30Days.length > 0
     ? Math.round(last30Days.reduce((sum, d) => sum + d.score, 0) / last30Days.length)
-    : currentScore;
+    : score;
 
+  // Touch handlers
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -134,83 +119,31 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Format date labels
-  const formatDayLabel = (dateString: string, index: number) => {
-    const date = new Date(dateString);
-    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    return days[date.getDay()];
-  };
+  // Bar chart for trends
+  const renderBars = (data: ScoreData[], showLabels = true) => {
+    if (data.length === 0) return null;
 
-  const formatDateLabel = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.getDate().toString();
-  };
-
-  // Render bar chart for 7-day view
-  const render7DayBars = () => {
-    const maxScore = 100;
-    const minScore = 0;
-    
     return (
-      <div className="flex items-end justify-between gap-2 h-32 px-4">
-        {last7Days.slice(0, 7).map((point, index) => {
-          const height = ((point.score - minScore) / (maxScore - minScore)) * 100;
+      <div className="flex items-end justify-between gap-1 h-24 px-2 mt-4">
+        {data.map((point, index) => {
+          const height = (point.score / 100) * 100;
+          const date = new Date(point.date);
+          const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()];
           
           return (
-            <div key={index} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex flex-col items-center justify-end h-24">
+            <div key={index} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full flex flex-col items-center justify-end h-20">
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className="w-full bg-white/30 hover:bg-white/40 rounded-t-lg group relative transition-colors"
+                  className="w-full bg-white/40 rounded-t-lg"
                   style={{ minHeight: '4px' }}
-                >
-                  {/* Tooltip on touch */}
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap">
-                      {point.score}
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-              <span className="text-xs text-white/70 font-medium">
-                {formatDayLabel(point.date, index)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Render bar chart for 30-day view
-  const render30DayBars = () => {
-    const maxScore = 100;
-    const minScore = 0;
-    
-    // Show every 5th day for labels
-    const showLabel = (index: number) => index % 5 === 0 || index === last30Days.length - 1;
-    
-    return (
-      <div className="flex items-end justify-between gap-0.5 h-32 px-2">
-        {last30Days.slice(0, 30).map((point, index) => {
-          const height = ((point.score - minScore) / (maxScore - minScore)) * 100;
-          
-          return (
-            <div key={index} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex flex-col items-center justify-end h-24">
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${height}%` }}
-                  transition={{ duration: 0.5, delay: index * 0.02 }}
-                  className="w-full bg-white/30 hover:bg-white/40 rounded-t-sm transition-colors"
-                  style={{ minHeight: '2px' }}
                 />
               </div>
-              {showLabel(index) && (
+              {showLabels && (
                 <span className="text-[10px] text-white/70 font-medium">
-                  {formatDateLabel(point.date)}
+                  {dayLabel}
                 </span>
               )}
             </div>
@@ -235,148 +168,101 @@ export function SwipeableScoreCard({
     })
   };
 
+  const currentViewData = activeView === 'current' ? score : activeView === '7day' ? avg7Day : avg30Day;
+  const colorScheme = colorSchemes[getScoreColor(currentViewData)];
+
   return (
     <Card 
-      className="border-0 shadow-lg overflow-hidden"
+      className={`relative overflow-hidden border-0 shadow-2xl backdrop-blur-xl bg-gradient-to-br ${colorScheme.gradient} text-white p-6 transform transition-all duration-300`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      {/* Dynamic background overlay */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${colorScheme.bgOverlay}`} />
+      
+      {/* Animated background elements */}
+      <div className="absolute top-4 right-4 w-20 h-20 bg-white/10 rounded-full blur-2xl animate-pulse" />
+      <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full blur-xl" />
+      
       <AnimatePresence initial={false} custom={direction} mode="wait">
         {activeView === 'current' && (
           <motion.div
             key="current"
             custom={direction}
             variants={slideVariants}
-            initial="center"
+            initial="enter"
             animate="center"
             exit="exit"
             transition={{ duration: 0.3 }}
-            className={`p-6 ${getScoreInfo(currentScore).bgColor}`}
-            style={{ minHeight: '280px' }}
+            className="relative z-10 text-center"
           >
-              {/* DEBUG OVERLAY */}
-              {debugMode && (
-                <div className="absolute top-0 left-0 bg-black/80 text-white text-xs p-2 z-50">
-                  <p>Score: {currentScore}</p>
-                  <p>View: {activeView}</p>
-                  <p>BgColor: {getScoreInfo(currentScore).bgColor}</p>
-                </div>
-              )}
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <p className={`${colorScheme.textLight}`}>Current Score</p>
+              {trend === 'up' && <TrendingUp className="w-4 h-4" />}
+              {trend === 'down' && <TrendingDown className="w-4 h-4" />}
+            </div>
+            
+            <div className="relative">
+              <div className="text-6xl mb-2 drop-shadow-lg">{score}</div>
+              <div className="absolute inset-0 text-6xl mb-2 text-white/20 transform translate-x-1 translate-y-1 -z-10">{score}</div>
+            </div>
+            
+            <p className="text-2xl mb-2">{getScoreLabel(score)}</p>
+            <p className={`${colorScheme.textLight} mb-3`}>{getScoreMessage(score)}</p>
+            <p className={`${colorScheme.textMedium} text-xs`}>Last updated: {lastUpdated}</p>
+          </motion.div>
+        )}
 
-              {/* Current Score View */}
-              <div className="text-center space-y-3">
-                <p className="text-white/90 text-sm font-medium">Current Score</p>
-                
-                <div>
-                  <motion.div
-                    className="text-7xl font-bold text-white"
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5, type: "spring" }}
-                  >
-                    {currentScore}
-                  </motion.div>
-                  <p className="mt-4 text-white text-xl font-semibold">
-                    {getScoreInfo(currentScore).label}
-                  </p>
-                  <p className="mt-2 text-white/90 text-base">
-                    {getScoreInfo(currentScore).message}
-                  </p>
-                </div>
+        {activeView === '7day' && (
+          <motion.div
+            key="7day"
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+            className="relative z-10 text-center"
+          >
+            <p className={`${colorScheme.textLight} mb-3`}>7-Day Average</p>
+            
+            <div className="relative">
+              <div className="text-6xl mb-2 drop-shadow-lg">{avg7Day}</div>
+            </div>
+            
+            <p className="text-2xl mb-2">{getScoreLabel(avg7Day)}</p>
+            
+            {last7Days.length > 0 && renderBars(last7Days.slice(0, 7))}
+          </motion.div>
+        )}
 
-                <p className="text-white/70 text-xs pt-4">
-                  Last updated: {new Date(currentDate).toLocaleDateString('en-GB', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric' 
-                  })}
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {activeView === '7day' && (
-            <motion.div
-              key="7day"
-              custom={direction}
-              variants={slideVariants}
-              initial="center"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3 }}
-              className={`p-6 ${getScoreInfo(avg7Day).bgColor}`}
-              style={{ minHeight: '280px' }}
-            >
-              {/* 7-Day Average View */}
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <p className="text-white/90 text-sm font-medium">7-Day Average</p>
-                  <div className="text-7xl font-bold text-white">
-                    {avg7Day}
-                  </div>
-                  <p className="mt-4 text-white text-xl font-semibold">
-                    {getScoreInfo(avg7Day).label}
-                  </p>
-                </div>
-
-                {last7Days.length > 0 ? (
-                  <div className="mt-6">
-                    {render7DayBars()}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-white/70 text-sm">
-                    Complete more check-ins to see trends
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-
-          {activeView === '30day' && (
-            <motion.div
-              key="30day"
-              custom={direction}
-              variants={slideVariants}
-              initial="center"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3 }}
-              className={`p-6 ${getScoreInfo(avg30Day).bgColor}`}
-              style={{ minHeight: '280px' }}
-            >
-              {/* 30-Day Average View */}
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <p className="text-white/90 text-sm font-medium">30-Day Average</p>
-                  <div className="text-7xl font-bold text-white">
-                    {avg30Day}
-                  </div>
-                  <p className="mt-4 text-white text-xl font-semibold">
-                    {getScoreInfo(avg30Day).label}
-                  </p>
-                </div>
-
-                {last30Days.length > 0 ? (
-                  <div className="mt-6">
-                    {render30DayBars()}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-white/70 text-sm">
-                    Complete more check-ins to see trends
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {activeView === '30day' && (
+          <motion.div
+            key="30day"
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+            className="relative z-10 text-center"
+          >
+            <p className={`${colorScheme.textLight} mb-3`}>30-Day Average</p>
+            
+            <div className="relative">
+              <div className="text-6xl mb-2 drop-shadow-lg">{avg30Day}</div>
+            </div>
+            
+            <p className="text-2xl mb-2">{getScoreLabel(avg30Day)}</p>
+            
+            {last30Days.length > 0 && renderBars(last30Days.slice(0, 30), false)}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dots Indicator */}
-      <div className={`flex items-center justify-center gap-2 py-4 ${
-        activeView === 'current' ? getScoreInfo(currentScore).bgColor : 
-        activeView === '7day' ? getScoreInfo(avg7Day).bgColor : 
-        getScoreInfo(avg30Day).bgColor
-      }`}>
+      <div className="relative z-10 flex items-center justify-center gap-2 mt-4">
         {views.map((view, index) => (
           <button
             key={view}
@@ -392,7 +278,11 @@ export function SwipeableScoreCard({
           />
         ))}
       </div>
+
+      {/* Floating particles effect */}
+      <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white/30 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute top-3/4 right-1/3 w-1 h-1 bg-white/40 rounded-full animate-ping" style={{ animationDelay: '1s' }} />
+      <div className="absolute bottom-1/4 left-2/3 w-1 h-1 bg-white/20 rounded-full animate-ping" style={{ animationDelay: '1.5s' }} />
     </Card>
   );
 }
-
