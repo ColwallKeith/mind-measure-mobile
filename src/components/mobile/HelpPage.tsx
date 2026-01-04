@@ -46,7 +46,7 @@ export function HelpScreen({ onNavigateBack }: HelpScreenProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6">
       {/* Back Button */}
       {onNavigateBack && (
-        <div className="pt-4">
+        <div className="pt-8">
           <Button
             onClick={onNavigateBack}
             variant="ghost"
