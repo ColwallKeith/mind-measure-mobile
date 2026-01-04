@@ -213,19 +213,19 @@ export function SwipeableScoreCard({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative" style={{ minHeight: '280px' }}>
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          {activeView === 'current' && (
-            <motion.div
-              key="current"
-              custom={direction}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.3 }}
-              className={`p-6 ${getScoreInfo(currentScore).bgColor}`}
-            >
+      <AnimatePresence initial={false} custom={direction} mode="wait">
+        {activeView === 'current' && (
+          <motion.div
+            key="current"
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3 }}
+            className={`p-6 ${getScoreInfo(currentScore).bgColor}`}
+            style={{ minHeight: '280px' }}
+          >
               {/* Current Score View */}
               <div className="text-center space-y-3">
                 <p className="text-white/90 text-sm font-medium">Current Score</p>
@@ -268,6 +268,7 @@ export function SwipeableScoreCard({
               exit="exit"
               transition={{ duration: 0.3 }}
               className={`p-6 ${getScoreInfo(avg7Day).bgColor}`}
+              style={{ minHeight: '280px' }}
             >
               {/* 7-Day Average View */}
               <div className="space-y-4">
@@ -304,6 +305,7 @@ export function SwipeableScoreCard({
               exit="exit"
               transition={{ duration: 0.3 }}
               className={`p-6 ${getScoreInfo(avg30Day).bgColor}`}
+              style={{ minHeight: '280px' }}
             >
               {/* 30-Day Average View */}
               <div className="space-y-4">
@@ -330,7 +332,6 @@ export function SwipeableScoreCard({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
 
       {/* Dots Indicator */}
       <div className={`flex items-center justify-center gap-2 py-4 ${
