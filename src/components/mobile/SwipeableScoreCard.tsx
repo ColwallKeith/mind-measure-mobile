@@ -40,10 +40,34 @@ export function SwipeableScoreCard({
 
   // Get score category and color
   const getScoreInfo = (score: number) => {
-    if (score >= 80) return { label: 'Excellent', color: 'text-green-600', bgColor: 'bg-green-600', badgeColor: 'bg-green-100 text-green-700' };
-    if (score >= 60) return { label: 'Good', color: 'text-blue-600', bgColor: 'bg-blue-600', badgeColor: 'bg-blue-100 text-blue-700' };
-    if (score >= 40) return { label: 'Fair', color: 'text-amber-600', bgColor: 'bg-amber-600', badgeColor: 'bg-amber-100 text-amber-700' };
-    return { label: 'Needs Attention', color: 'text-red-600', bgColor: 'bg-red-600', badgeColor: 'bg-red-100 text-red-700' };
+    if (score >= 80) return { 
+      label: 'Excellent', 
+      color: 'text-green-600', 
+      bgColor: 'bg-green-600', 
+      badgeColor: 'bg-green-100 text-green-700',
+      message: "You're thriving today!"
+    };
+    if (score >= 60) return { 
+      label: 'Good', 
+      color: 'text-blue-600', 
+      bgColor: 'bg-blue-600', 
+      badgeColor: 'bg-blue-100 text-blue-700',
+      message: "You're doing well today."
+    };
+    if (score >= 40) return { 
+      label: 'Fair', 
+      color: 'text-amber-600', 
+      bgColor: 'bg-amber-600', 
+      badgeColor: 'bg-amber-100 text-amber-700',
+      message: "You're managing okay today."
+    };
+    return { 
+      label: 'Needs Attention', 
+      color: 'text-red-600', 
+      bgColor: 'bg-red-600', 
+      badgeColor: 'bg-red-100 text-red-700',
+      message: "Take care of yourself today."
+    };
   };
 
   // Calculate averages
@@ -102,7 +126,6 @@ export function SwipeableScoreCard({
       <div className="flex items-end justify-between gap-2 h-32 px-4">
         {last7Days.slice(0, 7).map((point, index) => {
           const height = ((point.score - minScore) / (maxScore - minScore)) * 100;
-          const scoreInfo = getScoreInfo(point.score);
           
           return (
             <div key={index} className="flex-1 flex flex-col items-center gap-2">
@@ -111,7 +134,7 @@ export function SwipeableScoreCard({
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className={`w-full ${scoreInfo.bgColor} rounded-t-lg group relative`}
+                  className="w-full bg-white/30 hover:bg-white/40 rounded-t-lg group relative transition-colors"
                   style={{ minHeight: '4px' }}
                 >
                   {/* Tooltip on touch */}
@@ -122,7 +145,7 @@ export function SwipeableScoreCard({
                   </div>
                 </motion.div>
               </div>
-              <span className="text-xs text-gray-600">
+              <span className="text-xs text-white/70 font-medium">
                 {formatDayLabel(point.date, index)}
               </span>
             </div>
@@ -144,7 +167,6 @@ export function SwipeableScoreCard({
       <div className="flex items-end justify-between gap-0.5 h-32 px-2">
         {last30Days.slice(0, 30).map((point, index) => {
           const height = ((point.score - minScore) / (maxScore - minScore)) * 100;
-          const scoreInfo = getScoreInfo(point.score);
           
           return (
             <div key={index} className="flex-1 flex flex-col items-center gap-1">
@@ -153,12 +175,12 @@ export function SwipeableScoreCard({
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ duration: 0.5, delay: index * 0.02 }}
-                  className={`w-full ${scoreInfo.bgColor} rounded-t-sm`}
+                  className="w-full bg-white/30 hover:bg-white/40 rounded-t-sm transition-colors"
                   style={{ minHeight: '2px' }}
                 />
               </div>
               {showLabel(index) && (
-                <span className="text-[10px] text-gray-600">
+                <span className="text-[10px] text-white/70 font-medium">
                   {formatDateLabel(point.date)}
                 </span>
               )}
@@ -186,7 +208,7 @@ export function SwipeableScoreCard({
 
   return (
     <Card 
-      className="border-0 shadow-lg backdrop-blur-xl bg-white/70 overflow-hidden"
+      className="border-0 shadow-lg overflow-hidden"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -202,44 +224,36 @@ export function SwipeableScoreCard({
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
-              className="p-6"
+              className={`p-6 ${getScoreInfo(currentScore).bgColor}`}
             >
               {/* Current Score View */}
               <div className="text-center space-y-3">
-                <p className="text-gray-600 text-sm">Current</p>
+                <p className="text-white/90 text-sm font-medium">Current Score</p>
                 
                 <div>
                   <motion.div
-                    className={`text-6xl font-bold ${getScoreInfo(currentScore).color}`}
+                    className="text-7xl font-bold text-white"
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.5, type: "spring" }}
                   >
                     {currentScore}
                   </motion.div>
-                  <Badge className={`mt-3 ${getScoreInfo(currentScore).badgeColor} border-0`}>
+                  <p className="mt-4 text-white text-xl font-semibold">
                     {getScoreInfo(currentScore).label}
-                  </Badge>
+                  </p>
+                  <p className="mt-2 text-white/90 text-base">
+                    {getScoreInfo(currentScore).message}
+                  </p>
                 </div>
 
-                <p className="text-gray-600 text-sm pt-2">
-                  {currentDate}
+                <p className="text-white/70 text-xs pt-4">
+                  Last updated: {new Date(currentDate).toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric' 
+                  })}
                 </p>
-
-                {trend !== 'stable' && trendValue && (
-                  <div className={`flex items-center justify-center gap-2 pt-2 ${
-                    trend === 'up' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {trend === 'up' ? (
-                      <TrendingUp className="w-4 h-4" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {trend === 'up' ? '+' : ''}{trendValue} vs last week
-                    </span>
-                  </div>
-                )}
               </div>
             </motion.div>
           )}
@@ -253,24 +267,26 @@ export function SwipeableScoreCard({
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
-              className="p-6"
+              className={`p-6 ${getScoreInfo(avg7Day).bgColor}`}
             >
               {/* 7-Day Average View */}
               <div className="space-y-4">
                 <div className="text-center space-y-2">
-                  <p className="text-gray-600 text-sm">7-Day Average</p>
-                  <div className={`text-5xl font-bold ${getScoreInfo(avg7Day).color}`}>
+                  <p className="text-white/90 text-sm font-medium">7-Day Average</p>
+                  <div className="text-7xl font-bold text-white">
                     {avg7Day}
                   </div>
-                  <Badge className={`${getScoreInfo(avg7Day).badgeColor} border-0`}>
+                  <p className="mt-4 text-white text-xl font-semibold">
                     {getScoreInfo(avg7Day).label}
-                  </Badge>
+                  </p>
                 </div>
 
                 {last7Days.length > 0 ? (
-                  render7DayBars()
+                  <div className="mt-6">
+                    {render7DayBars()}
+                  </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500 text-sm">
+                  <div className="text-center py-8 text-white/70 text-sm">
                     Complete more check-ins to see trends
                   </div>
                 )}
@@ -287,24 +303,26 @@ export function SwipeableScoreCard({
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
-              className="p-6"
+              className={`p-6 ${getScoreInfo(avg30Day).bgColor}`}
             >
               {/* 30-Day Average View */}
               <div className="space-y-4">
                 <div className="text-center space-y-2">
-                  <p className="text-gray-600 text-sm">30-Day Average</p>
-                  <div className={`text-5xl font-bold ${getScoreInfo(avg30Day).color}`}>
+                  <p className="text-white/90 text-sm font-medium">30-Day Average</p>
+                  <div className="text-7xl font-bold text-white">
                     {avg30Day}
                   </div>
-                  <Badge className={`${getScoreInfo(avg30Day).badgeColor} border-0`}>
+                  <p className="mt-4 text-white text-xl font-semibold">
                     {getScoreInfo(avg30Day).label}
-                  </Badge>
+                  </p>
                 </div>
 
                 {last30Days.length > 0 ? (
-                  render30DayBars()
+                  <div className="mt-6">
+                    {render30DayBars()}
+                  </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500 text-sm">
+                  <div className="text-center py-8 text-white/70 text-sm">
                     Complete more check-ins to see trends
                   </div>
                 )}
@@ -315,7 +333,11 @@ export function SwipeableScoreCard({
       </div>
 
       {/* Dots Indicator */}
-      <div className="flex items-center justify-center gap-2 pb-4">
+      <div className={`flex items-center justify-center gap-2 py-4 ${
+        activeView === 'current' ? getScoreInfo(currentScore).bgColor : 
+        activeView === '7day' ? getScoreInfo(avg7Day).bgColor : 
+        getScoreInfo(avg30Day).bgColor
+      }`}>
         {views.map((view, index) => (
           <button
             key={view}
@@ -325,8 +347,8 @@ export function SwipeableScoreCard({
             }}
             className={`h-2 rounded-full transition-all ${
               activeView === view
-                ? 'w-6 bg-gradient-to-r from-purple-500 to-pink-500'
-                : 'w-2 bg-gray-300'
+                ? 'w-6 bg-white'
+                : 'w-2 bg-white/40'
             }`}
           />
         ))}
