@@ -1,14 +1,15 @@
 import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Heart, ArrowRight, Brain } from 'lucide-react';
-// Placeholder images from Unsplash - happy students
-const student1 = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop";
-const student2 = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop";
-const student3 = "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&h=600&fit=crop";
-const student4 = "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=600&fit=crop";
-const student5 = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop";
-const student6 = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop";
+import { Heart, ArrowRight } from 'lucide-react';
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
+// Mind Measure student images
+import student1 from '@/assets/068152bfc12d21732b8aeafbd4eab27fa36c38dd.png';
+import student2 from '@/assets/09faec71f9d3802be7219825a1035943a576793f.png';
+import student3 from '@/assets/57232a2e8f77967ba1ae01ab3f5468b0c102a4b8.png';
+import student4 from '@/assets/a5ec0d9266e5c8d1d4ca0c6daf9753d43ff512ff.png';
+import student5 from '@/assets/bb827a19515889bb062d58859b831662378c36cb.png';
+import student6 from '@/assets/d0f6eaab8491562aeb8c3df2cfcd2c6a20b00e1e.png';
 
 const taglineWords = ['Measure', 'Monitor', 'Manage'];
 
@@ -179,8 +180,12 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
           variants={logoVariants}
           animate={["visible", "pulse"]}
         >
-          <div className="w-24 h-24 p-4 bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 flex items-center justify-center">
-            <Brain className="w-16 h-16 text-white" />
+          <div className="w-24 h-24 p-4 bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30">
+            <img
+              src={mindMeasureLogo}
+              alt="Mind Measure"
+              className="w-full h-full object-contain"
+            />
           </div>
         </motion.div>
         {/* App Name */}
