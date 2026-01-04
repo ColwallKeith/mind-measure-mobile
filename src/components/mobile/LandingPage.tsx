@@ -1,8 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Heart, ArrowRight } from 'lucide-react';
-import mindMeasureLogo from '@/assets/mind-measure-logo.svg';
+import { Heart, ArrowRight, Brain } from 'lucide-react';
 // Placeholder images from Unsplash - happy students
 const student1 = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop";
 const student2 = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop";
@@ -180,12 +179,8 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
           variants={logoVariants}
           animate={["visible", "pulse"]}
         >
-          <div className="w-24 h-24 p-4 bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30">
-            <img
-              src={mindMeasureLogo}
-              alt="Mind Measure"
-              className="w-full h-full object-contain"
-            />
+          <div className="w-24 h-24 p-4 bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/30 flex items-center justify-center">
+            <Brain className="w-16 h-16 text-white" />
           </div>
         </motion.div>
         {/* App Name */}
