@@ -121,101 +121,126 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Render 7-day - Simple CSS bars that WILL render
+  // Render 7-day - Visual bars with baseline reference
   const render7DayBars = () => {
     const now = new Date();
     const days = [];
     
+    // Build 7-day array with scores
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
       const dayData = last7Days.find(d => {
         const checkInDate = new Date(d.date);
-        return checkInDate.toDateString() === date.toDateString();
+        checkInDate.setHours(0, 0, 0, 0);
+        return checkInDate.getTime() === date.getTime();
       });
       
       days.push({
         day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()],
-        score: dayData?.score || 0
+        score: dayData?.score || null
       });
     }
     
-    const checkInCount = days.filter(d => d.score > 0).length;
+    const checkInCount = days.filter(d => d.score !== null).length;
     const referenceScore = baselineScore || avg7Day;
+    const maxScore = 100;
 
     return (
       <div className="mt-4 px-4">
-        <div className="flex items-end justify-between gap-1" style={{ height: '100px' }}>
-          {days.map((day, index) => (
-            <div key={index} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex items-end" style={{ height: '80px' }}>
-                {day.score > 0 ? (
-                  <div 
-                    className="w-full bg-white/50 rounded-t transition-all duration-500"
-                    style={{ 
-                      height: `${(day.score / 100) * 100}%`,
-                      minHeight: '4px'
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-0.5 bg-white/20" />
-                )}
-              </div>
-              <span className="text-[10px] text-white/70">{day.day}</span>
+        {/* Chart container */}
+        <div className="relative" style={{ height: '120px' }}>
+          {/* Baseline reference line */}
+          {baselineScore && (
+            <div 
+              className="absolute left-0 right-0 border-t-2 border-dashed border-white/40"
+              style={{ 
+                bottom: `${(baselineScore / maxScore) * 100}%`,
+              }}
+            >
+              <span className="absolute -right-1 -top-3 text-[10px] text-white/70">
+                {baselineScore}
+              </span>
             </div>
-          ))}
+          )}
+          
+          {/* Bars */}
+          <div className="absolute inset-0 flex items-end justify-between gap-1">
+            {days.map((day, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
+                {/* Bar */}
+                <div className="w-full flex flex-col items-center" style={{ height: '100%' }}>
+                  {day.score !== null ? (
+                    <div 
+                      className="w-full bg-white/60 rounded-t-md transition-all duration-500 self-end"
+                      style={{ 
+                        height: `${(day.score / maxScore) * 100}%`,
+                        minHeight: '8px',
+                        backgroundColor: day.score >= (baselineScore || avg7Day) 
+                          ? 'rgba(255, 255, 255, 0.8)' 
+                          : 'rgba(255, 255, 255, 0.3)'
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-1 bg-white/10 rounded self-end" />
+                  )}
+                </div>
+                {/* Day label */}
+                <span className="text-[10px] text-white/80 mt-1 font-medium">{day.day}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20 text-xs text-white/70">
-          <span>{baselineScore ? 'Baseline' : 'Avg'}: {Math.round(referenceScore)}</span>
+        
+        {/* Info bar */}
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20 text-xs text-white/80">
+          <span>
+            {baselineScore ? `Baseline: ${Math.round(baselineScore)}` : `Average: ${Math.round(referenceScore)}`}
+          </span>
           <span>{checkInCount} check-in{checkInCount !== 1 ? 's' : ''}</span>
         </div>
+        
+        {/* Encouragement message */}
         {checkInCount < 4 && (
           <p className="text-xs text-white/70 mt-2 text-center">
-            Try checking in more regularly
+            Try checking in more regularly for better tracking
           </p>
         )}
       </div>
     );
   };
 
-  // Render 30-day view - Using Recharts
+  // Render 30-day view - Simple bar visualization
   const render30DayView = () => {
     const checkInCount = last30Days.length;
 
     if (checkInCount < 5) {
       return (
-        <p className={`${colorScheme.textLight} text-sm mt-4 px-4`}>
-          You have only checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last 30 days, 
-          try checking in more often to measure and monitor your mood.
-        </p>
+        <div className="mt-4 px-4">
+          <p className={`${colorScheme.textLight} text-sm text-center`}>
+            You have only checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last 30 days.
+          </p>
+          <p className={`${colorScheme.textLight} text-xs mt-2 text-center opacity-80`}>
+            Try checking in more often to measure and monitor your mood.
+          </p>
+        </div>
       );
     }
 
-    // Format data for Recharts
-    const chartData = last30Days.slice(0, 30).map((point, index) => ({
-      day: index + 1,
-      score: point.score
-    }));
-
+    // Show simple average
     return (
-      <>
-        <div className="mt-4 px-2">
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={chartData}>
-              <Bar 
-                dataKey="score" 
-                fill="rgba(255, 255, 255, 0.4)" 
-                radius={[2, 2, 0, 0]}
-                animationDuration={800}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-          
-          <p className={`${colorScheme.textLight} text-xs mt-2 text-center`}>
-            {checkInCount} check-ins in the last 30 days
-          </p>
+      <div className="mt-4 px-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center">
+            <span className="text-xl font-bold">{avg30Day}</span>
+          </div>
         </div>
-      </>
+        <p className={`${colorScheme.textLight} text-xs text-center`}>
+          Based on {checkInCount} check-ins in the last 30 days
+        </p>
+      </div>
     );
   };
 
