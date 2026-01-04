@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { CheckInWelcome } from './CheckInWelcome';
-import { CheckinAssessmentSDK } from './CheckInAssessmentSDK';
+import { CheckinAssessmentSDK } from './CheckinAssessmentSDK';
 import { HelpScreen } from './HelpPage';
 import { MobileBuddies } from './MobileBuddies';
 import { MobileProfile } from './MobileProfile';
