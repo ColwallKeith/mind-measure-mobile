@@ -119,37 +119,109 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Bar chart for trends
-  const renderBars = (data: ScoreData[], showLabels = true) => {
-    if (data.length === 0) return null;
+  // Render 7-day bar chart - always show 7 days
+  const render7DayBars = () => {
+    const now = new Date();
+    const days = [];
+    
+    // Generate last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      // Find check-in for this day
+      const dayData = last7Days.find(d => {
+        const checkInDate = new Date(d.date);
+        checkInDate.setHours(0, 0, 0, 0);
+        return checkInDate.getTime() === date.getTime();
+      });
+      
+      days.push({
+        date,
+        score: dayData?.score || null,
+        hasData: !!dayData
+      });
+    }
+    
+    const checkInCount = days.filter(d => d.hasData).length;
 
     return (
-      <div className="flex items-end justify-between gap-1 h-24 px-2 mt-4">
-        {data.map((point, index) => {
-          const height = (point.score / 100) * 100;
-          const date = new Date(point.date);
-          const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()];
-          
-          return (
-            <div key={index} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex flex-col items-center justify-end h-20">
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${height}%` }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                  className="w-full bg-white/40 rounded-t-lg"
-                  style={{ minHeight: '4px' }}
-                />
-              </div>
-              {showLabels && (
+      <>
+        <div className="flex items-end justify-between gap-1 h-24 px-2 mt-4">
+          {days.map((day, index) => {
+            const height = day.score ? (day.score / 100) * 100 : 0;
+            const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][day.date.getDay()];
+            
+            return (
+              <div key={index} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex flex-col items-center justify-end h-20">
+                  {day.hasData ? (
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${height}%` }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      className="w-full bg-white/40 rounded-t-lg"
+                      style={{ minHeight: '4px' }}
+                    />
+                  ) : (
+                    <div className="w-full h-1 bg-white/10 rounded" />
+                  )}
+                </div>
                 <span className="text-[10px] text-white/70 font-medium">
                   {dayLabel}
                 </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className={`${colorScheme.textLight} text-xs mt-3 px-2`}>
+          You have checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last seven days
+          {checkInCount < 4 && ', try checking in more regularly for better monitoring'}
+        </p>
+      </>
+    );
+  };
+
+  // Render 30-day view - show bars only if 5+ check-ins
+  const render30DayView = () => {
+    const checkInCount = last30Days.length;
+
+    if (checkInCount < 5) {
+      return (
+        <p className={`${colorScheme.textLight} text-sm mt-4 px-4`}>
+          You have only checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last 30 days, 
+          try checking in more often to measure and monitor your mood.
+        </p>
+      );
+    }
+
+    // Show condensed bar chart for 5+ check-ins
+    return (
+      <>
+        <div className="flex items-end justify-between gap-0.5 h-24 px-2 mt-4">
+          {last30Days.slice(0, 30).map((point, index) => {
+            const height = (point.score / 100) * 100;
+            
+            return (
+              <div key={index} className="flex-1 flex flex-col items-center">
+                <div className="w-full flex flex-col items-center justify-end h-20">
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${height}%` }}
+                    transition={{ duration: 0.5, delay: index * 0.02 }}
+                    className="w-full bg-white/40 rounded-t-sm"
+                    style={{ minHeight: '2px' }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className={`${colorScheme.textLight} text-xs mt-3 px-2`}>
+          {checkInCount} check-ins in the last 30 days
+        </p>
+      </>
     );
   };
 
@@ -233,7 +305,7 @@ export function SwipeableScoreCard({
             
             <p className="text-2xl mb-2">{getScoreLabel(avg7Day)}</p>
             
-            {last7Days.length > 0 && renderBars(last7Days.slice(0, 7))}
+            {render7DayBars()}
           </motion.div>
         )}
 
@@ -256,7 +328,7 @@ export function SwipeableScoreCard({
             
             <p className="text-2xl mb-2">{getScoreLabel(avg30Day)}</p>
             
-            {last30Days.length > 0 && renderBars(last30Days.slice(0, 30), false)}
+            {render30DayView()}
           </motion.div>
         )}
       </AnimatePresence>
