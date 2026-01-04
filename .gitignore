@@ -1,5 +1,0 @@
-.vercel
-dist/
-.env.local
-node_modules
-aws/lambda/node_modules/

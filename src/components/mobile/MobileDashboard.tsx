@@ -2,8 +2,9 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MessageCircle, Activity, Shield, Phone, Loader2, GraduationCap } from 'lucide-react';
+import { MessageCircle, Activity, Shield, Loader2, GraduationCap } from 'lucide-react';
 import { ScoreCard } from './ScoreCard';
+import { TrendChart } from './TrendChart';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
@@ -21,6 +22,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
     latestScore,
     latestSession,
     recentActivity,
+    trendData,
     hasData,
     loading,
     error
@@ -244,6 +246,17 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         </motion.div>
       )}
 
+      {/* Trend Charts - Only show if user has check-ins */}
+      {!isPostBaselineView && checkInActivity.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <TrendChart
+            last7CheckIns={trendData.last7CheckIns}
+            weeklyAverages={trendData.weeklyAverages}
+            monthlyAverages={trendData.monthlyAverages}
+          />
+        </motion.div>
+      )}
+
       {/* Quick Actions - Side by side */}
       <motion.div variants={itemVariants} className="space-y-3">
         <h3 className="text-gray-900">Quick Actions</h3>
@@ -260,10 +273,9 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               onClick={onNeedHelp}
-              className="w-full h-14 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg rounded-xl"
+              className="w-full h-14 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg rounded-xl text-lg font-medium"
             >
-              <Phone className="w-5 h-5 mr-2" />
-              Need Help
+              Need Help?
             </Button>
           </motion.div>
         </div>
@@ -366,55 +378,74 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         </motion.div>
       )}
 
-      {/* Recent Activity - Check-ins only (compact format) */}
-      <motion.div variants={itemVariants}>
-        <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-          <h3 className="text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            {checkInActivity.length > 0 ? (
-              // Show check-in history
-              checkInActivity.slice(0, 5).map((activity, index) => (
-                <motion.div
-                  key={`${activity.createdAt}-${index}`}
-                  className="flex items-center gap-4"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 * index }}
-                >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-blue-600" />
+      {/* Last Check-in Card */}
+      {checkInActivity.length > 0 ? (
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
+            <h3 className="text-gray-900 mb-4">Last Check-in</h3>
+            {(() => {
+              const lastCheckIn = checkInActivity[0];
+              const checkInDate = new Date(lastCheckIn.createdAt);
+              const now = new Date();
+              const diffDays = Math.floor((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+              const formattedDate = checkInDate.toLocaleDateString('en-GB', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              });
+              
+              return (
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Activity className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-gray-800">Check-in Complete</p>
-                    <p className="text-gray-500 text-sm">
-                      Score: {activity.score} ({activity.score >= 80 ? 'Excellent' : activity.score >= 60 ? 'Good' : activity.score >= 40 ? 'Fair' : 'Needs Attention'})
+                    <p className="text-gray-800 font-medium mb-1">{formattedDate}</p>
+                    <p className="text-gray-600 text-sm mb-2">
+                      {diffDays === 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : `${diffDays} days ago`}
                     </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold text-gray-900">{lastCheckIn.score}</span>
+                      <Badge className={`${
+                        lastCheckIn.score >= 80 ? 'bg-green-100 text-green-700' :
+                        lastCheckIn.score >= 60 ? 'bg-blue-100 text-blue-700' :
+                        lastCheckIn.score >= 40 ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
+                      } border-0`}>
+                        {lastCheckIn.score >= 80 ? 'Excellent' : 
+                         lastCheckIn.score >= 60 ? 'Good' : 
+                         lastCheckIn.score >= 40 ? 'Fair' : 
+                         'Needs Attention'}
+                      </Badge>
+                    </div>
                   </div>
-                  <p className="text-gray-400 text-sm">
-                    {formatTimeAgo(activity.createdAt)}
-                  </p>
-                </motion.div>
-              ))
-            ) : (
-              // No check-ins yet - show baseline info
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-purple-600" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-gray-800">Baseline Established</p>
-                  <p className="text-gray-500 text-sm">
-                    {latestScore ? `Score: ${latestScore.score} (${latestScore.label})` : 'Ready for check-ins'}
-                  </p>
-                </div>
-                <p className="text-gray-400 text-sm">
-                  {latestScore?.lastUpdated || 'Today'}
+              );
+            })()}
+          </Card>
+        </motion.div>
+      ) : (
+        <motion.div variants={itemVariants}>
+          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
+            <h3 className="text-gray-900 mb-4">No Check-ins Yet</h3>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-800 font-medium mb-1">Baseline Established</p>
+                <p className="text-gray-600 text-sm mb-2">
+                  {latestScore?.lastUpdated || 'Recently'}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Ready to start your first check-in
                 </p>
               </div>
-            )}
-          </div>
-        </Card>
-      </motion.div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
       
       {/* Bottom padding for navigation */}
       <div className="h-24" />

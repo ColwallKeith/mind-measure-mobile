@@ -30,6 +30,11 @@ interface DashboardData {
     score: number;
     createdAt: string;
   }>;
+  trendData: {
+    last7CheckIns: Array<{ date: string; score: number }>;
+    weeklyAverages: Array<{ date: string; score: number }>;
+    monthlyAverages: Array<{ date: string; score: number }>;
+  };
   hasData: boolean;
   loading: boolean;
   error: string | null;
@@ -52,6 +57,11 @@ export function useDashboardData(): DashboardData {
     latestScore: null,
     latestSession: null,
     recentActivity: [],
+    trendData: {
+      last7CheckIns: [],
+      weeklyAverages: [],
+      monthlyAverages: []
+    },
     hasData: false,
     loading: true,
     error: null,
@@ -257,6 +267,9 @@ export function useDashboardData(): DashboardData {
         };
       }) || [];
       
+      // Calculate trend data for charts
+      const trendData = calculateTrendData(sessions || []);
+      
       const hasData = sessions && sessions.length > 0;
       
       setData({
@@ -270,6 +283,7 @@ export function useDashboardData(): DashboardData {
         latestScore,
         latestSession,
         recentActivity,
+        trendData,
         hasData: !!hasData,
         loading: false,
         error: null,
@@ -296,4 +310,79 @@ function getScoreLabel(score: number): string {
   return 'Needs Attention';
 }
 
+function calculateTrendData(sessions: any[]) {
+  // Filter only check-ins (exclude baseline)
+  const checkIns = sessions.filter(s => {
+    let analysisData: any = {};
+    try {
+      analysisData = typeof s.analysis === 'string' ? JSON.parse(s.analysis) : s.analysis || {};
+    } catch (e) {
+      return false;
+    }
+    return analysisData.assessment_type !== 'baseline';
+  });
+
+  // Last 7 check-ins
+  const last7CheckIns = checkIns.slice(0, 7).reverse().map(s => ({
+    date: s.created_at,
+    score: s.final_score || s.score || 0
+  }));
+
+  // Weekly averages (last 10 weeks)
+  const weeklyAverages: Array<{ date: string; score: number }> = [];
+  const now = new Date();
+  
+  for (let i = 9; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - (i * 7));
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    
+    const weekSessions = checkIns.filter(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= weekStart && sessionDate < weekEnd;
+    });
+    
+    if (weekSessions.length > 0) {
+      const avgScore = Math.round(
+        weekSessions.reduce((sum, s) => sum + (s.final_score || s.score || 0), 0) / weekSessions.length
+      );
+      weeklyAverages.push({
+        date: weekStart.toISOString(),
+        score: avgScore
+      });
+    }
+  }
+
+  // Monthly averages (last 12 months)
+  const monthlyAverages: Array<{ date: string; score: number }> = [];
+  
+  for (let i = 11; i >= 0; i--) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    
+    const monthSessions = checkIns.filter(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= monthStart && sessionDate <= monthEnd;
+    });
+    
+    if (monthSessions.length > 0) {
+      const avgScore = Math.round(
+        monthSessions.reduce((sum, s) => sum + (s.final_score || s.score || 0), 0) / monthSessions.length
+      );
+      monthlyAverages.push({
+        date: monthStart.toISOString(),
+        score: avgScore
+      });
+    }
+  }
+
+  return {
+    last7CheckIns,
+    weeklyAverages,
+    monthlyAverages
+  };
+}
 
