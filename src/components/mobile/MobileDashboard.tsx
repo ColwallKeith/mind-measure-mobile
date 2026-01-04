@@ -3,8 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { MessageCircle, Activity, Shield, Loader2, GraduationCap } from 'lucide-react';
-import { ScoreCard } from './ScoreCard';
-import { TrendChart } from './TrendChart';
+import { SwipeableScoreCard } from './SwipeableScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
@@ -220,13 +219,16 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         )}
       </motion.div>
 
-      {/* Current Score Card */}
+      {/* Swipeable Score Card - Shows current score and trends */}
       {latestScore ? (
         <motion.div variants={itemVariants}>
-          <ScoreCard
-            score={latestScore.score}
-            lastUpdated={latestScore.lastUpdated}
+          <SwipeableScoreCard
+            currentScore={latestScore.score}
+            currentDate={latestScore.lastUpdated}
             trend={latestScore.trend}
+            trendValue={latestScore.trend === 'up' ? 5 : latestScore.trend === 'down' ? -5 : 0}
+            last7Days={trendData.last7Days}
+            last30Days={trendData.last30Days}
           />
         </motion.div>
       ) : (
@@ -243,17 +245,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
               Start Assessment
             </Button>
           </Card>
-        </motion.div>
-      )}
-
-      {/* Trend Charts - Only show if user has check-ins */}
-      {!isPostBaselineView && checkInActivity.length > 0 && (
-        <motion.div variants={itemVariants}>
-          <TrendChart
-            last7CheckIns={trendData.last7CheckIns}
-            weeklyAverages={trendData.weeklyAverages}
-            monthlyAverages={trendData.monthlyAverages}
-          />
         </motion.div>
       )}
 

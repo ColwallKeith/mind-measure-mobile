@@ -32,6 +32,8 @@ interface DashboardData {
   }>;
   trendData: {
     last7CheckIns: Array<{ date: string; score: number }>;
+    last7Days: Array<{ date: string; score: number }>;
+    last30Days: Array<{ date: string; score: number }>;
     weeklyAverages: Array<{ date: string; score: number }>;
     monthlyAverages: Array<{ date: string; score: number }>;
   };
@@ -59,6 +61,8 @@ export function useDashboardData(): DashboardData {
     recentActivity: [],
     trendData: {
       last7CheckIns: [],
+      last7Days: [],
+      last30Days: [],
       weeklyAverages: [],
       monthlyAverages: []
     },
@@ -328,9 +332,59 @@ function calculateTrendData(sessions: any[]) {
     score: s.final_score || s.score || 0
   }));
 
+  // Last 7 days (one data point per day, using most recent score for that day)
+  const last7Days: Array<{ date: string; score: number }> = [];
+  const now = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() - i);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const nextDate = new Date(targetDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    // Find the most recent check-in for this day
+    const dayCheckIn = checkIns.find(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= targetDate && sessionDate < nextDate;
+    });
+    
+    if (dayCheckIn) {
+      last7Days.push({
+        date: targetDate.toISOString(),
+        score: dayCheckIn.final_score || dayCheckIn.score || 0
+      });
+    }
+  }
+
+  // Last 30 days (one data point per day)
+  const last30Days: Array<{ date: string; score: number }> = [];
+  
+  for (let i = 29; i >= 0; i--) {
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() - i);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const nextDate = new Date(targetDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    // Find the most recent check-in for this day
+    const dayCheckIn = checkIns.find(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= targetDate && sessionDate < nextDate;
+    });
+    
+    if (dayCheckIn) {
+      last30Days.push({
+        date: targetDate.toISOString(),
+        score: dayCheckIn.final_score || dayCheckIn.score || 0
+      });
+    }
+  }
+
   // Weekly averages (last 10 weeks)
   const weeklyAverages: Array<{ date: string; score: number }> = [];
-  const now = new Date();
   
   for (let i = 9; i >= 0; i--) {
     const weekStart = new Date(now);
@@ -381,6 +435,8 @@ function calculateTrendData(sessions: any[]) {
 
   return {
     last7CheckIns,
+    last7Days,
+    last30Days,
     weeklyAverages,
     monthlyAverages
   };
