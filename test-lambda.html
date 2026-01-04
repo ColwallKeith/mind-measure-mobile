@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Lambda Functions</title>
+</head>
+<body>
+    <h1>Test Mind Measure Lambda Functions</h1>
+    <button onclick="testLambdas()">Test Lambda Endpoints</button>
+    <pre id="results"></pre>
+
+    <script>
+        async function testLambdas() {
+            const baseUrl = 'https://4xg1jsjh7k.execute-api.eu-west-2.amazonaws.com/dev';
+            const functions = ['analyze-audio', 'analyze-visual', 'analyze-text', 'calculate-mind-measure'];
+            const results = document.getElementById('results');
+            results.textContent = 'Testing Lambda endpoints...\n\n';
+
+            for (const func of functions) {
+                try {
+                    results.textContent += `Testing ${func}...\n`;
+                    const response = await fetch(`${baseUrl}/${func}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ test: true })
+                    });
+
+                    results.textContent += `  Status: ${response.status} ${response.statusText}\n`;
+                    
+                    if (response.status === 401) {
+                        results.textContent += `  ✅ Endpoint exists (needs auth)\n\n`;
+                    } else {
+                        const text = await response.text();
+                        results.textContent += `  Response: ${text.substring(0, 200)}\n\n`;
+                    }
+                } catch (error) {
+                    results.textContent += `  ❌ Error: ${error.message}\n\n`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
