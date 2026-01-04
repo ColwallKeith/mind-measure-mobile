@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { BarChart, Bar, XAxis, ResponsiveContainer } from 'recharts';
 
 interface ScoreData {
   date: string;
@@ -122,70 +121,60 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Render 7-day bar chart - Using Recharts like admin dashboard
+  // Render 7-day - Simple CSS bars that WILL render
   const render7DayBars = () => {
     const now = new Date();
-    const chartData = [];
+    const days = [];
     
-    // Generate last 7 days
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      
-      // Find check-in for this day
       const dayData = last7Days.find(d => {
         const checkInDate = new Date(d.date);
-        checkInDate.setHours(0, 0, 0, 0);
-        return checkInDate.getTime() === date.getTime();
+        return checkInDate.toDateString() === date.toDateString();
       });
       
-      chartData.push({
+      days.push({
         day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()],
         score: dayData?.score || 0
       });
     }
     
-    const checkInCount = chartData.filter(d => d.score > 0).length;
+    const checkInCount = days.filter(d => d.score > 0).length;
     const referenceScore = baselineScore || avg7Day;
 
     return (
-      <>
-        <div className="mt-4 px-2">
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={chartData}>
-              <XAxis 
-                dataKey="day" 
-                stroke="rgba(255, 255, 255, 0.7)" 
-                tick={{ fill: 'rgba(255, 255, 255, 0.7)', fontSize: 11 }}
-                axisLine={{ stroke: 'rgba(255, 255, 255, 0.2)' }}
-              />
-              <Bar 
-                dataKey="score" 
-                fill="rgba(255, 255, 255, 0.5)" 
-                radius={[4, 4, 0, 0]}
-                animationDuration={800}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-          
-          {/* Info bar */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
-            <p className={`${colorScheme.textLight} text-xs`}>
-              {baselineScore ? 'Baseline' : 'Average'}: {Math.round(referenceScore)}
-            </p>
-            <p className={`${colorScheme.textLight} text-xs`}>
-              {checkInCount} check-in{checkInCount !== 1 ? 's' : ''}
-            </p>
-          </div>
+      <div className="mt-4 px-4">
+        <div className="flex items-end justify-between gap-1" style={{ height: '100px' }}>
+          {days.map((day, index) => (
+            <div key={index} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full flex items-end" style={{ height: '80px' }}>
+                {day.score > 0 ? (
+                  <div 
+                    className="w-full bg-white/50 rounded-t transition-all duration-500"
+                    style={{ 
+                      height: `${(day.score / 100) * 100}%`,
+                      minHeight: '4px'
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-0.5 bg-white/20" />
+                )}
+              </div>
+              <span className="text-[10px] text-white/70">{day.day}</span>
+            </div>
+          ))}
         </div>
-        
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20 text-xs text-white/70">
+          <span>{baselineScore ? 'Baseline' : 'Avg'}: {Math.round(referenceScore)}</span>
+          <span>{checkInCount} check-in{checkInCount !== 1 ? 's' : ''}</span>
+        </div>
         {checkInCount < 4 && (
-          <p className={`${colorScheme.textLight} text-xs mt-2 px-4 text-center`}>
-            Try checking in more regularly for better monitoring
+          <p className="text-xs text-white/70 mt-2 text-center">
+            Try checking in more regularly
           </p>
         )}
-      </>
+      </div>
     );
   };
 

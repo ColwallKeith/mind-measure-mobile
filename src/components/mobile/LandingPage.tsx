@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowRight } from 'lucide-react';
+import mindMeasureLogo from '@/assets/mind-measure-logo.svg';
 // Placeholder images from Unsplash - happy students
 const student1 = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop";
 const student2 = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop";
