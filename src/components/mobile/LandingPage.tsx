@@ -2,16 +2,13 @@ import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowRight } from 'lucide-react';
-// Using your actual student images from public/images/
-import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
-
-// Move constants OUTSIDE component to prevent re-creation on every render
-const student1 = "https://app.mindmeasure.co.uk/images/student1.png";
-const student2 = "https://app.mindmeasure.co.uk/images/student2.png";
-const student3 = "https://app.mindmeasure.co.uk/images/student3.png";
-const student4 = "https://app.mindmeasure.co.uk/images/student4.png";
-const student5 = "https://app.mindmeasure.co.uk/images/student5.png";
-const student6 = "https://app.mindmeasure.co.uk/images/student6.png";
+// Placeholder images from Unsplash - happy students
+const student1 = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop";
+const student2 = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop";
+const student3 = "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&h=600&fit=crop";
+const student4 = "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=600&fit=crop";
+const student5 = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop";
+const student6 = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=600&fit=crop";
 
 const taglineWords = ['Measure', 'Monitor', 'Manage'];
 

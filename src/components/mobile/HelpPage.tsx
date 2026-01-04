@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Phone, ExternalLink, Heart, MessageSquare, GraduationCap, Lightbulb, AlertTriangle, MapPin, Building2, Clock } from 'lucide-react';
-const mindMeasureLogo = "https://api.mindmeasure.co.uk/storage/marketing/MM%20logo%20square.png";
+
 export function HelpScreen() {
   const handleCall = (number: string) => {
     window.location.href = `tel:${number}`;
