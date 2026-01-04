@@ -150,73 +150,58 @@ export function SwipeableScoreCard({
     }
     
     const checkInCount = days.filter(d => d.hasData).length;
+    const baselinePercent = (referenceScore / 100) * 100; // position from bottom
 
     return (
       <>
-        <div className="relative px-2 mt-4">
+        <div className="relative h-32 px-2 mt-4">
           {/* Baseline reference line */}
           <div 
-            className="absolute left-0 right-0 h-0.5 bg-white/30"
-            style={{ top: `${100 - referenceScore}%` }}
+            className="absolute left-0 right-0 h-0.5 bg-white/40 z-10"
+            style={{ bottom: `${baselinePercent}%` }}
           >
-            <span className="absolute -right-2 -top-2 text-[9px] text-white/50">
+            <span className="absolute -right-2 -top-3 text-[10px] text-white/70 font-medium">
               {Math.round(referenceScore)}
             </span>
           </div>
           
-          {/* Bar chart */}
-          <div className="flex items-end justify-between gap-1 h-32">
+          {/* Bar chart container */}
+          <div className="flex items-end justify-between gap-1 h-full">
             {days.map((day, index) => {
               const dayLabel = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][day.date.getDay()];
               
               if (!day.hasData) {
+                // Empty day - show dot on baseline
                 return (
-                  <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex flex-col items-center justify-end h-28">
-                      {/* Empty day - just show baseline dot */}
-                      <div 
-                        className="absolute w-1 h-1 bg-white/30 rounded-full"
-                        style={{ bottom: `${(referenceScore / 100) * 112}px` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-white/50 font-medium">
+                  <div key={index} className="flex-1 flex flex-col items-center gap-1 h-full relative">
+                    <div 
+                      className="absolute w-1.5 h-1.5 bg-white/30 rounded-full"
+                      style={{ bottom: `${baselinePercent}%` }}
+                    />
+                    <span className="absolute -bottom-5 text-[10px] text-white/50 font-medium">
                       {dayLabel}
                     </span>
                   </div>
                 );
               }
 
+              // Calculate bar height as percentage from bottom
+              const scorePercent = (day.score! / 100) * 100;
               const isAboveBaseline = day.score! >= referenceScore;
-              const barHeight = isAboveBaseline 
-                ? ((day.score! - referenceScore) / (100 - referenceScore)) * 50
-                : ((referenceScore - day.score!) / referenceScore) * 50;
               
               return (
-                <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full flex flex-col items-center h-28 relative">
-                    {/* Baseline position */}
-                    <div 
-                      className="absolute w-full flex flex-col items-center"
-                      style={{ bottom: `${(referenceScore / 100) * 112}px` }}
-                    >
-                      {/* Bar above or below baseline */}
-                      <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: `${barHeight}%` }}
-                        transition={{ duration: 0.5, delay: index * 0.05 }}
-                        className={`w-full ${
-                          isAboveBaseline 
-                            ? 'bg-white/50 rounded-t-lg' 
-                            : 'bg-white/30 rounded-b-lg transform translate-y-full'
-                        }`}
-                        style={{ 
-                          minHeight: '4px',
-                          transformOrigin: isAboveBaseline ? 'bottom' : 'top'
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-[10px] text-white/70 font-medium">
+                <div key={index} className="flex-1 flex flex-col items-center gap-1 h-full relative">
+                  {/* Bar grows from bottom */}
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: `${scorePercent}%` }}
+                    transition={{ duration: 0.5, delay: index * 0.05 }}
+                    className={`absolute bottom-0 w-full ${
+                      isAboveBaseline ? 'bg-white/50' : 'bg-white/25'
+                    } rounded-t-lg`}
+                    style={{ minHeight: '4px' }}
+                  />
+                  <span className="absolute -bottom-5 text-[10px] text-white/70 font-medium">
                     {dayLabel}
                   </span>
                 </div>
@@ -225,7 +210,7 @@ export function SwipeableScoreCard({
           </div>
         </div>
         
-        <p className={`${colorScheme.textLight} text-xs mt-3 px-2 text-center`}>
+        <p className={`${colorScheme.textLight} text-xs mt-6 px-2 text-center`}>
           {baselineScore 
             ? `Baseline: ${Math.round(baselineScore)} • ` 
             : `Average: ${avg7Day} • `}
