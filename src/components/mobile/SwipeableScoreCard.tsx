@@ -35,6 +35,29 @@ export function SwipeableScoreCard({
 
   const minSwipeDistance = 50;
 
+  // Debug logging
+  console.log('🎯 SwipeableScoreCard props:', {
+    currentScore,
+    currentDate,
+    trend,
+    trendValue,
+    last7Days: last7Days?.length,
+    last30Days: last30Days?.length,
+    activeView
+  });
+
+  // Safety check
+  if (!currentScore || currentScore === 0) {
+    console.error('❌ SwipeableScoreCard: Invalid currentScore:', currentScore);
+    return (
+      <Card className="border-0 shadow-lg overflow-hidden bg-gray-200 p-6">
+        <div className="text-center">
+          <p className="text-gray-600">Score data unavailable</p>
+        </div>
+      </Card>
+    );
+  }
+
   const views: View[] = ['current', '7day', '30day'];
   const currentIndex = views.indexOf(activeView);
 
@@ -219,7 +242,7 @@ export function SwipeableScoreCard({
             key="current"
             custom={direction}
             variants={slideVariants}
-            initial="enter"
+            initial="center"
             animate="center"
             exit="exit"
             transition={{ duration: 0.3 }}
@@ -263,7 +286,7 @@ export function SwipeableScoreCard({
               key="7day"
               custom={direction}
               variants={slideVariants}
-              initial="enter"
+              initial="center"
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
@@ -300,7 +323,7 @@ export function SwipeableScoreCard({
               key="30day"
               custom={direction}
               variants={slideVariants}
-              initial="enter"
+              initial="center"
               animate="center"
               exit="exit"
               transition={{ duration: 0.3 }}
