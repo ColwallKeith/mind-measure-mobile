@@ -50,13 +50,19 @@ export function SwipeableScoreCard({
   if (!currentScore || currentScore === 0) {
     console.error('❌ SwipeableScoreCard: Invalid currentScore:', currentScore);
     return (
-      <Card className="border-0 shadow-lg overflow-hidden bg-gray-200 p-6">
-        <div className="text-center">
-          <p className="text-gray-600">Score data unavailable</p>
+      <Card className="border-0 shadow-lg overflow-hidden bg-red-500 p-6">
+        <div className="text-center text-white">
+          <p className="font-bold mb-2">⚠️ DEBUG MODE</p>
+          <p className="text-sm">Score data unavailable</p>
+          <p className="text-xs mt-2">currentScore: {String(currentScore)}</p>
+          <p className="text-xs">currentDate: {String(currentDate)}</p>
         </div>
       </Card>
     );
   }
+
+  // Add visible debug overlay
+  const debugMode = true;
 
   const views: View[] = ['current', '7day', '30day'];
   const currentIndex = views.indexOf(activeView);
@@ -249,6 +255,15 @@ export function SwipeableScoreCard({
             className={`p-6 ${getScoreInfo(currentScore).bgColor}`}
             style={{ minHeight: '280px' }}
           >
+              {/* DEBUG OVERLAY */}
+              {debugMode && (
+                <div className="absolute top-0 left-0 bg-black/80 text-white text-xs p-2 z-50">
+                  <p>Score: {currentScore}</p>
+                  <p>View: {activeView}</p>
+                  <p>BgColor: {getScoreInfo(currentScore).bgColor}</p>
+                </div>
+              )}
+
               {/* Current Score View */}
               <div className="text-center space-y-3">
                 <p className="text-white/90 text-sm font-medium">Current Score</p>
