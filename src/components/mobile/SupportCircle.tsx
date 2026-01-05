@@ -43,15 +43,13 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
       setLoading(true);
       console.log('📞 Loading buddies for user:', user.id);
       
-      const response = await backendService.databaseService.select({
-        table: 'buddy_contacts',
-        columns: ['id', 'name', 'phone', 'email', 'relationship', 'notify_channel'],
-        filters: {
-          user_id: user.id,
-          is_active: true
-        },
-        orderBy: { column: 'created_at', ascending: true }
+      const { data, error } = await backendService.database.select('buddy_contacts', {
+        filters: { user_id: user.id, is_active: true },
+        columns: 'id, name, phone, email, relationship, notify_channel',
+        orderBy: 'created_at'
       });
+      
+      const response = { data, error };
 
       if (response.error) {
         throw new Error(response.error.message);
@@ -84,19 +82,18 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
     try {
       console.log('➕ Adding new buddy:', newBuddy);
       
-      const response = await backendService.databaseService.insert({
-        table: 'buddy_contacts',
-        data: {
-          user_id: user.id,
-          name: newBuddy.name,
-          phone: newBuddy.phone,
-          email: newBuddy.email || null,
-          relationship: newBuddy.relationship || null,
-          notify_channel: 'sms', // Default to SMS
-          is_active: true,
-          verified: false
-        }
+      const { data: insertedData, error: insertError } = await backendService.database.insert('buddy_contacts', {
+        user_id: user.id,
+        name: newBuddy.name,
+        phone: newBuddy.phone,
+        email: newBuddy.email || null,
+        relationship: newBuddy.relationship || null,
+        notify_channel: 'sms',
+        is_active: true,
+        verified: false
       });
+      
+      const response = { data: insertedData, error: insertError };
 
       if (response.error) {
         throw new Error(response.error.message);
@@ -121,15 +118,13 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
       console.log('🗑️ Deleting buddy:', id);
       
       // Soft delete by setting is_active to false
-      const response = await backendService.databaseService.update({
-        table: 'buddy_contacts',
-        data: {
-          is_active: false
-        },
-        filters: {
-          id: id
-        }
+      const { data: updateData, error: updateError } = await backendService.database.update('buddy_contacts', {
+        is_active: false
+      }, {
+        filters: { id }
       });
+      
+      const response = { data: updateData, error: updateError };
 
       if (response.error) {
         throw new Error(response.error.message);
