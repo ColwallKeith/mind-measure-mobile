@@ -93,6 +93,26 @@ export function ThirtyDayViewCard({
               {calculatedAverage}
             </div>
           </div>
+          
+          {/* Check-ins Count */}
+          <div>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.9)', 
+              letterSpacing: '0.05em', 
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              CHECK-INS
+            </div>
+            <div style={{ 
+              color: 'white', 
+              fontSize: '48px',
+              lineHeight: '1',
+              fontWeight: '700'
+            }}>
+              {monthData.filter(score => score > 0).length}
+            </div>
+          </div>
         </div>
       </div>
       
