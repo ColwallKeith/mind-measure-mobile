@@ -121,7 +121,7 @@ export function SwipeableScoreCard({
     }
   };
 
-  // Render 7-day - Visual bars with baseline reference
+  // Render 7-day - Apple Health "Average Distance" style
   const render7DayBars = () => {
     const now = new Date();
     const days = [];
@@ -145,101 +145,156 @@ export function SwipeableScoreCard({
     }
     
     const checkInCount = days.filter(d => d.score !== null).length;
-    const referenceScore = baselineScore || avg7Day;
+    const baseline = baselineScore || avg7Day;
     const maxScore = 100;
 
     return (
-      <div className="mt-4 px-4">
-        {/* Chart container */}
-        <div className="relative" style={{ height: '120px' }}>
-          {/* Baseline reference line */}
-          {baselineScore && (
-            <div 
-              className="absolute left-0 right-0 border-t-2 border-dashed border-white/40"
-              style={{ 
-                bottom: `${(baselineScore / maxScore) * 100}%`,
-              }}
-            >
-              <span className="absolute -right-1 -top-3 text-[10px] text-white/70">
-                {baselineScore}
-              </span>
-            </div>
-          )}
+      <div className="mt-4 px-3">
+        {/* Baseline label - Apple Health style */}
+        <div className="mb-2">
+          <p className="text-white/70 text-xs mb-1">Baseline</p>
+        </div>
+        
+        {/* Chart container - compact like Apple Health */}
+        <div className="relative" style={{ height: '140px' }}>
+          {/* Baseline line - solid green like Apple Health */}
+          <div 
+            className="absolute left-0 right-0 border-t-2 border-green-400"
+            style={{ 
+              top: `${100 - (baseline / maxScore) * 100}%`,
+            }}
+          />
           
-          {/* Bars */}
-          <div className="absolute inset-0 flex items-end justify-between gap-1">
+          {/* Bars - compact Apple Health style */}
+          <div className="absolute inset-0 flex items-end justify-between gap-0.5">
             {days.map((day, index) => (
               <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                 {/* Bar */}
-                <div className="w-full flex flex-col items-center" style={{ height: '100%' }}>
-                  {day.score !== null ? (
-                    <div 
-                      className="w-full bg-white/60 rounded-t-md transition-all duration-500 self-end"
-                      style={{ 
-                        height: `${(day.score / maxScore) * 100}%`,
-                        minHeight: '8px',
-                        backgroundColor: day.score >= (baselineScore || avg7Day) 
-                          ? 'rgba(255, 255, 255, 0.8)' 
-                          : 'rgba(255, 255, 255, 0.3)'
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-1 bg-white/10 rounded self-end" />
-                  )}
-                </div>
-                {/* Day label */}
-                <span className="text-[10px] text-white/80 mt-1 font-medium">{day.day}</span>
+                {day.score !== null ? (
+                  <div 
+                    className="w-full rounded-t transition-all duration-500"
+                    style={{ 
+                      height: `${(day.score / maxScore) * 100}%`,
+                      minHeight: '4px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                    }}
+                  />
+                ) : (
+                  <div className="w-full" style={{ height: '2px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Day labels at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 flex justify-between">
+            {days.map((day, index) => (
+              <div key={index} className="flex-1 text-center">
+                <span className="text-[10px] text-white/60">{day.day}</span>
               </div>
             ))}
           </div>
         </div>
         
-        {/* Info bar */}
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20 text-xs text-white/80">
-          <span>
-            {baselineScore ? `Baseline: ${Math.round(baselineScore)}` : `Average: ${Math.round(referenceScore)}`}
-          </span>
-          <span>{checkInCount} check-in{checkInCount !== 1 ? 's' : ''}</span>
+        {/* Baseline score - like "3.7 mi" in Apple Health */}
+        <div className="mt-3 text-center">
+          <p className="text-4xl font-bold text-white">{Math.round(baseline)}</p>
         </div>
         
-        {/* Encouragement message */}
-        {checkInCount < 4 && (
-          <p className="text-xs text-white/70 mt-2 text-center">
-            Try checking in more regularly for better tracking
+        {/* Check-in count */}
+        <div className="mt-2 text-center">
+          <p className="text-xs text-white/60">
+            {checkInCount} check-in{checkInCount !== 1 ? 's' : ''} this week
           </p>
-        )}
+        </div>
       </div>
     );
   };
 
-  // Render 30-day view - Simple bar visualization
-  const render30DayView = () => {
-    const checkInCount = last30Days.length;
-
-    if (checkInCount < 5) {
-      return (
-        <div className="mt-4 px-4">
-          <p className={`${colorScheme.textLight} text-sm text-center`}>
-            You have only checked in {checkInCount} {checkInCount === 1 ? 'time' : 'times'} in the last 30 days.
-          </p>
-          <p className={`${colorScheme.textLight} text-xs mt-2 text-center opacity-80`}>
-            Try checking in more often to measure and monitor your mood.
-          </p>
-        </div>
-      );
+  // Render 30-day - Apple Health "Flights Climbed" style
+  const render30DayBars = () => {
+    const now = new Date();
+    const days = [];
+    
+    // Build 30-day array
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const dayData = last30Days.find(d => {
+        const checkInDate = new Date(d.date);
+        checkInDate.setHours(0, 0, 0, 0);
+        return checkInDate.getTime() === date.getTime();
+      });
+      
+      days.push({
+        date: date.getDate(),
+        score: dayData?.score || null
+      });
     }
+    
+    const checkInCount = days.filter(d => d.score !== null).length;
+    const maxScore = 100;
 
-    // Show simple average
+    // Get date markers for display (every 7 days)
+    const dateMarkers = [7, 14, 21, 28].map(index => ({
+      index,
+      date: days[index]?.date || ''
+    }));
+
     return (
-      <div className="mt-4 px-4">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center">
-            <span className="text-xl font-bold">{avg30Day}</span>
+      <div className="mt-4 px-3">
+        {/* Chart container - dense like Apple Health */}
+        <div className="relative" style={{ height: '180px' }}>
+          {/* Y-axis labels */}
+          <div className="absolute -left-2 top-0 bottom-8 flex flex-col justify-between text-[10px] text-white/40">
+            <span>100</span>
+            <span>50</span>
+            <span>0</span>
+          </div>
+          
+          {/* Grid lines */}
+          <div className="absolute left-4 right-0 top-0 border-t border-white/10" />
+          <div className="absolute left-4 right-0 top-1/2 border-t border-white/10" />
+          <div className="absolute left-4 right-0 bottom-8 border-t border-white/10" />
+          
+          {/* Bars - very dense like Apple Health */}
+          <div className="absolute left-4 right-0 bottom-8 top-0 flex items-end justify-between gap-px">
+            {days.map((day, index) => (
+              <div key={index} className="flex-1 h-full flex items-end">
+                {day.score !== null ? (
+                  <div 
+                    className="w-full rounded-t-sm"
+                    style={{ 
+                      height: `${(day.score / maxScore) * 100}%`,
+                      minHeight: '2px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.85)'
+                    }}
+                  />
+                ) : (
+                  <div className="w-full" style={{ height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Date markers at bottom */}
+          <div className="absolute left-4 right-0 bottom-0 flex justify-between text-[10px] text-white/60">
+            {dateMarkers.map((marker, i) => (
+              <span key={i} style={{ position: 'absolute', left: `${(marker.index / 29) * 100}%` }}>
+                {marker.date}
+              </span>
+            ))}
           </div>
         </div>
-        <p className={`${colorScheme.textLight} text-xs text-center`}>
-          Based on {checkInCount} check-ins in the last 30 days
-        </p>
+        
+        {/* Info */}
+        <div className="mt-3 text-center">
+          <p className="text-xs text-white/60">
+            {checkInCount} check-ins in the last 30 days
+          </p>
+        </div>
       </div>
     );
   };
@@ -339,7 +394,7 @@ export function SwipeableScoreCard({
             transition={{ duration: 0.3 }}
             className="relative z-10 text-center"
           >
-            <p className={`${colorScheme.textLight} mb-3`}>30-Day Average</p>
+            <p className={`${colorScheme.textLight} mb-3`}>30-Day Trend</p>
             
             <div className="relative">
               <div className="text-6xl mb-2 drop-shadow-lg">{avg30Day}</div>
@@ -347,7 +402,7 @@ export function SwipeableScoreCard({
             
             <p className="text-2xl mb-2">{getScoreLabel(avg30Day)}</p>
             
-            {render30DayView()}
+            {render30DayBars()}
           </motion.div>
         )}
       </AnimatePresence>
