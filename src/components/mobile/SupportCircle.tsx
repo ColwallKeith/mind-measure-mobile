@@ -3,7 +3,7 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { BuddyCard } from './BuddyCard';
 import { AddBuddyModal } from './AddBuddyModal';
-import { BackendServiceFactory } from '@/services/BackendServiceFactory';
+import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Buddy {
