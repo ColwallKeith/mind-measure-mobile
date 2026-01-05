@@ -9,6 +9,8 @@ export function SevenDayViewCard({
   weekData,
   averageScore
 }: SevenDayViewCardProps) {
+  console.log('🎨 SevenDayViewCard rendering with weekData:', weekData);
+  
   const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const maxValue = 100;
   
@@ -17,7 +19,8 @@ export function SevenDayViewCard({
   
   // Calculate bar heights as percentages
   const getBarHeight = (value: number) => {
-    return (value / maxValue) * 100;
+    // Convert to pixels (256px container height)
+    return Math.max((value / maxValue) * 256, 8);
   };
   
   // Calculate baseline position
@@ -133,25 +136,29 @@ export function SevenDayViewCard({
             justifyContent: 'space-around', 
             gap: '8px'
           }}>
-            {weekData.map((value, index) => (
-              <div key={index} style={{ 
-                flex: 1, 
-                display: 'flex', 
-                alignItems: 'flex-end', 
-                justifyContent: 'center' 
-              }}>
-                {/* Bar */}
-                <div style={{ 
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  borderTopLeftRadius: '4px',
-                  borderTopRightRadius: '4px',
-                  transition: 'all 0.3s',
-                  height: `${getBarHeight(value)}%`,
-                  minHeight: '8px'
-                }} />
-              </div>
-            ))}
+            {weekData.map((value, index) => {
+              const barHeight = getBarHeight(value);
+              console.log(`📊 Bar ${index}: value=${value}, height=${barHeight}px`);
+              return (
+                <div key={index} style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'flex-end', 
+                  justifyContent: 'center' 
+                }}>
+                  {/* Bar */}
+                  <div style={{ 
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderTopLeftRadius: '4px',
+                    borderTopRightRadius: '4px',
+                    transition: 'all 0.3s',
+                    height: `${barHeight}px`,
+                    minHeight: '8px'
+                  }} />
+                </div>
+              );
+            })}
           </div>
         </div>
         

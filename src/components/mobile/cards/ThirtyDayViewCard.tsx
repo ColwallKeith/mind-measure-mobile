@@ -9,14 +9,17 @@ export function ThirtyDayViewCard({
   monthData,
   averageScore
 }: ThirtyDayViewCardProps) {
+  console.log('🎨 ThirtyDayViewCard rendering with monthData:', monthData);
+  
   const maxValue = 100;
   
   // Calculate average if not provided
   const calculatedAverage = averageScore ?? Math.round(monthData.reduce((sum, val) => sum + val, 0) / monthData.length);
   
-  // Calculate bar heights as percentages
+  // Calculate bar heights as pixels
   const getBarHeight = (value: number) => {
-    return (value / maxValue) * 100;
+    // Convert to pixels (256px container height)
+    return Math.max((value / maxValue) * 256, 4);
   };
   
   // Calculate baseline position
@@ -152,26 +155,29 @@ export function ThirtyDayViewCard({
             paddingLeft: '4px',
             paddingRight: '4px'
           }}>
-            {monthData.map((value, index) => (
-              <div key={index} style={{ 
-                flex: 1, 
-                display: 'flex', 
-                alignItems: 'flex-end', 
-                justifyContent: 'center',
-                minWidth: 0
-              }}>
-                {/* Bar */}
-                <div style={{ 
-                  width: '100%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  borderTopLeftRadius: '2px',
-                  borderTopRightRadius: '2px',
-                  transition: 'all 0.3s',
-                  height: `${getBarHeight(value)}%`,
-                  minHeight: '4px'
-                }} />
-              </div>
-            ))}
+            {monthData.map((value, index) => {
+              const barHeight = getBarHeight(value);
+              return (
+                <div key={index} style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'flex-end', 
+                  justifyContent: 'center',
+                  minWidth: 0
+                }}>
+                  {/* Bar */}
+                  <div style={{ 
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderTopLeftRadius: '2px',
+                    borderTopRightRadius: '2px',
+                    transition: 'all 0.3s',
+                    height: `${barHeight}px`,
+                    minHeight: '4px'
+                  }} />
+                </div>
+              );
+            })}
           </div>
         </div>
         
