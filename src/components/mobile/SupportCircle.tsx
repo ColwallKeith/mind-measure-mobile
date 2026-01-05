@@ -46,7 +46,7 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
       const { data, error } = await backendService.database.select('buddy_contacts', {
         filters: { user_id: user.id, is_active: true },
         columns: 'id, name, phone, email, relationship, notify_channel',
-        orderBy: 'created_at'
+        orderBy: [{ column: 'created_at', ascending: true }]
       });
       
       const response = { data, error };
