@@ -15,6 +15,7 @@ interface SwipeableScoreCardProps {
   last7Days?: ScoreData[];
   last30Days?: ScoreData[];
   baselineScore?: number; // User's baseline for comparison
+  userCreatedAt?: string; // Account creation date to determine available views
 }
 
 type View = 'current' | '7day' | '30day';
@@ -25,7 +26,8 @@ export function SwipeableScoreCard({
   trend = 'stable',
   last7Days = [],
   last30Days = [],
-  baselineScore
+  baselineScore,
+  userCreatedAt
 }: SwipeableScoreCardProps) {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -33,23 +35,20 @@ export function SwipeableScoreCard({
 
   const minSwipeDistance = 50;
   
-  // Determine which views to show based on user history
+  // Determine which views to show based on ACCOUNT AGE, not check-in history
   const availableViews: View[] = ['current'];
   
-  // Only show 7-day view if user has been active for at least 7 days
-  if (last7Days.length > 0) {
-    const oldestCheckIn = new Date(Math.min(...last7Days.map(d => new Date(d.date).getTime())));
-    const daysSinceFirst = Math.floor((Date.now() - oldestCheckIn.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceFirst >= 7) {
+  if (userCreatedAt) {
+    const accountCreatedDate = new Date(userCreatedAt);
+    const daysSinceSignup = Math.floor((Date.now() - accountCreatedDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Show 7-day view if user signed up 7+ days ago
+    if (daysSinceSignup >= 7) {
       availableViews.push('7day');
     }
-  }
-  
-  // Only show 30-day view if user has been active for at least 30 days
-  if (last30Days.length > 0) {
-    const oldestCheckIn = new Date(Math.min(...last30Days.map(d => new Date(d.date).getTime())));
-    const daysSinceFirst = Math.floor((Date.now() - oldestCheckIn.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceFirst >= 30) {
+    
+    // Show 30-day view if user signed up 30+ days ago
+    if (daysSinceSignup >= 30) {
       availableViews.push('30day');
     }
   }

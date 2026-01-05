@@ -9,6 +9,7 @@ interface DashboardData {
     displayName: string;
     streakCount: number;
     baselineEstablished: boolean;
+    createdAt?: string; // Account creation date for determining available views
   };
   latestScore: {
     score: number;
@@ -99,7 +100,7 @@ export function useDashboardData(): DashboardData {
       // Fetch user profile
       const { data: profiles, error: profileError } = await backendService.database.select('profiles', {
         filters: { user_id: user.id },
-        columns: 'first_name, last_name, display_name, streak_count, baseline_established'
+        columns: 'first_name, last_name, display_name, streak_count, baseline_established, created_at'
       });
       
       const profile = profiles && profiles.length > 0 ? profiles[0] : null;
@@ -283,6 +284,7 @@ export function useDashboardData(): DashboardData {
           displayName: profileData.display_name || 'User',
           streakCount: profileData.streak_count || 0,
           baselineEstablished: profileData.baseline_established || (sessions && sessions.length > 0),
+          createdAt: profileData.created_at, // Account creation date
         },
         latestScore,
         latestSession,
