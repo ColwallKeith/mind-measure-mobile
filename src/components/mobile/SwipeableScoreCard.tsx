@@ -101,7 +101,7 @@ export function SwipeableScoreCard({
     return "We're here to support you.";
   };
 
-  // Prepare 7-day data (fill with scores from last7Days)
+  // Prepare 7-day data (only show actual check-ins, use 0 for missing days)
   const prepare7DayData = (): number[] => {
     const data: number[] = [];
     const now = new Date();
@@ -117,15 +117,15 @@ export function SwipeableScoreCard({
         return checkInDate.getTime() === date.getTime();
       });
       
-      // If no data for this day, use baseline or 0
-      data.push(dayData?.score || baselineScore || 0);
+      // Use 0 for days without check-ins (will show as minimal bar)
+      data.push(dayData?.score || 0);
     }
     
     console.log('📊 7-day data prepared:', data, 'from', last7Days.length, 'check-ins');
     return data;
   };
 
-  // Prepare 30-day data
+  // Prepare 30-day data (only show actual check-ins, use 0 for missing days)
   const prepare30DayData = (): number[] => {
     const data: number[] = [];
     const now = new Date();
@@ -141,8 +141,8 @@ export function SwipeableScoreCard({
         return checkInDate.getTime() === date.getTime();
       });
       
-      // If no data for this day, use baseline or 0
-      data.push(dayData?.score || baselineScore || 0);
+      // Use 0 for days without check-ins (will show as minimal bar)
+      data.push(dayData?.score || 0);
     }
     
     return data;

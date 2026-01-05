@@ -19,7 +19,8 @@ export function SevenDayViewCard({
   
   // Calculate bar heights as percentages
   const getBarHeight = (value: number) => {
-    // Convert to pixels (256px container height)
+    // If no data (0), show tiny bar; otherwise calculate height
+    if (value === 0) return 2;
     return Math.max((value / maxValue) * 256, 8);
   };
   

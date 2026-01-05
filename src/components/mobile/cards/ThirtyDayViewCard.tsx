@@ -18,7 +18,8 @@ export function ThirtyDayViewCard({
   
   // Calculate bar heights as pixels
   const getBarHeight = (value: number) => {
-    // Convert to pixels (256px container height)
+    // If no data (0), show tiny bar; otherwise calculate height
+    if (value === 0) return 1;
     return Math.max((value / maxValue) * 256, 4);
   };
   
