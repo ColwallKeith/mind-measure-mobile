@@ -11,7 +11,22 @@ export function SevenDayViewCard({
 }: SevenDayViewCardProps) {
   console.log('🎨 SevenDayViewCard rendering with weekData:', weekData);
   
-  const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  // Calculate day labels based on current date
+  const getDayLabels = () => {
+    const labels: string[] = [];
+    const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const now = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      labels.push(dayLetters[date.getDay()]);
+    }
+    
+    return labels;
+  };
+  
+  const days = getDayLabels();
   const maxValue = 100;
   
   // Calculate average if not provided
