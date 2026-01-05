@@ -221,7 +221,10 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
         {/* Header */}
         <div style={{
           backgroundColor: '#FFFFFF',
-          padding: '20px',
+          paddingTop: '60px',
+          paddingBottom: '20px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
           borderBottom: '1px solid #F0F0F0'
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
