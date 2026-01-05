@@ -170,40 +170,77 @@ export function SwipeableScoreCard({
     const baseline = baselineScore || avg7Day;
     const maxScore = 100;
 
+  // Render 7-day - EXACTLY as mockup shows
+  // Baseline line goes FULL WIDTH, bars are in the right 55% (30% to 85%)
+  const render7DayBars = () => {
+    const now = new Date();
+    const days = [];
+    
+    // Build 7-day array with scores
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      
+      const dayData = last7Days.find(d => {
+        const checkInDate = new Date(d.date);
+        checkInDate.setHours(0, 0, 0, 0);
+        return checkInDate.getTime() === date.getTime();
+      });
+      
+      days.push({
+        day: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()],
+        score: dayData?.score || null
+      });
+    }
+    
+    const checkInCount = days.filter(d => d.score !== null).length;
+    const baseline = baselineScore || avg7Day;
+    const maxScore = 100;
+    const baselinePercent = (baseline / maxScore) * 100;
+
     return (
-      <div className="h-full w-full p-6 flex gap-6">
-        {/* LEFT SIDE: Title + Score (40% width) */}
-        <div className="w-2/5 flex flex-col justify-center">
-          <p className="text-white/70 text-base mb-2">Baseline</p>
-          <p className="text-white text-6xl font-bold mb-2">{Math.round(baseline)}</p>
-          <p className="text-white/50 text-sm">{checkInCount} check-ins</p>
+      <div className="h-full w-full p-6 relative">
+        {/* Top left: Labels and Score (left 30%) */}
+        <div className="absolute left-6 top-6">
+          <p className="text-white/60 text-xs font-medium mb-1">SEVEN DAY VIEW</p>
+          <p className="text-white/80 text-xs font-medium mb-2">BASELINE SCORE</p>
+          <p className="text-white text-6xl font-bold">{Math.round(baseline)}</p>
         </div>
         
-        {/* RIGHT SIDE: Bar chart (60% width) */}
-        <div className="w-3/5 relative">
-          {/* Green baseline line across middle */}
+        {/* Y-axis labels on far right (85-100%) */}
+        <div className="absolute right-6 top-24 bottom-16 flex flex-col justify-between text-white/60 text-sm">
+          <span>100</span>
+          <span>50</span>
+          <span>0</span>
+        </div>
+        
+        {/* Chart area - bars from 30% to 85% */}
+        <div className="absolute top-24 bottom-12" style={{ left: '30%', right: '15%' }}>
+          {/* Orange/Yellow baseline line - spans FULL CARD WIDTH */}
           <div 
-            className="absolute left-0 right-0 z-10"
+            className="absolute z-10"
             style={{ 
-              top: '45%',
-              height: '3px',
-              backgroundColor: '#10b981'
+              top: `${100 - baselinePercent}%`,
+              left: '-200%', // Extend left beyond chart area
+              right: '-100%', // Extend right beyond chart area  
+              height: '4px',
+              backgroundColor: '#fbbf24' // orange/yellow
             }}
           />
           
-          {/* Narrow, tall bars */}
+          {/* White vertical bars - show daily scores relative to baseline */}
           <div className="absolute inset-0 flex items-end justify-between gap-2 pb-8">
             {days.map((day, index) => (
-              <div key={index} className="flex-1 h-full flex flex-col justify-end items-center">
-                {/* Bar - narrow but grows tall */}
+              <div key={index} className="flex-1 h-full flex flex-col justify-end">
                 <div 
-                  className="w-full rounded-t-lg"
+                  className="w-full rounded-t-xl"
                   style={{ 
-                    height: day.score !== null ? `${(day.score / maxScore) * 100}%` : '8%',
-                    minHeight: '16px',
+                    height: day.score !== null ? `${(day.score / maxScore) * 100}%` : '5%',
+                    minHeight: '12px',
                     backgroundColor: day.score !== null 
-                      ? 'rgba(255, 255, 255, 0.9)' 
-                      : 'rgba(255, 255, 255, 0.25)',
+                      ? 'rgba(255, 255, 255, 0.95)' 
+                      : 'rgba(255, 255, 255, 0.3)',
                   }}
                 />
               </div>
@@ -214,13 +251,19 @@ export function SwipeableScoreCard({
           <div className="absolute bottom-0 left-0 right-0 flex justify-between">
             {days.map((day, index) => (
               <div key={index} className="flex-1 text-center">
-                <span className="text-white/80 text-sm font-medium">{day.day}</span>
+                <span className="text-white text-base font-bold">{day.day}</span>
               </div>
             ))}
           </div>
         </div>
+        
+        {/* Check-in count */}
+        <p className="absolute bottom-6 left-6 text-white/50 text-xs">
+          {checkInCount} check-ins
+        </p>
       </div>
     );
+  };
   };
 
   // Render 30-day - EXACTLY like Apple Health "Flights Climbed"
