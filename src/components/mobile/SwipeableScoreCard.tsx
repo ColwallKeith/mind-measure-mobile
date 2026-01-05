@@ -143,6 +143,7 @@ export function SwipeableScoreCard({
   };
 
   // Render 7-day - EXACTLY like Apple Health "Average Distance"
+  // KEY: Bars must be HUGE and take up most of the space
   const render7DayBars = () => {
     const now = new Date();
     const days = [];
@@ -168,65 +169,55 @@ export function SwipeableScoreCard({
     const checkInCount = days.filter(d => d.score !== null).length;
     const baseline = baselineScore || avg7Day;
     const maxScore = 100;
-    const baselinePercent = (baseline / maxScore) * 100;
 
     return (
-      <div className="relative px-4" style={{ height: '280px' }}>
-        {/* Title - top left like Apple Health */}
-        <div className="absolute top-0 left-4">
-          <p className="text-white/60 text-sm font-medium mb-1">Baseline</p>
+      <div className="h-full w-full p-6 flex gap-6">
+        {/* LEFT SIDE: Title + Score (40% width) */}
+        <div className="w-2/5 flex flex-col justify-center">
+          <p className="text-white/70 text-base mb-2">Baseline</p>
+          <p className="text-white text-6xl font-bold mb-2">{Math.round(baseline)}</p>
+          <p className="text-white/50 text-sm">{checkInCount} check-ins</p>
         </div>
         
-        {/* Big score - below title, like "3.7 mi" */}
-        <div className="absolute top-6 left-4">
-          <p className="text-white text-5xl font-bold">{Math.round(baseline)}</p>
-        </div>
-        
-        {/* Chart area - middle to bottom */}
-        <div className="absolute left-4 right-4" style={{ top: '100px', bottom: '40px' }}>
-          {/* Horizontal baseline line - GREEN like Apple Health goal line */}
+        {/* RIGHT SIDE: Bar chart (60% width) */}
+        <div className="w-3/5 relative">
+          {/* Green baseline line across middle */}
           <div 
-            className="absolute left-0 right-0 border-t-[3px] border-green-400"
+            className="absolute left-0 right-0 z-10"
             style={{ 
-              top: `${100 - baselinePercent}%`,
+              top: '45%',
+              height: '3px',
+              backgroundColor: '#10b981'
             }}
           />
           
-          {/* Bars - thick and prominent like Apple Health */}
-          <div className="absolute inset-0 flex items-end justify-between gap-2">
+          {/* Narrow, tall bars */}
+          <div className="absolute inset-0 flex items-end justify-between gap-2 pb-8">
             {days.map((day, index) => (
-              <div key={index} className="flex-1 flex items-end" style={{ height: '100%' }}>
-                {day.score !== null ? (
-                  <div 
-                    className="w-full rounded-t-md"
-                    style={{ 
-                      height: `${(day.score / maxScore) * 100}%`,
-                      minHeight: '8px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    }}
-                  />
-                ) : (
-                  <div className="w-full rounded-t-md" style={{ height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-                )}
+              <div key={index} className="flex-1 h-full flex flex-col justify-end items-center">
+                {/* Bar - narrow but grows tall */}
+                <div 
+                  className="w-full rounded-t-lg"
+                  style={{ 
+                    height: day.score !== null ? `${(day.score / maxScore) * 100}%` : '8%',
+                    minHeight: '16px',
+                    backgroundColor: day.score !== null 
+                      ? 'rgba(255, 255, 255, 0.9)' 
+                      : 'rgba(255, 255, 255, 0.25)',
+                  }}
+                />
               </div>
             ))}
           </div>
-        </div>
-        
-        {/* Day labels - at the very bottom */}
-        <div className="absolute bottom-0 left-4 right-4 flex justify-between">
-          {days.map((day, index) => (
-            <div key={index} className="flex-1 text-center">
-              <span className="text-sm text-white/70 font-medium">{day.day}</span>
-            </div>
-          ))}
-        </div>
-        
-        {/* Check-in info - bottom right corner like Apple Health */}
-        <div className="absolute bottom-10 right-4">
-          <p className="text-xs text-white/50">
-            {checkInCount} check-in{checkInCount !== 1 ? 's' : ''}
-          </p>
+          
+          {/* Day labels at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 flex justify-between">
+            {days.map((day, index) => (
+              <div key={index} className="flex-1 text-center">
+                <span className="text-white/80 text-sm font-medium">{day.day}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
