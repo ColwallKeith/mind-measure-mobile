@@ -4,7 +4,7 @@ import { MobileConversation } from './MobileConversation';
 import { CheckInWelcome } from './CheckInWelcome';
 import { CheckinAssessmentSDK } from './CheckinAssessmentSDK';
 import { HelpScreen } from './HelpPage';
-import { MobileBuddies } from './MobileBuddies';
+import { SupportCircle } from './SupportCircle';
 import { MobileProfile } from './MobileProfile';
 import { MobileContent } from './MobileContent';
 import { MobileSettings } from './MobileSettings';
@@ -211,7 +211,7 @@ export const MobileAppStructure: React.FC = () => {
           />
         );
       case 'buddies':
-        return <MobileBuddies />;
+        return <SupportCircle onNavigateToHelp={() => setCurrentScreen('help')} />;
       case 'content':
         return <MobileContent />;
       case 'help':
