@@ -32,6 +32,19 @@ export function ThirtyDayViewCard({
   // Show day labels at intervals (every 7 days approximately)
   const dayLabels = [0, 7, 14, 21, 29].map(index => dayNumbers[index]);
   
+  // Calculate average if not provided
+  const calculatedAverage = averageScore ?? Math.round(monthData.reduce((sum, val) => sum + val, 0) / monthData.length);
+  
+  // Calculate bar heights as pixels
+  const getBarHeight = (value: number) => {
+    // If no data (0), show tiny bar; otherwise calculate height
+    if (value === 0) return 1;
+    return Math.max((value / maxValue) * 256, 4);
+  };
+  
+  // Calculate baseline position
+  const baselinePosition = ((maxValue - baselineScore) / maxValue) * 100;
+  
   return (
     <div style={{
       width: '100%',
