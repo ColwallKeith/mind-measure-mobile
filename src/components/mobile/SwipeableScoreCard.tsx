@@ -27,13 +27,35 @@ export function SwipeableScoreCard({
   last30Days = [],
   baselineScore
 }: SwipeableScoreCardProps) {
-  const [activeView, setActiveView] = useState<View>('current');
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [direction, setDirection] = useState<number>(0);
 
   const minSwipeDistance = 50;
-  const views: View[] = ['current', '7day', '30day'];
+  
+  // Determine which views to show based on user history
+  const availableViews: View[] = ['current'];
+  
+  // Only show 7-day view if user has been active for at least 7 days
+  if (last7Days.length > 0) {
+    const oldestCheckIn = new Date(Math.min(...last7Days.map(d => new Date(d.date).getTime())));
+    const daysSinceFirst = Math.floor((Date.now() - oldestCheckIn.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceFirst >= 7) {
+      availableViews.push('7day');
+    }
+  }
+  
+  // Only show 30-day view if user has been active for at least 30 days
+  if (last30Days.length > 0) {
+    const oldestCheckIn = new Date(Math.min(...last30Days.map(d => new Date(d.date).getTime())));
+    const daysSinceFirst = Math.floor((Date.now() - oldestCheckIn.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceFirst >= 30) {
+      availableViews.push('30day');
+    }
+  }
+  
+  const [activeView, setActiveView] = useState<View>(availableViews[0]);
+  const views = availableViews;
   const currentIndex = views.indexOf(activeView);
 
   // Helper functions from original ScoreCard
@@ -407,23 +429,25 @@ export function SwipeableScoreCard({
         )}
       </AnimatePresence>
 
-      {/* Dots Indicator */}
-      <div className="relative z-10 flex items-center justify-center gap-2 mt-4">
-        {views.map((view, index) => (
-          <button
-            key={view}
-            onClick={() => {
-              setDirection(index > currentIndex ? -1 : 1);
-              setActiveView(view);
-            }}
-            className={`h-2 rounded-full transition-all ${
-              activeView === view
-                ? 'w-6 bg-white'
-                : 'w-2 bg-white/40'
-            }`}
-          />
-        ))}
-      </div>
+      {/* Dots Indicator - only show if there are multiple views */}
+      {views.length > 1 && (
+        <div className="relative z-10 flex items-center justify-center gap-2 mt-4">
+          {views.map((view, index) => (
+            <button
+              key={view}
+              onClick={() => {
+                setDirection(index > currentIndex ? -1 : 1);
+                setActiveView(view);
+              }}
+              className={`h-2 rounded-full transition-all ${
+                activeView === view
+                  ? 'w-6 bg-white'
+                  : 'w-2 bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Floating particles effect */}
       <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white/30 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
