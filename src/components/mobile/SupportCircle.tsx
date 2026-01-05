@@ -21,7 +21,9 @@ interface SupportCircleProps {
 
 export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
   const { user } = useAuth();
-  const backendService = BackendServiceFactory.createService();
+  const backendService = BackendServiceFactory.createService(
+    BackendServiceFactory.getEnvironmentConfig()
+  );
   
   const [buddies, setBuddies] = useState<Buddy[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
