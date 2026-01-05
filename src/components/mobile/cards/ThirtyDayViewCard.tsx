@@ -35,6 +35,14 @@ export function ThirtyDayViewCard({
   // Calculate average if not provided
   const calculatedAverage = averageScore ?? Math.round(monthData.reduce((sum, val) => sum + val, 0) / monthData.length);
   
+  // Get background gradient based on average score
+  const getBackgroundGradient = (score: number) => {
+    if (score >= 80) return 'linear-gradient(to bottom right, #10B981, #34D399)'; // Green
+    if (score >= 60) return 'linear-gradient(to bottom right, #5B8FED, #6BA3FF)'; // Blue
+    if (score >= 40) return 'linear-gradient(to bottom right, #F59E0B, #FBBF24)'; // Amber
+    return 'linear-gradient(to bottom right, #EF4444, #F87171)'; // Red
+  };
+  
   // Calculate bar heights as pixels
   const getBarHeight = (value: number) => {
     // If no data (0), show tiny bar; otherwise calculate height
@@ -52,7 +60,7 @@ export function ThirtyDayViewCard({
       margin: '0 auto',
       borderRadius: '24px',
       overflow: 'hidden',
-      background: 'linear-gradient(to bottom right, #5B8FED, #6BA3FF)',
+      background: getBackgroundGradient(calculatedAverage),
       padding: '24px',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
     }}>
