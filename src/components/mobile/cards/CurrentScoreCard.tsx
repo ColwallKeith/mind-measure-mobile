@@ -94,33 +94,6 @@ export function CurrentScoreCard({
           Last updated: {lastUpdated}
         </div>
       </div>
-      
-      {/* Pagination Dots */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        gap: '8px', 
-        marginTop: '24px' 
-      }}>
-        <div style={{ 
-          width: '8px', 
-          height: '8px', 
-          borderRadius: '9999px', 
-          backgroundColor: 'rgba(255, 255, 255, 0.9)' 
-        }} />
-        <div style={{ 
-          width: '8px', 
-          height: '8px', 
-          borderRadius: '9999px', 
-          backgroundColor: 'rgba(255, 255, 255, 0.3)' 
-        }} />
-        <div style={{ 
-          width: '8px', 
-          height: '8px', 
-          borderRadius: '9999px', 
-          backgroundColor: 'rgba(255, 255, 255, 0.3)' 
-        }} />
-      </div>
     </div>
   );
 }

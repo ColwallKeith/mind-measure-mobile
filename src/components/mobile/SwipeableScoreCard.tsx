@@ -121,6 +121,7 @@ export function SwipeableScoreCard({
       data.push(dayData?.score || baselineScore || 0);
     }
     
+    console.log('📊 7-day data prepared:', data, 'from', last7Days.length, 'check-ins');
     return data;
   };
 
@@ -245,11 +246,15 @@ export function SwipeableScoreCard({
                 setDirection(index > currentIndex ? -1 : 1);
                 setActiveView(view);
               }}
-              className={`h-2 rounded-full transition-all ${
-                activeView === view
-                  ? 'w-6 bg-white'
-                  : 'w-2 bg-white/40'
-              }`}
+              style={{
+                height: '8px',
+                borderRadius: '9999px',
+                transition: 'all 0.3s',
+                border: 'none',
+                cursor: 'pointer',
+                width: activeView === view ? '24px' : '8px',
+                backgroundColor: activeView === view ? '#7C3AED' : 'rgba(124, 58, 237, 0.3)'
+              }}
             />
           ))}
         </div>
