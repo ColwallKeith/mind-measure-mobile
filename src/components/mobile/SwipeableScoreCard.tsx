@@ -30,6 +30,18 @@ export function SwipeableScoreCard({
   baselineScore,
   userCreatedAt
 }: SwipeableScoreCardProps) {
+  
+  // Debug: Log all incoming props
+  console.log('SwipeableScoreCard props:', {
+    score,
+    lastUpdated,
+    trend,
+    last7Days: last7Days.length,
+    last30Days: last30Days.length,
+    baselineScore,
+    userCreatedAt
+  });
+  
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [direction, setDirection] = useState<number>(0);

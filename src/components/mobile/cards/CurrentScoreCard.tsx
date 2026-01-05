@@ -12,6 +12,9 @@ export function CurrentScoreCard({
   lastUpdated = "04/01/2026"
 }: CurrentScoreCardProps) {
   
+  // Debug: Log what we're receiving
+  console.log('CurrentScoreCard rendering with:', { score, status, message, lastUpdated });
+  
   // Determine status based on score if not provided
   const getStatus = (score: number) => {
     if (score >= 80) return "Excellent";
