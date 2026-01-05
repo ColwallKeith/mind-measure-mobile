@@ -47,9 +47,11 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
           backgroundColor: 'rgba(0, 0, 0, 0.4)',
           zIndex: 50,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
-          padding: '16px'
+          padding: '16px',
+          paddingTop: '40px',
+          overflowY: 'auto'
         }}
       >
         {/* Modal */}
@@ -61,9 +63,8 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
             padding: '32px',
             maxWidth: '480px',
             width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+            marginBottom: '40px'
           }}
         >
           {/* Header */}

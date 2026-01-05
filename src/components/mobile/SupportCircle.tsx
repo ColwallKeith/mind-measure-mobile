@@ -77,12 +77,18 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
   };
 
   const handleAddBuddy = async (newBuddy: { name: string; phone: string; email: string; relationship: string }) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.error('❌ No user ID - cannot add buddy');
+      alert('Please sign in to add buddies');
+      return;
+    }
     
     try {
       console.log('➕ Adding new buddy:', newBuddy);
+      console.log('👤 User ID:', user.id);
+      console.log('🔧 Backend service:', backendService);
       
-      const { data: insertedData, error: insertError } = await backendService.database.insert('buddy_contacts', {
+      const dataToInsert = {
         user_id: user.id,
         name: newBuddy.name,
         phone: newBuddy.phone,
@@ -91,21 +97,30 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
         notify_channel: 'sms',
         is_active: true,
         verified: false
-      });
+      };
+      
+      console.log('📦 Data to insert:', dataToInsert);
+      
+      const { data: insertedData, error: insertError } = await backendService.database.insert('buddy_contacts', dataToInsert);
+      
+      console.log('📤 Insert response - data:', insertedData, 'error:', insertError);
       
       const response = { data: insertedData, error: insertError };
 
       if (response.error) {
-        throw new Error(response.error.message);
+        throw new Error(response.error.message || response.error);
       }
 
-      console.log('✅ Buddy added successfully');
+      console.log('✅ Buddy added successfully:', insertedData);
       
       // Reload buddies from database to get correct IDs and order
       await loadBuddies();
+      
+      // Close modal after successful save
+      setIsModalOpen(false);
     } catch (err) {
       console.error('❌ Error adding buddy:', err);
-      alert('Failed to add buddy. Please try again.');
+      alert(`Failed to add buddy: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
