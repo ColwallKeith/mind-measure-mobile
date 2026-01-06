@@ -164,20 +164,20 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
       {/* Header - White Background */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '20px',
+        padding: '10px 20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
         {/* Mind Measure Logo & Name Card */}
-        <motion.div variants={itemVariants} style={{ marginBottom: '24px' }}>
+        <motion.div variants={itemVariants} style={{ marginBottom: '12px' }}>
           <div 
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '16px',
+              gap: '8px',
               background: 'white',
-              borderRadius: '16px',
-              padding: '20px',
+              borderRadius: '12px',
+              padding: '10px',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
               cursor: 'pointer'
             }}
@@ -187,13 +187,13 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
               src={mindMeasureLogo} 
               alt="Mind Measure" 
               style={{
-                width: '96px',
-                height: '96px',
+                width: '48px',
+                height: '48px',
                 flexShrink: 0
               }}
             />
             <div style={{
-              fontSize: '24px',
+              fontSize: '12px',
               color: '#1a1a1a',
               fontFamily: "'Chillax', sans-serif",
               fontWeight: '500',
@@ -207,16 +207,16 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         {/* Greeting - Centered */}
         <motion.div variants={itemVariants} style={{ textAlign: 'center' }}>
           <h1 style={{
-            fontSize: '24px',
+            fontSize: '18px',
             fontWeight: '600',
             color: '#1a1a1a',
-            margin: '0 0 4px 0',
+            margin: '0 0 2px 0',
             lineHeight: '1.2'
           }}>
             {getGreeting()}, {profile.firstName || 'there'}
           </h1>
           <p style={{
-            fontSize: '14px',
+            fontSize: '13px',
             color: '#666666',
             margin: 0,
             lineHeight: '1.4'
@@ -232,10 +232,11 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '16px'
+        gap: '16px',
+        width: '100%'
       }}>
         {latestScore ? (
-          <motion.div variants={itemVariants} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <motion.div variants={itemVariants} style={{ width: '100%', maxWidth: '448px', display: 'flex', justifyContent: 'center' }}>
             <SwipeableScoreCard
               score={latestScore.score}
               lastUpdated={latestScore.lastUpdated}
@@ -247,7 +248,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
             />
           </motion.div>
         ) : (
-          <motion.div variants={itemVariants} style={{ width: '100%' }}>
+          <motion.div variants={itemVariants} style={{ width: '100%', maxWidth: '448px' }}>
             <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6 text-center">
               <h3 className="text-gray-900 mb-2">No Assessment Data Yet</h3>
               <p className="text-gray-600 text-sm mb-4">
@@ -461,7 +462,7 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
             
             {/* Finding Pleasure */}
             {latestSession.driverPositive.length > 0 && (
-              <div style={{ marginBottom: latestSession.driverNegative.length > 0 ? '16px' : 0 }}>
+              <div style={{ marginBottom: '16px' }}>
                 <div style={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -510,31 +511,31 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
               </div>
             )}
 
-            {/* Causing Worry */}
-            {latestSession.driverNegative.length > 0 && (
-              <div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px'
-                }}>
-                  <span style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#EF4444',
-                    marginTop: '6px',
-                    flexShrink: 0
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '13px',
-                      color: '#1a1a1a',
-                      marginBottom: '8px',
-                      fontWeight: '500'
-                    }}>
-                      Causing Worry
-                    </div>
+            {/* Causing Worry - ALWAYS SHOW */}
+            <div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px'
+              }}>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#EF4444',
+                  marginTop: '6px',
+                  flexShrink: 0
+                }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '13px',
+                    color: '#1a1a1a',
+                    marginBottom: '8px',
+                    fontWeight: '500'
+                  }}>
+                    Causing Worry
+                  </div>
+                  {latestSession.driverNegative.length > 0 ? (
                     <div style={{
                       display: 'flex',
                       gap: '6px',
@@ -556,10 +557,18 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
                         </span>
                       ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#999999',
+                      fontStyle: 'italic'
+                    }}>
+                      (none discussed)
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

@@ -89,7 +89,7 @@ export function MobileAppWrapper() {
     BackendServiceFactory.getEnvironmentConfig()
   );
   console.log('🚀 MobileAppWrapper rendering');
-  const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
+  const [activeScreen, setActiveScreen] = useState<'dashboard' | 'content' | 'buddies' | 'profile'>('dashboard');
   const [hasCheckedUserStatus, setHasCheckedUserStatus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,34 +138,29 @@ export function MobileAppWrapper() {
     const path = location.pathname;
     if (path === '/dashboard') {
       setActiveScreen('dashboard');
-    } else if (path === '/checkin-welcome') {
-      setActiveScreen('checkin');
+    } else if (path === '/content') {
+      setActiveScreen('content');
     } else if (path === '/buddies') {
-      setActiveScreen('buddy');
+      setActiveScreen('buddies');
     } else if (path === '/profile') {
       setActiveScreen('profile');
-    } else if (path === '/help') {
-      setActiveScreen('help');
     }
   }, [location.pathname]);
-  const handleScreenChange = (screen: 'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile') => {
+  const handleScreenChange = (screen: 'dashboard' | 'content' | 'buddies' | 'profile') => {
     setActiveScreen(screen);
     // Navigate to the appropriate route
     switch (screen) {
       case 'dashboard':
         window.location.href = '/dashboard';
         break;
-      case 'checkin':
-        window.location.href = '/checkin-welcome';
+      case 'content':
+        window.location.href = '/content';
         break;
-      case 'buddy':
+      case 'buddies':
         window.location.href = '/buddies';
         break;
       case 'profile':
         window.location.href = '/profile';
-        break;
-      case 'help':
-        window.location.href = '/help';
         break;
     }
   };
