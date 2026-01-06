@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { Preferences } from '@capacitor/preferences';
-import { BottomNavigation } from '@/components/BottomNav';
+import { BottomNavigation } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileCheckin } from './MobileCheckin';
 import { MobileBuddies } from './MobileBuddies';
