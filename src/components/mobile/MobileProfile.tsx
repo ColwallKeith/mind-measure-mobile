@@ -1227,7 +1227,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                   display: 'flex',
                   alignItems: 'center',
                   padding: '12px',
-                  border: `2px solid ${exportPeriod === 30 ? '#5B8FED' : '#E0E0E0'}',
+                  border: `2px solid ${exportPeriod === 30 ? '#5B8FED' : '#E0E0E0'}`,
                   borderRadius: '8px',
                   cursor: 'pointer',
                   background: exportPeriod === 30 ? '#F0F7FF' : 'white'
@@ -1249,7 +1249,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                   display: 'flex',
                   alignItems: 'center',
                   padding: '12px',
-                  border: `2px solid ${exportPeriod === 90 ? '#5B8FED' : '#E0E0E0'}',
+                  border: `2px solid ${exportPeriod === 90 ? '#5B8FED' : '#E0E0E0'}`,
                   borderRadius: '8px',
                   cursor: 'pointer',
                   background: exportPeriod === 90 ? '#F0F7FF' : 'white'
