@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
+import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { CheckInWelcome } from './CheckInWelcome';
@@ -353,6 +354,12 @@ export const MobileAppStructure: React.FC = () => {
       <div className="pb-24">
         {renderContent()}
       </div>
+      {!onboardingScreen && ['dashboard', 'content', 'buddies', 'profile', 'checkin_welcome', 'checkin_assessment'].includes(currentScreen) && (
+        <BottomNav
+          activeView={activeTab === 'dashboard' ? 'home' : activeTab}
+          onViewChange={(view) => handleTabChange((view === 'home' ? 'dashboard' : view) as MobileTab)}
+        />
+      )}
     </div>
   );
 };
