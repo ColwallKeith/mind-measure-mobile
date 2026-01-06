@@ -1,12 +1,12 @@
-interface BottomNavigationProps {
-  activeScreen: 'dashboard' | 'content' | 'buddies' | 'profile';
-  onScreenChange: (screen: 'dashboard' | 'content' | 'buddies' | 'profile') => void;
+interface BottomNavProps {
+  activeView: 'home' | 'content' | 'buddies' | 'profile';
+  onViewChange: (view: 'home' | 'content' | 'buddies' | 'profile') => void;
 }
 
-export function BottomNavigation({ activeScreen, onScreenChange }: BottomNavigationProps) {
+export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
   const navItems = [
     {
-      id: 'dashboard' as const,
+      id: 'home' as const,
       label: 'Home',
       icon: (isActive: boolean) => (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -66,11 +66,11 @@ export function BottomNavigation({ activeScreen, onScreenChange }: BottomNavigat
       boxShadow: '0 -1px 3px rgba(0, 0, 0, 0.05)'
     }}>
       {navItems.map((item) => {
-        const isActive = activeScreen === item.id;
+        const isActive = activeView === item.id;
         return (
           <button
             key={item.id}
-            onClick={() => onScreenChange(item.id)}
+            onClick={() => onViewChange(item.id)}
             style={{
               display: 'flex',
               flexDirection: 'column',

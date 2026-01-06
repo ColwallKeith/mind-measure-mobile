@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { Preferences } from '@capacitor/preferences';
-import { BottomNavigation } from '@/components/BottomNavigation';
+import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileCheckin } from './MobileCheckin';
 import { MobileBuddies } from './MobileBuddies';
@@ -229,9 +229,9 @@ export function MobileAppWrapper() {
         return !hideNav;
       })() && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
-          <BottomNavigation
-            activeScreen={activeScreen}
-            onScreenChange={handleScreenChange}
+          <BottomNav
+            activeView={activeScreen === 'dashboard' ? 'home' : activeScreen}
+            onViewChange={(view) => handleScreenChange(view === 'home' ? 'dashboard' : view)}
           />
         </div>
       )}
