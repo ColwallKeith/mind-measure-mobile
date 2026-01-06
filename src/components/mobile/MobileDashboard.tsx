@@ -164,7 +164,10 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
       {/* Header - White Background */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '10px 20px',
+        paddingTop: '60px',
+        paddingBottom: '10px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
         {/* Mind Measure Logo & Name Card */}
