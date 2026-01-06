@@ -577,70 +577,80 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
       )}
 
       {/* Previous Check-in Card */}
-      {checkInActivity.length > 1 && (
-        <div style={{ padding: '0 20px 24px 20px' }}>
-          <h3 style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            margin: '0 0 12px 0'
-          }}>
-            Previous Check-in
-          </h3>
-          <div style={{
-            background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-            borderRadius: '16px',
-            padding: '20px',
-            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
+      {checkInActivity.length > 1 && (() => {
+        const previousScore = checkInActivity[1].score;
+        const getBackgroundGradient = (score: number) => {
+          if (score >= 80) return 'linear-gradient(135deg, #10B981, #34D399)'; // Green - Excellent
+          if (score >= 60) return 'linear-gradient(135deg, #3B82F6, #60A5FA)'; // Blue - Good
+          if (score >= 40) return 'linear-gradient(135deg, #F59E0B, #FBBF24)'; // Amber - Moderate
+          return 'linear-gradient(135deg, #EF4444, #F87171)'; // Red - Concerning
+        };
+        
+        return (
+          <div style={{ padding: '0 20px 24px 20px' }}>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 12px 0'
+            }}>
+              Previous Check-in
+            </h3>
             <div style={{
-              width: '56px',
-              height: '56px',
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: getBackgroundGradient(previousScore),
               borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
+              gap: '16px'
             }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div style={{ flex: 1 }}>
               <div style={{
-                fontSize: '16px',
-                fontWeight: '600',
-                color: 'white'
+                width: '56px',
+                height: '56px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
               }}>
-                {new Date(checkInActivity[1].createdAt).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
               </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{
-                fontSize: '32px',
-                fontWeight: '700',
-                color: 'white',
-                lineHeight: '1',
-                marginBottom: '2px'
-              }}>
-                {checkInActivity[1].score}
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: 'white'
+                }}>
+                  {new Date(checkInActivity[1].createdAt).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
               </div>
-              <div style={{
-                fontSize: '13px',
-                color: 'rgba(255, 255, 255, 0.9)',
-                fontWeight: '500'
-              }}>
-                {checkInActivity[1].score >= 80 ? 'Excellent' : checkInActivity[1].score >= 60 ? 'Good' : checkInActivity[1].score >= 40 ? 'Fair' : 'Needs attention'}
+              <div style={{ textAlign: 'right' }}>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: '700',
+                  color: 'white',
+                  lineHeight: '1',
+                  marginBottom: '2px'
+                }}>
+                  {previousScore}
+                </div>
+                <div style={{
+                  fontSize: '13px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: '500'
+                }}>
+                  {previousScore >= 80 ? 'Excellent' : previousScore >= 60 ? 'Good' : previousScore >= 40 ? 'Fair' : 'Needs attention'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       {/* Bottom padding for navigation */}
       <div className="h-24" />
