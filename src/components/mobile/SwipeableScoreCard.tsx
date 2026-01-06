@@ -175,6 +175,7 @@ export function SwipeableScoreCard({
   return (
     <div 
       className="relative"
+      style={{ maxWidth: '448px', width: '100%' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
