@@ -14,7 +14,7 @@ export { default as MobileConversation } from './MobileConversation';
 export { default as RegistrationScreen } from './RegistrationScreen';
 
 // Mobile Navigation
-export { default as BottomNavigation } from './BottomNavigation';
+// BottomNavigation is now in @/components/BottomNavigation
 export { default as MobileHeader } from './MobileHeader';
 
 // Mobile Screens
