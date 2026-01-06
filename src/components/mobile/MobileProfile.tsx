@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Download, Edit2 } from 'lucide-react';
 import { Select } from './Select';
 import { MoodTrendChart } from './MoodTrendChart';
+import { KeyThemes, type ThemeData } from './KeyThemes';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
@@ -55,6 +56,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
   const [hallOptions, setHallOptions] = useState<string[]>([]);
   const [moodData, setMoodData] = useState<Array<{ date: string; score: number }>>([]);
+  const [themesData, setThemesData] = useState<ThemeData[]>([]);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
@@ -190,6 +192,36 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
 
         console.log('📊 Mood scores extracted:', moodScores.length, 'from', sessions.length, 'sessions');
         setMoodData(moodScores);
+
+        // Extract themes from sessions
+        const themeCounts: Record<string, number> = {};
+        sessions.forEach((session: any) => {
+          try {
+            const analysis = typeof session.analysis === 'string'
+              ? JSON.parse(session.analysis)
+              : session.analysis;
+            
+            const themes = analysis?.themes || [];
+            themes.forEach((theme: string) => {
+              if (theme && typeof theme === 'string') {
+                // Capitalize first letter
+                const capitalizedTheme = theme.charAt(0).toUpperCase() + theme.slice(1);
+                themeCounts[capitalizedTheme] = (themeCounts[capitalizedTheme] || 0) + 1;
+              }
+            });
+          } catch (e) {
+            // Skip invalid analysis
+          }
+        });
+
+        // Convert to ThemeData array and sort by frequency
+        const themesArray: ThemeData[] = Object.entries(themeCounts)
+          .map(([text, value]) => ({ text, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 15); // Top 15 themes
+
+        console.log('📊 Themes extracted:', themesArray.length, 'unique themes');
+        setThemesData(themesArray);
 
         setUserData({
           firstName: profile.first_name || '',
@@ -514,7 +546,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               background: 'white',
               borderRadius: '16px',
               padding: '24px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              marginBottom: '16px'
             }}>
               <div style={{
                 display: 'flex',
@@ -528,6 +561,14 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               </div>
               <MoodTrendChart data={moodData} />
             </div>
+
+            {/* Key Themes Card */}
+            <KeyThemes 
+              themes={themesData.length > 0 ? themesData : undefined}
+              title="Your Key Themes"
+              subtitle={themesData.length > 0 ? `From ${userData.totalCheckIns} check-ins` : 'Top themes'}
+              height="240px"
+            />
           </div>
         )}
 
