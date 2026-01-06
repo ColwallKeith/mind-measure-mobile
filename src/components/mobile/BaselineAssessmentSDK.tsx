@@ -1160,7 +1160,6 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
             )}
           </button>
         </div>
-      </div>
 
       {/* Error Modal */}
       {showErrorModal && (
