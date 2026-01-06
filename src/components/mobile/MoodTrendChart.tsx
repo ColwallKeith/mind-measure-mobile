@@ -49,9 +49,9 @@ export function MoodTrendChart({ data }: MoodTrendChartProps) {
   }
 
   // Calculate chart dimensions
-  const width = 100; // percentage
-  const height = 180; // pixels - increased for better visibility
-  const padding = { top: 15, right: 5, bottom: 25, left: 25 }; // Reduced padding for full width
+  const width = 320; // viewBox units for proper width
+  const height = 180; // viewBox units
+  const padding = { top: 15, right: 15, bottom: 25, left: 35 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
