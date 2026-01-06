@@ -142,57 +142,24 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
   }, []);
 
-  const handleReturningSplashComplete = useCallback(async () => {
-    console.log('✅ Returning splash complete - checking DEVICE preferences NOW');
+  const handleReturningSplashComplete = useCallback(() => {
+    console.log('✅ Returning splash complete - checking auth state');
     setHasCompletedInitialSplash(true);
     
-    // CRITICAL: Check device preferences with retry logic
-    // Sometimes Capacitor Preferences needs a moment to initialize on iOS
-    const checkPreferencesWithRetry = async (maxAttempts = 3) => {
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          console.log(`🔍 Attempt ${attempt}/${maxAttempts} to read device preferences`);
-          const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-          
-          if (value) {
-            const userData = JSON.parse(value);
-            console.log('👤 Device user data found:', userData);
-            return userData;
-          }
-          
-          // If no value and not the last attempt, wait and retry
-          if (attempt < maxAttempts) {
-            const delayMs = attempt * 200; // 200ms, 400ms
-            console.log(`⏳ No data found, waiting ${delayMs}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-          }
-        } catch (error) {
-          console.error(`❌ Error on attempt ${attempt}:`, error);
-          if (attempt < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, attempt * 200));
-          }
-        }
-      }
-      return null;
-    };
-    
-    const userData = await checkPreferencesWithRetry();
-    
-    if (userData) {
-      if (userData.baselineCompleted) {
-        console.log('✅ Returning user with completed baseline - going to dashboard');
-        setOnboardingScreen(null);
-        setCurrentScreen('dashboard');
-        setActiveTab('dashboard');
-      } else {
-        console.log('🎯 Returning user needs baseline - showing baseline welcome');
-        setOnboardingScreen('baseline_welcome');
-      }
-    } else {
-      console.log('🆕 No device user data found after retries - showing new user splash');
+    // After splash, route based on actual auth state
+    if (!user) {
+      console.log('🆕 No user found - showing new user splash');
       setOnboardingScreen('splash');
+    } else if (hasAssessmentHistory === true) {
+      console.log('✅ Returning user with history - going to dashboard');
+      setOnboardingScreen(null);
+      setCurrentScreen('dashboard');
+      setActiveTab('dashboard');
+    } else {
+      console.log('🎯 Returning user without history - showing baseline welcome');
+      setOnboardingScreen('baseline_welcome');
     }
-  }, []);
+  }, [user, hasAssessmentHistory]);
 
   const handleRegistrationComplete = useCallback((email: string, password: string) => {
     console.log('✅ Registration complete - going to email verification for:', email);
