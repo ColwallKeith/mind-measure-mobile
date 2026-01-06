@@ -100,8 +100,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
       // Fetch profile data
       const profileResponse = await backendService.database.select({
         table: 'profiles',
-        filters: { user_id: user.id },
-        select: '*'
+        filters: { user_id: user.id }
       });
 
       if (profileResponse.data && profileResponse.data.length > 0) {
@@ -110,8 +109,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         // Fetch university data (default to Worcester for now)
         const universityResponse = await backendService.database.select({
           table: 'universities',
-          filters: { name: 'University of Worcester' },
-          select: 'id, name, logo, schools, halls_of_residence'
+          filters: { name: 'University of Worcester' }
         });
 
         let uniData: UniversityData | null = null;
@@ -143,8 +141,9 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         const sessionsResponse = await backendService.database.select({
           table: 'fusion_outputs',
           filters: { user_id: user.id },
-          select: 'final_score, created_at',
-          orderBy: [{ column: 'created_at', ascending: false }]
+          options: {
+            orderBy: [{ column: 'created_at', ascending: false }]
+          }
         });
 
         const sessions = sessionsResponse.data || [];
@@ -160,8 +159,9 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         const analysisResponse = await backendService.database.select({
           table: 'assessment_outputs',
           filters: { user_id: user.id },
-          select: 'analysis, created_at',
-          orderBy: [{ column: 'created_at', ascending: true }]
+          options: {
+            orderBy: [{ column: 'created_at', ascending: true }]
+          }
         });
 
         const moodScores = (analysisResponse.data || [])
@@ -319,7 +319,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
       {/* Header */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '24px 20px',
+        padding: '72px 20px 24px 20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
         <div style={{
