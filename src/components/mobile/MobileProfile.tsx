@@ -1,1063 +1,955 @@
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import {
-  User,
-  Mail,
-  GraduationCap,
-  Calendar,
-  TrendingUp,
-  Target,
-  Sparkles,
-  Clock,
-  Moon,
-  Dumbbell,
-  BookOpen,
-  Users,
-  Brain,
-  Coffee,
-  Smartphone,
-  Sun,
-  Edit,
-  Download,
-  FileText,
-  Shield,
-  BarChart3,
-  Heart,
-  Save,
-  Loader2,
-  Home,
-  Check,
-  AlertCircle
-} from 'lucide-react';
+import { Download, Edit2, ArrowLeft } from 'lucide-react';
+import { Select } from './Select';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
-import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
 
-interface ProfileData {
-  id: string;
-  user_id: string;
+type TabType = 'overview' | 'details' | 'wellness';
+
+interface UserData {
+  firstName: string;
+  lastName: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  display_name: string;
-  university_id: string;
-  university: string;
-  year_of_study: string;
-  course: string;
-  subjects: string[];
-  school: string;
-  department: string;
-  faculty: string;
-  living_situation: string;
-  hall_of_residence: string;
-  domicile: string;
-  age_range: string;
-  study_mode: string;
+  phone: string;
+  institution: string;
+  accountType: string;
+  ageRange: string;
   gender: string;
-  is_first_generation: boolean;
-  has_caring_responsibilities: boolean;
-  streak_count: number;
-  baseline_established: boolean;
-  profile_completed: boolean;
-  profile_completed_at: string | null;
-}
-
-interface Department {
-  id: string;
-  name: string;
-  studentCount?: number | null;
-}
-
-interface AcademicStructure {
-  faculties?: Array<{
-    name: string;
-    schools?: Array<{ 
-      name: string; 
-      subjects?: string[];
-      departments?: Department[];
-    }>;
-  }>;
-  schools?: Array<{
-    name: string;
-    subjects?: string[];
-    departments?: Department[];
-  }>;
-  halls_of_residence?: Array<{ name: string }>;
-}
-
-interface WellnessStats {
+  school: string;
+  yearOfStudy: string;
+  course: string;
+  studyMode: string;
+  livingArrangement: string;
+  accommodationName: string;
+  domicileStatus: string;
+  firstGenStudent: boolean;
+  caringResponsibilities: boolean;
   currentStreak: number;
   longestStreak: number;
   totalCheckIns: number;
-  averageScore: number;
-  moodTrend: string;
-  topThemes: string[];
+  averageScore: number | null;
 }
 
-const defaultProfile: Partial<ProfileData> = {
-  first_name: '',
-  last_name: '',
-  email: '',
-  year_of_study: '',
-  course: '',
-  subjects: [],
-  school: '',
-  department: '',
-  faculty: '',
-  living_situation: '',
-  hall_of_residence: '',
-  domicile: '',
-  age_range: '',
-  study_mode: 'Full-time',
-  gender: '',
-  is_first_generation: false,
-  has_caring_responsibilities: false,
-  streak_count: 0,
-  baseline_established: false,
-  profile_completed: false,
-};
+interface MobileProfileProps {
+  onNavigateBack: () => void;
+}
 
-const yearOptions = ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate', 'Foundation'];
-const ageRangeOptions = ['17-18', '19-21', '22-25', '26-30', '31-40', '41+'];
-const studyModeOptions = ['Full-time', 'Part-time', 'Distance Learning'];
-const livingSituationOptions = ['On Campus', 'Off Campus - Private', 'Living at Home', 'Commuting'];
-const domicileOptions = ['Home (UK)', 'EU', 'International'];
-const genderOptions = ['Female', 'Male', 'Non-binary', 'Prefer not to say', 'Other'];
-
-export function ProfileScreen() {
+export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'details' | 'wellness'>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   
-  const [profileData, setProfileData] = useState<Partial<ProfileData>>(defaultProfile);
-  const [originalData, setOriginalData] = useState<Partial<ProfileData>>(defaultProfile);
-  const [academicStructure, setAcademicStructure] = useState<AcademicStructure>({});
-  const [wellnessStats, setWellnessStats] = useState<WellnessStats>({
+  const [userData, setUserData] = useState<UserData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    institution: '',
+    accountType: 'Student',
+    ageRange: '',
+    gender: '',
+    school: '',
+    yearOfStudy: '',
+    course: '',
+    studyMode: '',
+    livingArrangement: '',
+    accommodationName: '',
+    domicileStatus: '',
+    firstGenStudent: false,
+    caringResponsibilities: false,
     currentStreak: 0,
     longestStreak: 0,
     totalCheckIns: 0,
-    averageScore: 0,
-    moodTrend: 'No data yet',
-    topThemes: []
+    averageScore: null
   });
 
+  // Fetch user profile data
   useEffect(() => {
     if (user) {
-      loadProfileData();
+      loadUserProfile();
     }
   }, [user]);
 
-  const loadProfileData = async () => {
-    if (!user?.id) return;
-    
+  const loadUserProfile = async () => {
+    if (!user) return;
+
     try {
-      setLoading(true);
+      setIsLoading(true);
       const backendService = BackendServiceFactory.createService(
         BackendServiceFactory.getEnvironmentConfig()
       );
 
-      // Load profile data
-      const { data: profile } = await backendService.database.select('profiles', {
-        columns: '*',
-        filters: { user_id: user.id }
+      // Fetch profile data
+      const profileResponse = await backendService.database.select({
+        table: 'profiles',
+        filters: { user_id: user.id },
+        select: '*'
       });
 
-      if (profile && profile.length > 0) {
-        const p = profile[0];
-        const loadedProfile = {
-          ...defaultProfile,
-          ...p,
-          subjects: Array.isArray(p.subjects) ? p.subjects : [],
-        };
-        setProfileData(loadedProfile);
-        setOriginalData(loadedProfile);
-      } else {
-        // Create initial profile from auth data
-        const email = user.email || '';
-        const firstName = user.user_metadata?.first_name || user.user_metadata?.given_name || '';
-        const lastName = user.user_metadata?.last_name || user.user_metadata?.family_name || '';
+      if (profileResponse.data && profileResponse.data.length > 0) {
+        const profile = profileResponse.data[0];
         
-        const newProfile = {
-          ...defaultProfile,
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          display_name: `${firstName} ${lastName}`.trim(),
-        };
-        setProfileData(newProfile);
-        setOriginalData(newProfile);
-      }
-
-      // Load university academic structure
-      const emailDomain = (user.email || '').split('@')[1]?.toLowerCase();
-      const { data: universities } = await backendService.database.select('universities', {
-        columns: 'id, name, faculties, schools, halls_of_residence'
-      });
-
-      if (universities && universities.length > 0) {
-        // Find matching university by domain (simplified matching)
-        const uni = universities.find((u: any) => 
-          emailDomain?.includes('worc') && u.id === 'worcester'
-        ) || universities[0];
-        
-        if (uni) {
-          setAcademicStructure({
-            faculties: uni.faculties || [],
-            schools: uni.schools || [],
-            halls_of_residence: uni.halls_of_residence || []
-          });
-        }
-      }
-
-      // Load wellness stats
-      const { data: assessments } = await backendService.database.select('assessment_sessions', {
-        columns: 'id, created_at',
-        filters: { user_id: user.id }
-      });
-
-      const { data: fusionData } = await backendService.database.select('fusion_outputs', {
-        columns: 'score, positive_drivers, negative_drivers, created_at',
-        filters: { user_id: user.id }
-      });
-
-      if (fusionData && fusionData.length > 0) {
-        const scores = fusionData.map((f: any) => f.score).filter((s: number) => s > 0);
-        const avgScore = scores.length > 0 
-          ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length)
-          : 0;
-
-        // Extract themes from drivers
-        const allThemes: string[] = [];
-        fusionData.forEach((f: any) => {
-          if (f.positive_drivers) allThemes.push(...f.positive_drivers.slice(0, 2));
-          if (f.negative_drivers) allThemes.push(...f.negative_drivers.slice(0, 2));
+        // Fetch wellness stats
+        const sessionsResponse = await backendService.database.select({
+          table: 'fusion_outputs',
+          filters: { user_id: user.id },
+          select: 'final_score',
+          orderBy: [{ column: 'created_at', ascending: false }]
         });
-        const uniqueThemes = [...new Set(allThemes)].slice(0, 4);
 
-        // Calculate trend
-        let trend = 'No data yet';
-        if (scores.length >= 2) {
-          const recent = scores.slice(0, 3).reduce((a: number, b: number) => a + b, 0) / Math.min(3, scores.length);
-          const older = scores.slice(3, 6).reduce((a: number, b: number) => a + b, 0) / Math.min(3, scores.length - 3);
-          if (older > 0) {
-            trend = recent > older + 5 ? 'Improving' : recent < older - 5 ? 'Declining' : 'Stable';
-          }
-        }
+        const sessions = sessionsResponse.data || [];
+        const totalCheckIns = sessions.length;
+        const averageScore = totalCheckIns > 0
+          ? Math.round(sessions.reduce((sum: number, s: any) => sum + (s.final_score || 0), 0) / totalCheckIns)
+          : null;
 
-        setWellnessStats({
-          currentStreak: profileData.streak_count || 0,
-          longestStreak: profileData.streak_count || 0, // Would need separate tracking
-          totalCheckIns: assessments?.length || 0,
-          averageScore: avgScore,
-          moodTrend: trend,
-          topThemes: uniqueThemes
+        setUserData({
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          email: profile.email || user.email || '',
+          phone: profile.phone || '',
+          institution: profile.university || '',
+          accountType: 'Student',
+          ageRange: profile.age_range || '',
+          gender: profile.gender || '',
+          school: profile.school || '',
+          yearOfStudy: profile.year_of_study || '',
+          course: profile.course || '',
+          studyMode: profile.study_mode || '',
+          livingArrangement: profile.living_situation || '',
+          accommodationName: profile.hall_of_residence || '',
+          domicileStatus: profile.domicile || '',
+          firstGenStudent: profile.is_first_generation || false,
+          caringResponsibilities: profile.has_caring_responsibilities || false,
+          currentStreak: profile.streak_count || 0,
+          longestStreak: profile.streak_count || 0, // TODO: Track longest streak separately
+          totalCheckIns,
+          averageScore
         });
       }
-
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!user?.id) return;
-    
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
     try {
-      setSaving(true);
-      setSaveMessage(null);
-      
+      setIsSaving(true);
       const backendService = BackendServiceFactory.createService(
         BackendServiceFactory.getEnvironmentConfig()
       );
 
-      // Check if profile exists
-      const { data: existing } = await backendService.database.select('profiles', {
-        columns: 'id',
-        filters: { user_id: user.id }
+      await backendService.database.update({
+        table: 'profiles',
+        filters: { user_id: user.id },
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone,
+          age_range: userData.ageRange,
+          gender: userData.gender,
+          school: userData.school,
+          year_of_study: userData.yearOfStudy,
+          course: userData.course,
+          study_mode: userData.studyMode,
+          living_situation: userData.livingArrangement,
+          hall_of_residence: userData.accommodationName,
+          domicile: userData.domicileStatus,
+          is_first_generation: userData.firstGenStudent,
+          has_caring_responsibilities: userData.caringResponsibilities
+        }
       });
 
-      // Calculate profile completion
-      const requiredFields = ['year_of_study', 'school', 'living_situation'];
-      const optionalFields = ['age_range', 'domicile', 'gender', 'subjects'];
-      const allFieldsFilled = [...requiredFields, ...optionalFields].every(
-        field => {
-          const value = profileData[field as keyof ProfileData];
-          return value && (Array.isArray(value) ? value.length > 0 : true);
-        }
-      );
-      const requiredFilled = requiredFields.every(
-        field => profileData[field as keyof ProfileData]
-      );
-
-      const dataToSave = {
-        user_id: user.id,
-        email: profileData.email || user.email,
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        display_name: `${profileData.first_name} ${profileData.last_name}`.trim(),
-        year_of_study: profileData.year_of_study,
-        course: profileData.course,
-        subjects: profileData.subjects,
-        school: profileData.school,
-        department: profileData.department,
-        faculty: profileData.faculty,
-        living_situation: profileData.living_situation,
-        hall_of_residence: profileData.hall_of_residence,
-        domicile: profileData.domicile,
-        age_range: profileData.age_range,
-        study_mode: profileData.study_mode,
-        gender: profileData.gender,
-        is_first_generation: profileData.is_first_generation,
-        has_caring_responsibilities: profileData.has_caring_responsibilities,
-        profile_completed: requiredFilled,
-        profile_completed_at: requiredFilled && !originalData.profile_completed 
-          ? new Date().toISOString() 
-          : profileData.profile_completed_at,
-        updated_at: new Date().toISOString()
-      };
-
-      if (existing && existing.length > 0) {
-        // Update existing profile
-        await backendService.database.update('profiles', dataToSave, {
-          user_id: user.id
-        });
-      } else {
-        // Insert new profile
-        await backendService.database.insert('profiles', {
-          ...dataToSave,
-          created_at: new Date().toISOString()
-        });
-      }
-
-      setOriginalData({ ...profileData, ...dataToSave });
-      setProfileData(prev => ({ ...prev, ...dataToSave }));
       setIsEditing(false);
-      setSaveMessage({ type: 'success', text: 'Profile saved successfully!' });
-      
-      setTimeout(() => setSaveMessage(null), 3000);
-
+      console.log('✅ Profile saved successfully');
     } catch (error) {
-      console.error('Error saving profile:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save profile. Please try again.' });
+      console.error('❌ Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
-  const handleCancel = () => {
-    setProfileData(originalData);
-    setIsEditing(false);
+  const handleExportData = () => {
+    // TODO: Implement data export API call
+    console.log('Exporting user data...');
+    alert('Data export functionality will be implemented soon. Your data will be exported as a JSON file containing all your check-ins, scores, and profile information.');
   };
 
-  const updateField = (field: keyof ProfileData, value: any) => {
-    setProfileData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const toggleSubject = (subject: string) => {
-    const subjects = profileData.subjects || [];
-    if (subjects.includes(subject)) {
-      updateField('subjects', subjects.filter(s => s !== subject));
-    } else {
-      updateField('subjects', [...subjects, subject]);
-    }
-  };
-
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${(firstName || 'U')[0]}${(lastName || '')[0] || ''}`.toUpperCase();
-  };
-
-  const getProfileCompletion = () => {
-    const requiredFields = ['year_of_study', 'school', 'living_situation'];
-    const optionalFields = ['age_range', 'domicile', 'gender', 'course'];
-    const allFields = [...requiredFields, ...optionalFields];
-    
-    const filled = allFields.filter(field => {
-      const value = profileData[field as keyof ProfileData];
-      return value && (Array.isArray(value) ? value.length > 0 : true);
-    }).length;
-    
-    return Math.round((filled / allFields.length) * 100);
-  };
-
-  const getSchoolOptions = () => {
-    // If university has faculties with schools, flatten them
-    if (academicStructure.faculties && academicStructure.faculties.length > 0) {
-      const schools: string[] = [];
-      academicStructure.faculties.forEach(faculty => {
-        if (faculty.schools) {
-          faculty.schools.forEach(school => schools.push(school.name));
-        }
-      });
-      return schools;
-    }
-    // If university has schools directly
-    if (academicStructure.schools && academicStructure.schools.length > 0) {
-      return academicStructure.schools.map(s => s.name);
-    }
-    // Fallback options
-    return ['Arts & Humanities', 'Business', 'Education', 'Health', 'Science', 'Social Sciences'];
-  };
-
-  const getSubjectOptions = () => {
-    // Find subjects for selected school
-    if (profileData.school) {
-      // Check in faculties->schools
-      for (const faculty of (academicStructure.faculties || [])) {
-        const school = faculty.schools?.find(s => s.name === profileData.school);
-        if (school?.subjects && school.subjects.length > 0) {
-          return school.subjects;
-        }
-      }
-      // Check in direct schools
-      const school = academicStructure.schools?.find(s => s.name === profileData.school);
-      if (school?.subjects && school.subjects.length > 0) {
-        return school.subjects;
-      }
-    }
-    // Fallback
-    return [];
-  };
-
-  const getDepartmentOptions = () => {
-    // Find departments for selected school
-    if (profileData.school) {
-      // Check in faculties->schools
-      for (const faculty of (academicStructure.faculties || [])) {
-        const school = faculty.schools?.find(s => s.name === profileData.school);
-        if (school?.departments && school.departments.length > 0) {
-          return school.departments.map(d => d.name);
-        }
-      }
-      // Check in direct schools
-      const school = academicStructure.schools?.find(s => s.name === profileData.school);
-      if (school?.departments && school.departments.length > 0) {
-        return school.departments.map(d => d.name);
-      }
-    }
-    // Fallback - no departments
-    return [];
-  };
-
-  const getHallOptions = () => {
-    if (academicStructure.halls_of_residence && academicStructure.halls_of_residence.length > 0) {
-      return academicStructure.halls_of_residence.map(h => h.name);
-    }
-    return ['University Hall', 'Campus Residence', 'Other'];
-  };
-
-  const TabButton = ({ tab, label, isActive, onClick }: {
-    tab: string;
-    label: string;
-    isActive: boolean;
-    onClick: () => void;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm ${
-        isActive
-          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-          : 'bg-white/60 text-gray-600 hover:bg-white/80'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your profile...</p>
-        </div>
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#F5F5F5',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ fontSize: '14px', color: '#999999' }}>Loading profile...</div>
       </div>
     );
   }
 
-  const profileCompletion = getProfileCompletion();
-  const schoolOptions = getSchoolOptions();
-  const subjectOptions = getSubjectOptions();
-  const departmentOptions = getDepartmentOptions();
-  const hallOptions = getHallOptions();
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6">
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#F5F5F5',
+      paddingBottom: '80px' // Space for bottom nav
+    }}>
       {/* Header */}
-      <div className="pt-8">
-        <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        padding: '24px 20px',
+        borderBottom: '1px solid #F0F0F0'
+      }}>
+        {/* Back Button */}
+        <button
+          onClick={onNavigateBack}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px',
+            marginBottom: '16px',
+            border: 'none',
+            background: 'transparent',
+            color: '#5B8FED',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: 'pointer'
+          }}
+        >
+          <ArrowLeft size={18} />
+          Back
+        </button>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          marginBottom: '20px'
+        }}>
+          {/* University Logo */}
           <img
             src={mindMeasureLogo}
-            alt="Mind Measure"
-            className="w-full h-full object-contain opacity-80"
+            alt="Logo"
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '12px',
+              objectFit: 'contain',
+              flexShrink: 0
+            }}
           />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ 
+              fontSize: '20px', 
+              fontWeight: '600', 
+              color: '#1a1a1a',
+              marginBottom: '2px',
+              lineHeight: '1.2'
+            }}>
+              {userData.firstName} {userData.lastName}
+            </div>
+            <div style={{ 
+              fontSize: '13px', 
+              color: '#999999',
+              marginBottom: '2px'
+            }}>
+              {userData.institution || 'No institution'}
+            </div>
+            <div style={{ 
+              fontSize: '13px', 
+              color: '#666666'
+            }}>
+              {userData.email}
+            </div>
+          </div>
         </div>
-        <h1 className="text-gray-900 text-center mb-2 text-lg">Your Profile</h1>
-        <p className="text-gray-600 text-sm text-center">Your wellness journey & personal info</p>
+
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '8px'
+        }}>
+          <button
+            onClick={() => setActiveTab('overview')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'overview' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'overview' ? 'white' : '#666666'
+            }}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('details')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'details' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'details' ? 'white' : '#666666'
+            }}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => setActiveTab('wellness')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'wellness' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'wellness' ? 'white' : '#666666'
+            }}
+          >
+            Wellness
+          </button>
+        </div>
       </div>
 
-      {/* Save Message */}
-      {saveMessage && (
-        <div className={`p-3 rounded-lg flex items-center gap-2 ${
-          saveMessage.type === 'success' 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-red-100 text-red-700'
-        }`}>
-          {saveMessage.type === 'success' ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <AlertCircle className="w-4 h-4" />
-          )}
-          <span className="text-sm">{saveMessage.text}</span>
-        </div>
-      )}
-
-      {/* User Profile Card */}
-      <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-blue-50/80 to-purple-50/80 p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg">
-            <div className="text-lg font-medium">
-              {getInitials(profileData.first_name || '', profileData.last_name || '')}
-            </div>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-gray-900 mb-1 text-sm font-medium">
-              {profileData.first_name} {profileData.last_name}
-            </h3>
-            <p className="text-gray-600 text-sm mb-2">{profileData.email}</p>
-            {profileData.school && (
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-blue-500" />
-                <span className="text-blue-700 text-sm">{profileData.school}</span>
+      {/* Tab Content */}
+      <div style={{ padding: '20px' }}>
+        {activeTab === 'overview' && (
+          <div>
+            {/* Stats Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '12px', 
+              marginBottom: '16px' 
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.currentStreak}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Day Streak
+                </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Profile Completion */}
-        {profileCompletion < 100 && (
-          <div className="mt-4 pt-4 border-t border-gray-200/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Profile completion</span>
-              <span className="text-sm font-medium text-purple-600">{profileCompletion}%</span>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.averageScore ?? '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Avg Score
+                </div>
+              </div>
             </div>
-            <Progress value={profileCompletion} className="h-2" />
-            <p className="text-xs text-gray-500 mt-2">
-              Complete your profile to help us personalise your experience
-            </p>
+
+            {/* Mood Trend Card */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px'
+              }}>
+                <span style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a' }}>
+                  Mood Trend
+                </span>
+                <span style={{
+                  fontSize: '12px',
+                  color: '#999999'
+                }}>
+                  {userData.totalCheckIns > 0 ? `${userData.totalCheckIns} check-ins` : 'No data yet'}
+                </span>
+              </div>
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                color: '#999999',
+                fontSize: '14px'
+              }}>
+                {userData.totalCheckIns > 0 
+                  ? 'Mood trends visualization coming soon'
+                  : 'Complete check-ins to see your mood trends'
+                }
+              </div>
+            </div>
           </div>
         )}
-      </Card>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 p-1 bg-white/60 rounded-xl backdrop-blur-sm">
-        <TabButton
-          tab="overview"
-          label="Overview"
-          isActive={activeTab === 'overview'}
-          onClick={() => setActiveTab('overview')}
-        />
-        <TabButton
-          tab="details"
-          label="Details"
-          isActive={activeTab === 'details'}
-          onClick={() => setActiveTab('details')}
-        />
-        <TabButton
-          tab="wellness"
-          label="Wellness"
-          isActive={activeTab === 'wellness'}
-          onClick={() => setActiveTab('wellness')}
-        />
-      </div>
-
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Key Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-green-50/80 to-blue-50/80 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                  <Target className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-xl text-green-900">{wellnessStats.currentStreak}</div>
-                  <div className="text-green-700 text-sm">Day Streak</div>
-                </div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-blue-50/80 to-purple-50/80 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-xl text-blue-900">{wellnessStats.averageScore || '-'}</div>
-                  <div className="text-blue-700 text-sm">Avg Score</div>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Top Wellness Themes */}
-          {wellnessStats.topThemes.length > 0 && (
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="w-5 h-5 text-purple-600" />
-                <h3 className="text-gray-900 text-sm">Your Top Wellness Themes</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {wellnessStats.topThemes.map((theme, index) => (
-                  <Badge key={index} className="bg-purple-100 text-purple-700 border-0">
-                    {theme}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Mood Trend */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                <h3 className="text-gray-900 text-sm">Mood Trend</h3>
-              </div>
-              <Badge className={`border-0 ${
-                wellnessStats.moodTrend === 'Improving' ? 'bg-green-100 text-green-700' :
-                wellnessStats.moodTrend === 'Declining' ? 'bg-red-100 text-red-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
-                {wellnessStats.moodTrend}
-              </Badge>
-            </div>
-            <p className="text-gray-600 text-sm">
-              {wellnessStats.totalCheckIns > 0 
-                ? `Based on your ${wellnessStats.totalCheckIns} check-ins`
-                : 'Complete check-ins to see your mood trends'
-              }
-            </p>
-          </Card>
-        </div>
-      )}
-
-      {/* Details Tab */}
-      {activeTab === 'details' && (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-gray-900 text-sm font-medium">Your Information</h3>
-              {isEditing ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCancel}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        Saving
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-1" />
-                        Save
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  className="bg-white/60 border-gray-200"
+        {activeTab === 'details' && (
+          <div>
+            {/* Your Information Section */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '24px'
+              }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', margin: 0 }}>
+                  Your Information
+                </h2>
+                <button
+                  onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
+                  disabled={isSaving}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    border: '1px solid #E0E0E0',
+                    borderRadius: '8px',
+                    background: 'white',
+                    color: '#1a1a1a',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: isSaving ? 'default' : 'pointer',
+                    opacity: isSaving ? 0.6 : 1
+                  }}
                 >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
-                </Button>
-              )}
-            </div>
+                  <Edit2 size={14} />
+                  {isSaving ? 'Saving...' : isEditing ? 'Save' : 'Edit'}
+                </button>
+              </div>
 
-            <div className="space-y-6">
               {/* Personal Information */}
-              <div>
-                <h4 className="text-gray-800 mb-3 text-sm flex items-center gap-2">
-                  <User className="w-4 h-4" />
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
                   Personal Information
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                   <div>
-                    <Label className="text-gray-700 text-xs">First Name</Label>
-                    <Input
-                      value={profileData.first_name || ''}
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={userData.firstName}
                       disabled={!isEditing}
-                      onChange={(e) => updateField('first_name', e.target.value)}
-                      className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
+                      onChange={(e) => setUserData({ ...userData, firstName: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: '#1a1a1a',
+                        background: isEditing ? 'white' : '#FAFAFA',
+                        outline: 'none'
+                      }}
                     />
                   </div>
                   <div>
-                    <Label className="text-gray-700 text-xs">Last Name</Label>
-                    <Input
-                      value={profileData.last_name || ''}
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={userData.lastName}
                       disabled={!isEditing}
-                      onChange={(e) => updateField('last_name', e.target.value)}
-                      className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
+                      onChange={(e) => setUserData({ ...userData, lastName: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: '#1a1a1a',
+                        background: isEditing ? 'white' : '#FAFAFA',
+                        outline: 'none'
+                      }}
                     />
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-4">
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={userData.phone}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#1a1a1a',
+                      background: isEditing ? 'white' : '#FAFAFA',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <Label className="text-gray-700 text-xs">Age Range</Label>
-                    <Select 
-                      disabled={!isEditing} 
-                      value={profileData.age_range || ''}
-                      onValueChange={(v) => updateField('age_range', v)}
-                    >
-                      <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ageRangeOptions.map(opt => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Age Range
+                    </label>
+                    <Select
+                      value={userData.ageRange}
+                      onChange={(value) => setUserData({ ...userData, ageRange: value })}
+                      options={['17-18', '19-21', '22-25', '26-30', '31-40', '41+']}
+                      disabled={!isEditing}
+                    />
                   </div>
                   <div>
-                    <Label className="text-gray-700 text-xs">Gender</Label>
-                    <Select 
-                      disabled={!isEditing} 
-                      value={profileData.gender || ''}
-                      onValueChange={(v) => updateField('gender', v)}
-                    >
-                      <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                        <SelectValue placeholder="Select..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {genderOptions.map(opt => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Gender
+                    </label>
+                    <Select
+                      value={userData.gender}
+                      onChange={(value) => setUserData({ ...userData, gender: value })}
+                      options={['Female', 'Male', 'Non-binary', 'Prefer not to say', 'Other']}
+                      disabled={!isEditing}
+                    />
                   </div>
                 </div>
               </div>
 
               {/* Academic Information */}
-              <div>
-                <h4 className="text-gray-800 mb-3 text-sm flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4" />
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
                   Academic Information
-                </h4>
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-gray-700 text-xs">School / Faculty *</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.school || ''}
-                        onValueChange={(v) => updateField('school', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schoolOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-gray-700 text-xs">Year of Study *</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.year_of_study || ''}
-                        onValueChange={(v) => updateField('year_of_study', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {yearOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                   <div>
-                    <Label className="text-gray-700 text-xs">Course / Programme</Label>
-                    <Input
-                      value={profileData.course || ''}
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      School / Faculty <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.school}
+                      onChange={(value) => setUserData({ ...userData, school: value })}
+                      options={['Arts & Humanities', 'Business', 'Education', 'Health', 'Science', 'Social Sciences']}
                       disabled={!isEditing}
-                      placeholder="e.g., BSc Psychology"
-                      onChange={(e) => updateField('course', e.target.value)}
-                      className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
                     />
                   </div>
-
-                  {departmentOptions.length > 0 && (
-                    <div>
-                      <Label className="text-gray-700 text-xs">Department</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.department || ''}
-                        onValueChange={(v) => updateField('department', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select your department..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departmentOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {subjectOptions.length > 0 && (
-                    <div>
-                      <Label className="text-gray-700 text-xs mb-2 block">
-                        Subject(s) - select all that apply for joint honours
-                      </Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {subjectOptions.map(subject => (
-                          <div key={subject} className="flex items-center gap-2">
-                            <Checkbox
-                              disabled={!isEditing}
-                              checked={(profileData.subjects || []).includes(subject)}
-                              onCheckedChange={() => toggleSubject(subject)}
-                            />
-                            <span className="text-sm text-gray-700">{subject}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <div>
-                    <Label className="text-gray-700 text-xs">Study Mode</Label>
-                    <Select 
-                      disabled={!isEditing} 
-                      value={profileData.study_mode || 'Full-time'}
-                      onValueChange={(v) => updateField('study_mode', v)}
-                    >
-                      <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {studyModeOptions.map(opt => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Year of Study <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.yearOfStudy}
+                      onChange={(value) => setUserData({ ...userData, yearOfStudy: value })}
+                      options={['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate', 'Foundation']}
+                      disabled={!isEditing}
+                    />
                   </div>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Course / Programme
+                  </label>
+                  <input
+                    type="text"
+                    value={userData.course}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, course: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#1a1a1a',
+                      background: isEditing ? 'white' : '#FAFAFA',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Study Mode
+                  </label>
+                  <Select
+                    value={userData.studyMode}
+                    onChange={(value) => setUserData({ ...userData, studyMode: value })}
+                    options={['Full-time', 'Part-time', 'Distance Learning']}
+                    disabled={!isEditing}
+                  />
                 </div>
               </div>
 
               {/* Living Situation */}
-              <div>
-                <h4 className="text-gray-800 mb-3 text-sm flex items-center gap-2">
-                  <Home className="w-4 h-4" />
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
                   Living Situation
-                </h4>
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-gray-700 text-xs">Where do you live? *</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.living_situation || ''}
-                        onValueChange={(v) => updateField('living_situation', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {livingSituationOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-gray-700 text-xs">Domicile Status</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.domicile || ''}
-                        onValueChange={(v) => updateField('domicile', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {domicileOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {profileData.living_situation === 'On Campus' && hallOptions.length > 0 && (
-                    <div>
-                      <Label className="text-gray-700 text-xs">Hall of Residence</Label>
-                      <Select 
-                        disabled={!isEditing} 
-                        value={profileData.hall_of_residence || ''}
-                        onValueChange={(v) => updateField('hall_of_residence', v)}
-                      >
-                        <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {hallOptions.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: userData.livingArrangement === 'University Accommodation' ? '12px' : '0' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Where do you live? <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.livingArrangement}
+                      onChange={(value) => setUserData({ ...userData, livingArrangement: value, accommodationName: value === 'University Accommodation' ? userData.accommodationName : '' })}
+                      options={['University Accommodation', 'Off Campus - Private', 'Living at Home', 'Commuting']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Domicile Status
+                    </label>
+                    <Select
+                      value={userData.domicileStatus}
+                      onChange={(value) => setUserData({ ...userData, domicileStatus: value })}
+                      options={['Home (UK)', 'EU', 'International']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                </div>
+                {userData.livingArrangement === 'University Accommodation' && (
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Name of Accommodation
+                    </label>
+                    <input
+                      type="text"
+                      value={userData.accommodationName}
+                      disabled={!isEditing}
+                      onChange={(e) => setUserData({ ...userData, accommodationName: e.target.value })}
+                      placeholder="e.g., Smith Hall"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: '#1a1a1a',
+                        background: isEditing ? 'white' : '#FAFAFA',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Additional Information */}
               <div>
-                <h4 className="text-gray-800 mb-3 text-sm flex items-center gap-2">
-                  <Users className="w-4 h-4" />
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
                   Additional Information
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-gray-50/60 rounded-lg">
-                    <Checkbox
-                      disabled={!isEditing}
-                      checked={profileData.is_first_generation || false}
-                      onCheckedChange={(v) => updateField('is_first_generation', v)}
-                    />
-                    <div>
-                      <span className="text-sm text-gray-700">First generation student</span>
-                      <p className="text-xs text-gray-500">First in your immediate family to attend university</p>
+                </div>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  marginBottom: '16px',
+                  cursor: isEditing ? 'pointer' : 'default'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={userData.firstGenStudent}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, firstGenStudent: e.target.checked })}
+                    style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: isEditing ? 'pointer' : 'default'
+                    }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500', marginBottom: '2px' }}>
+                      First generation student
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#999999' }}>
+                      First in your immediate family to attend university
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50/60 rounded-lg">
-                    <Checkbox
-                      disabled={!isEditing}
-                      checked={profileData.has_caring_responsibilities || false}
-                      onCheckedChange={(v) => updateField('has_caring_responsibilities', v)}
-                    />
-                    <div>
-                      <span className="text-sm text-gray-700">Caring responsibilities</span>
-                      <p className="text-xs text-gray-500">You care for a family member or dependent</p>
+                </label>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  cursor: isEditing ? 'pointer' : 'default'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={userData.caringResponsibilities}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, caringResponsibilities: e.target.checked })}
+                    style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: isEditing ? 'pointer' : 'default'
+                    }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500', marginBottom: '2px' }}>
+                      Caring responsibilities
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#999999' }}>
+                      You care for a family member or dependent
                     </div>
                   </div>
-                </div>
+                </label>
               </div>
             </div>
-          </Card>
 
-          {/* Privacy Notice */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-blue-50/70 p-6">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-blue-900 mb-2 text-sm">How we use your information</h4>
-                <div className="text-blue-700 text-xs space-y-1">
-                  <div>• Your data helps us personalise your wellbeing support</div>
-                  <div>• Academic info enables aggregate cohort insights</div>
-                  <div>• All data is anonymised for institutional research</div>
-                  <div>• You can update or delete your information anytime</div>
-                </div>
+            {/* Data Usage Info */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              border: '1px solid #E8F0FE'
+            }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#5B8FED',
+                marginBottom: '12px'
+              }}>
+                How we use your information
               </div>
+              <ul style={{
+                margin: 0,
+                paddingLeft: '20px',
+                fontSize: '12px',
+                color: '#666666',
+                lineHeight: '1.6'
+              }}>
+                <li style={{ marginBottom: '4px' }}>Your data helps us personalise your wellbeing support</li>
+                <li style={{ marginBottom: '4px' }}>Academic info enables aggregate cohort insights</li>
+                <li style={{ marginBottom: '4px' }}>All data is anonymised for institutional research</li>
+                <li>You can update or delete your information anytime</li>
+              </ul>
             </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Wellness Tab */}
-      {activeTab === 'wellness' && (
-        <div className="space-y-6">
-          {/* Wellness Stats Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-blue-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-blue-900">{wellnessStats.currentStreak}</div>
-                <div className="text-blue-700 text-sm">Current Streak</div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-green-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-green-900">{wellnessStats.longestStreak}</div>
-                <div className="text-green-700 text-sm">Longest Streak</div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-purple-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-purple-900">{wellnessStats.totalCheckIns}</div>
-                <div className="text-purple-700 text-sm">Total Check-ins</div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-amber-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-amber-900">{wellnessStats.averageScore || '-'}</div>
-                <div className="text-amber-700 text-sm">Average Score</div>
-              </div>
-            </Card>
           </div>
+        )}
 
-          {/* Export Data */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-green-50/70 p-6">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-green-900 mb-2 text-sm">This is YOUR Data</h4>
-                <div className="text-green-700 text-sm space-y-1 mb-4">
-                  <div>• Every conversation, score, and insight belongs to you</div>
-                  <div>• Use this data for personal reflection and growth</div>
-                  <div>• Share with therapists or counsellors when helpful</div>
-                  <div>• Export and keep for your personal records</div>
+        {activeTab === 'wellness' && (
+          <div>
+            {/* Wellness Stats */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '12px', 
+              marginBottom: '16px' 
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.currentStreak}
                 </div>
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export My Data
-                </Button>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Current Streak
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.longestStreak}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Longest Streak
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.totalCheckIns}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Total Check-ins
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.averageScore ?? '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Average Score
+                </div>
               </div>
             </div>
-          </Card>
-        </div>
-      )}
 
-      {/* Bottom padding for navigation */}
-      <div className="h-24" />
+            {/* Data Ownership Card */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <h3 style={{ 
+                fontSize: '18px', 
+                fontWeight: '600', 
+                color: '#1a1a1a',
+                margin: 0,
+                marginBottom: '16px'
+              }}>
+                This is YOUR Data
+              </h3>
+              <p style={{
+                margin: '0 0 20px 0',
+                fontSize: '14px',
+                color: '#666666',
+                lineHeight: '1.6'
+              }}>
+                Every conversation, score, and insight belongs to you. Use this data for personal reflection and growth, share with therapists or counsellors when helpful, and export to keep for your personal records.
+              </p>
+              <button
+                onClick={handleExportData}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '14px 24px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <Download size={18} />
+                Export My Data
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-// Keep the original export for compatibility
-export const MobileProfile = ProfileScreen;
