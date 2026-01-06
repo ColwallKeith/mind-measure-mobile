@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Edit2 } from 'lucide-react';
 import { Select } from './Select';
+import { MoodTrendChart } from './MoodTrendChart';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
@@ -53,6 +54,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const [universityData, setUniversityData] = useState<UniversityData | null>(null);
   const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
   const [hallOptions, setHallOptions] = useState<string[]>([]);
+  const [moodData, setMoodData] = useState<Array<{ date: string; score: number }>>([]);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
@@ -153,6 +155,32 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
 
         // Calculate current streak
         const currentStreak = calculateCurrentStreak(sessions);
+
+        // Fetch mood scores for trend chart
+        const analysisResponse = await backendService.database.select({
+          table: 'assessment_outputs',
+          filters: { user_id: user.id },
+          select: 'analysis, created_at',
+          orderBy: [{ column: 'created_at', ascending: true }]
+        });
+
+        const moodScores = (analysisResponse.data || [])
+          .map((item: any) => {
+            try {
+              const analysis = typeof item.analysis === 'string' 
+                ? JSON.parse(item.analysis) 
+                : item.analysis;
+              return {
+                date: item.created_at,
+                score: analysis?.moodScore || analysis?.mood_score || 0
+              };
+            } catch (e) {
+              return null;
+            }
+          })
+          .filter((item: any) => item !== null && item.score > 0);
+
+        setMoodData(moodScores);
 
         setUserData({
           firstName: profile.first_name || '',
@@ -488,24 +516,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                 <span style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a' }}>
                   Mood Trend
                 </span>
-                <span style={{
-                  fontSize: '12px',
-                  color: '#999999'
-                }}>
-                  {userData.totalCheckIns > 0 ? `${userData.totalCheckIns} check-ins` : 'No data yet'}
-                </span>
               </div>
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: '#999999',
-                fontSize: '14px'
-              }}>
-                {userData.totalCheckIns > 0 
-                  ? 'Mood trends visualization coming soon'
-                  : 'Complete check-ins to see your mood trends'
-                }
-              </div>
+              <MoodTrendChart data={moodData} />
             </div>
           </div>
         )}
