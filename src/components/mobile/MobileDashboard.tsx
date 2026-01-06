@@ -207,16 +207,16 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         {/* Greeting - Centered */}
         <motion.div variants={itemVariants} style={{ textAlign: 'center' }}>
           <h1 style={{
-            fontSize: '18px',
+            fontSize: '24px',
             fontWeight: '600',
             color: '#1a1a1a',
-            margin: '0 0 2px 0',
+            margin: '0 0 4px 0',
             lineHeight: '1.2'
           }}>
             {getGreeting()}, {profile.firstName || 'there'}
           </h1>
           <p style={{
-            fontSize: '13px',
+            fontSize: '14px',
             color: '#666666',
             margin: 0,
             lineHeight: '1.4'
