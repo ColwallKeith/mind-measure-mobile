@@ -57,6 +57,9 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const [hallOptions, setHallOptions] = useState<string[]>([]);
   const [moodData, setMoodData] = useState<Array<{ date: string; score: number }>>([]);
   const [themesData, setThemesData] = useState<ThemeData[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportPeriod, setExportPeriod] = useState<14 | 30 | 90>(30);
+  const [isExporting, setIsExporting] = useState(false);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
@@ -332,9 +335,50 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   };
 
   const handleExportData = () => {
-    // TODO: Implement data export API call
-    console.log('Exporting user data...');
-    alert('Data export functionality will be implemented soon. Your data will be exported as a JSON file containing all your check-ins, scores, and profile information.');
+    setShowExportModal(true);
+  };
+
+  const handleConfirmExport = async () => {
+    if (!user) return;
+
+    try {
+      setIsExporting(true);
+
+      // Call the report generation API
+      const response = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          periodDays: exportPeriod
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate report');
+      }
+
+      const data = await response.json();
+
+      // Create a downloadable text file
+      const blob = new Blob([data.report], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MindMeasure_Report_${exportPeriod}days_${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setShowExportModal(false);
+      alert('Report downloaded successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to generate report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -1103,6 +1147,169 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Export Wellbeing Report
+            </h3>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 20px 0',
+              lineHeight: '1.6'
+            }}>
+              Generate a professional report including your scores, themes, and AI-generated insights.
+            </p>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                display: 'block',
+                marginBottom: '12px'
+              }}>
+                Time Period
+              </label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 14 ? '#5B8FED' : '#E0E0E0'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 14 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="14"
+                    checked={exportPeriod === 14}
+                    onChange={() => setExportPeriod(14)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last 14 Days
+                  </span>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 30 ? '#5B8FED' : '#E0E0E0'}',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 30 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="30"
+                    checked={exportPeriod === 30}
+                    onChange={() => setExportPeriod(30)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last Month (30 Days)
+                  </span>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 90 ? '#5B8FED' : '#E0E0E0'}',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 90 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="90"
+                    checked={exportPeriod === 90}
+                    onChange={() => setExportPeriod(90)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last 3 Months (90 Days)
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                disabled={isExporting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isExporting ? 'default' : 'pointer',
+                  opacity: isExporting ? 0.5 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmExport}
+                disabled={isExporting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isExporting ? 'default' : 'pointer',
+                  opacity: isExporting ? 0.7 : 1
+                }}
+              >
+                {isExporting ? 'Generating...' : 'Generate Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
