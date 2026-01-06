@@ -927,80 +927,238 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
   // Show welcome screen
   return (
-    <div className="relative min-h-screen bg-gray-50">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50"></div>
-      
-      <div className="relative z-10 min-h-screen flex flex-col">
-        <header className="backdrop-blur-sm bg-white/90 border-0 px-4 sm:px-6 py-6 sm:py-8 shadow-sm">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mt-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
-                <span 
-                  className="bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent"
-                  style={{ 
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}
-                >
-                  Mind Measure
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#F5F5F5'
+    }}>
+      <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '20px',
+          paddingTop: '80px',
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
+          {/* Logo */}
+          <img 
+            src={mindMeasureLogo} 
+            alt="Mind Measure" 
+            style={{
+              width: '80px',
+              height: '80px',
+              marginBottom: '20px'
+            }}
+          />
+          
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 32px 0',
+            textAlign: 'center'
+          }}>
+            Start your wellness journey
+          </h1>
+
+          {/* What to Expect Card */}
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px 24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+            marginBottom: '24px',
+            width: '100%'
+          }}>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 24px 0',
+              textAlign: 'center'
+            }}>
+              What to expect
+            </h2>
+
+            {/* Bullet Points */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Point 1 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  Five questions
                 </span>
-              </h1>
-              <p className="text-lg text-gray-600">Start your wellness journey</p>
+              </div>
+
+              {/* Point 2 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  3-5 minutes max
+                </span>
+              </div>
+
+              {/* Point 3 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We use your camera so make sure you are looking at the screen
+                </span>
+              </div>
+
+              {/* Point 4 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We analyse your voice to understand your mood
+                </span>
+              </div>
+
+              {/* Point 5 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We delete any voice and images we collect as soon as we have analysed them
+                </span>
+              </div>
             </div>
           </div>
-        </header>
 
-        <div className="flex-1 flex items-start justify-center px-4 sm:px-6 py-8 sm:py-12 pt-16">
-          <div className="w-full max-w-2xl space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg p-8 border">
-              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                <img src={mindMeasureLogo} alt="Mind Measure" className="w-full h-full object-contain" />
-              </div>
-              
-              <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">What to expect</h3>
-              
-              <div className="bg-blue-50 rounded-lg p-6">
-                <ul className="text-blue-800 space-y-3 text-left">
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>Five questions from Jodie</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>3-5 minutes max</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We use your camera so make sure you are looking at the screen</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We analyse your voice to understand your mood</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We delete any voice and images we collect as soon as we have analysed them</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleStartAssessment}
-              disabled={requestingPermissions}
-              className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg font-medium rounded-xl disabled:opacity-50 shadow-lg"
-            >
-              {requestingPermissions ? (
-                <div className="flex items-center gap-2 justify-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Requesting Permissions...
-                </div>
-              ) : (
-                'Start Your Baseline Assessment'
-              )}
-            </Button>
-          </div>
+          {/* Start Assessment Button */}
+          <button
+            onClick={handleStartAssessment}
+            disabled={requestingPermissions}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: requestingPermissions ? '#cccccc' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: requestingPermissions ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+              opacity: requestingPermissions ? 0.5 : 1
+            }}
+            onMouseOver={(e) => {
+              if (!requestingPermissions) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!requestingPermissions) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }
+            }}
+          >
+            {requestingPermissions ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid white',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Requesting Permissions...
+              </>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Let's Get Started
+              </>
+            )}
+          </button>
         </div>
       </div>
 
