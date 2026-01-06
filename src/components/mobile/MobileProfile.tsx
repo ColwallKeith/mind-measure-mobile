@@ -135,14 +135,27 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           setHallOptions(halls);
         }
         
-        // Fetch wellness stats
+        // Fetch wellness stats and mood scores from fusion_outputs
         const sessionsResponse = await backendService.database.select('fusion_outputs', {
           filters: { user_id: user.id },
-          orderBy: [{ column: 'created_at', ascending: false }]
+          orderBy: [{ column: 'created_at', ascending: false }],
+          select: 'id, user_id, final_score, analysis, created_at'
         });
 
         const sessions = sessionsResponse.data || [];
+        
+        console.log('📊 Sessions fetched:', sessions.length);
+        if (sessions.length > 0) {
+          console.log('📊 Sample session:', {
+            has_analysis: !!sessions[0].analysis,
+            analysis_type: typeof sessions[0].analysis,
+            analysis_preview: sessions[0].analysis ? JSON.stringify(sessions[0].analysis).substring(0, 100) : 'null'
+          });
+        }
+        
         const totalCheckIns = sessions.length;
+        
+        // Calculate average score
         const averageScore = totalCheckIns > 0
           ? Math.round(sessions.reduce((sum: number, s: any) => sum + (s.final_score || 0), 0) / totalCheckIns)
           : null;
@@ -150,47 +163,32 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         // Calculate current streak
         const currentStreak = calculateCurrentStreak(sessions);
 
-        // Fetch mood scores for trend chart
-        const analysisResponse = await backendService.database.select('assessment_transcripts', {
-          filters: { user_id: user.id },
-          orderBy: [{ column: 'created_at', ascending: true }]
-        });
-
-        console.log('📊 Mood data - raw response:', analysisResponse);
-        console.log('📊 Mood data - count:', analysisResponse.data?.length);
-
-        const moodScores = (analysisResponse.data || [])
-          .map((item: any, index: number) => {
+        // Extract mood scores from sessions
+        // The analysis field contains the moodScore
+        const moodScores = sessions
+          .map((session: any) => {
             try {
-              console.log(`📊 Processing mood item ${index}:`, {
-                created_at: item.created_at,
-                analysis_type: typeof item.analysis,
-                analysis_sample: item.analysis ? JSON.stringify(item.analysis).substring(0, 200) : 'null'
-              });
-
-              const analysis = typeof item.analysis === 'string' 
-                ? JSON.parse(item.analysis) 
-                : item.analysis;
+              // Analysis might be in the session already or need to be parsed
+              const analysis = typeof session.analysis === 'string'
+                ? JSON.parse(session.analysis)
+                : session.analysis;
               
               const moodScore = analysis?.moodScore || analysis?.mood_score;
               
-              console.log(`📊 Extracted mood score for item ${index}:`, moodScore);
-
               if (moodScore && moodScore > 0) {
                 return {
-                  date: item.created_at,
+                  date: session.created_at,
                   score: moodScore
                 };
               }
               return null;
             } catch (e) {
-              console.error('📊 Error processing mood item:', e);
               return null;
             }
           })
           .filter((item: any) => item !== null);
 
-        console.log('📊 Final mood scores array:', moodScores);
+        console.log('📊 Mood scores extracted:', moodScores.length, 'from', sessions.length, 'sessions');
         setMoodData(moodScores);
 
         setUserData({
