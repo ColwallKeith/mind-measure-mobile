@@ -653,59 +653,78 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         );
       })()}
 
-      {/* University Messages */}
-      {!isPostBaselineView && (
-        <div style={{ padding: '0 20px 24px 20px' }}>
-          <h3 style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            margin: '0 0 12px 0'
-          }}>
-            Messages from {profile?.university_name || 'Your University'}
-          </h3>
-          
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            {/* Sample Message 1 - Wellbeing Event */}
-            <MessageCard
-              id="msg-1"
-              type="wellbeing"
-              title="World Mental Health Day 🌍"
-              body="Join us this Thursday for a special workshop on managing stress during exam season. Free refreshments provided!"
-              ctaText="Register Now"
-              timestamp="Posted today"
-              onDismiss={(id) => console.log('Dismissed:', id)}
-              onCtaClick={(id) => console.log('CTA clicked:', id)}
-            />
+      {/* University Messages - Randomly show ONE message per session */}
+      {!isPostBaselineView && (() => {
+        // Sample messages - will be replaced with CMS backend later
+        const sampleMessages = [
+          {
+            id: "msg-1",
+            type: "wellbeing" as const,
+            title: "World Mental Health Day 🌍",
+            body: "Join us this Thursday for a special workshop on managing stress during exam season. Free refreshments provided!",
+            ctaText: "Register Now",
+            timestamp: "Posted today"
+          },
+          {
+            id: "msg-2",
+            type: "nudge" as const,
+            title: "You're on a streak! 🎉",
+            body: "You've checked in 3 times this week. Keep it up to maintain momentum with your mental wellbeing journey.",
+            timestamp: "2 hours ago"
+          },
+          {
+            id: "msg-3",
+            type: "announcement" as const,
+            title: "Extended Counselling Hours",
+            body: "Our Student Wellbeing Service has extended hours during exam period. Book your session through the Student Portal.",
+            ctaText: "Book Appointment",
+            timestamp: "Yesterday"
+          },
+          {
+            id: "msg-4",
+            type: "reminder" as const,
+            title: "Sleep Workshop This Friday",
+            body: "Learn evidence-based techniques for better sleep during your studies. Limited spots available!",
+            ctaText: "Book Your Spot",
+            timestamp: "3 hours ago"
+          },
+          {
+            id: "msg-5",
+            type: "wellbeing" as const,
+            title: "Finance Support Available",
+            body: "Struggling with budgeting? Our Financial Wellbeing Advisors offer free one-to-one sessions.",
+            ctaText: "Learn More",
+            timestamp: "5 hours ago"
+          }
+        ];
 
-            {/* Sample Message 2 - Nudge */}
-            <MessageCard
-              id="msg-2"
-              type="nudge"
-              title="You're on a streak! 🎉"
-              body="You've checked in 3 times this week. Keep it up to maintain momentum with your mental wellbeing journey."
-              timestamp="2 hours ago"
-              onDismiss={(id) => console.log('Dismissed:', id)}
-            />
+        // Pick a random message (changes each time dashboard loads)
+        const randomMessage = sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
 
-            {/* Sample Message 3 - Announcement */}
+        return (
+          <div style={{ padding: '0 20px 24px 20px' }}>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 12px 0'
+            }}>
+              Messages from {profile?.university_name || 'Your University'}
+            </h3>
+            
             <MessageCard
-              id="msg-3"
-              type="announcement"
-              title="Extended Counselling Hours"
-              body="Our Student Wellbeing Service has extended hours during exam period. Book your session through the Student Portal."
-              ctaText="Book Appointment"
-              timestamp="Yesterday"
+              id={randomMessage.id}
+              type={randomMessage.type}
+              title={randomMessage.title}
+              body={randomMessage.body}
+              ctaText={randomMessage.ctaText}
+              timestamp={randomMessage.timestamp}
               onDismiss={(id) => console.log('Dismissed:', id)}
               onCtaClick={(id) => console.log('CTA clicked:', id)}
             />
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       {/* Bottom padding for navigation */}
       <div className="h-24" />
