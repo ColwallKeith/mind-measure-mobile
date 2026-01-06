@@ -8,7 +8,7 @@ import { CheckinAssessmentSDK } from './CheckinAssessmentSDK';
 import { HelpScreen } from './HelpPage';
 import { SupportCircle } from './SupportCircle';
 import { MobileProfile } from './MobileProfile';
-import { MobileContent } from './MobileContent';
+import { ContentPage } from './ContentPage';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
 import { EmailVerificationScreen } from "./EmailVerificationScreen";
@@ -302,7 +302,7 @@ export const MobileAppStructure: React.FC = () => {
       case 'buddies':
         return <SupportCircle onNavigateToHelp={() => setCurrentScreen('help')} />;
       case 'content':
-        return <MobileContent />;
+        return <ContentPage universityName="University of Worcester" />;
       case 'help':
         return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
