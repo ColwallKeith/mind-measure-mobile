@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { MessageCircle, Activity, Shield, Loader2, GraduationCap } from 'lucide-react';
+import { MessageCircle, Activity, Shield, Loader2, GraduationCap, Plus } from 'lucide-react';
 import { SwipeableScoreCard } from './SwipeableScoreCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
@@ -155,208 +155,351 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
 
   return (
     <motion.div
-      className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6"
+      className="min-h-screen bg-gray-50 space-y-0 pb-24"
+      style={{ paddingBottom: '80px' }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {/* University Branding */}
-      <motion.div variants={itemVariants} style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center justify-center gap-3 mb-6">
+      {/* Header - White Background */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        padding: '20px',
+        borderBottom: '1px solid #F0F0F0'
+      }}>
+        {/* Mind Measure Logo & Name Card */}
+        <motion.div variants={itemVariants} style={{ marginBottom: '24px' }}>
           <div 
-            className="w-12 h-12 flex items-center justify-center cursor-pointer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              background: 'white',
+              borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              cursor: 'pointer'
+            }}
             onClick={handleLogoClick}
           >
-            <img
-              src={mindMeasureLogo}
-              alt="Mind Measure"
-              className="w-full h-full object-contain"
+            <img 
+              src={mindMeasureLogo} 
+              alt="Mind Measure" 
+              style={{
+                width: '96px',
+                height: '96px',
+                flexShrink: 0
+              }}
             />
+            <div style={{
+              fontSize: '24px',
+              color: '#1a1a1a',
+              fontFamily: "'Chillax', sans-serif",
+              fontWeight: '500',
+              letterSpacing: '0.5px'
+            }}>
+              MIND MEASURE
+            </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-gray-900">{getDemoUniversity().name}</h2>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      {/* Header */}
-      <motion.div variants={itemVariants}>
-        <motion.h1
-          className="text-3xl text-gray-900 mb-2"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-        >
-          {isPostBaselineView 
-            ? `${getGreeting()}, ${profile.firstName || 'there'}`
-            : `${getGreeting()}, ${profile.firstName || 'there'}`
-          }
-        </motion.h1>
-        <motion.p
-          className="text-gray-600"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          {isPostBaselineView
-            ? "Here's the result of your baseline assessment"
-            : hasData
-              ? "Here's your latest mental health snapshot"
-              : "Complete your first assessment to see your dashboard"
-          }
-        </motion.p>
-        {profile.streakCount > 0 && (
-          <motion.div
-            className="mt-2"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <Badge className="bg-green-100 text-green-800">
-              🔥 {profile.streakCount} day streak
-            </Badge>
+        {/* Greeting - Centered */}
+        <motion.div variants={itemVariants} style={{ textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 4px 0',
+            lineHeight: '1.2'
+          }}>
+            {getGreeting()}, {profile.firstName || 'there'}
+          </h1>
+          <p style={{
+            fontSize: '14px',
+            color: '#666666',
+            margin: 0,
+            lineHeight: '1.4'
+          }}>
+            Here's your latest mental health snapshot
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Score Cards */}
+      <div style={{
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px'
+      }}>
+        {latestScore ? (
+          <motion.div variants={itemVariants} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <SwipeableScoreCard
+              score={latestScore.score}
+              lastUpdated={latestScore.lastUpdated}
+              trend={latestScore.trend}
+              last7Days={trendData.last7Days}
+              last30Days={trendData.last30Days}
+              baselineScore={recentActivity.find(a => a.type === 'baseline')?.score}
+              userCreatedAt={profile.createdAt}
+            />
+          </motion.div>
+        ) : (
+          <motion.div variants={itemVariants} style={{ width: '100%' }}>
+            <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6 text-center">
+              <h3 className="text-gray-900 mb-2">No Assessment Data Yet</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Complete your first assessment to see your Mind Measure score
+              </p>
+              <Button
+                onClick={onCheckIn}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+              >
+                Start Assessment
+              </Button>
+            </Card>
           </motion.div>
         )}
-      </motion.div>
+      </div>
 
-      {/* Swipeable Score Card - Built on working foundation */}
-      {latestScore ? (
-        <motion.div variants={itemVariants}>
-          <SwipeableScoreCard
-            score={latestScore.score}
-            lastUpdated={latestScore.lastUpdated}
-            trend={latestScore.trend}
-            last7Days={trendData.last7Days}
-            last30Days={trendData.last30Days}
-            baselineScore={recentActivity.find(a => a.type === 'baseline')?.score}
-            userCreatedAt={profile.createdAt}
-          />
-        </motion.div>
-      ) : (
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6 text-center">
-            <h3 className="text-gray-900 mb-2">No Assessment Data Yet</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Complete your first assessment to see your Mind Measure score
-            </p>
-            <Button
-              onClick={onCheckIn}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-            >
-              Start Assessment
-            </Button>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Quick Actions - Side by side */}
-      <motion.div variants={itemVariants} className="space-y-3">
-        <h3 className="text-gray-900">Quick Actions</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={onCheckIn}
-              className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg rounded-xl"
-            >
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Check-in
-            </Button>
-          </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={onNeedHelp}
-              className="w-full h-14 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-lg rounded-xl text-lg font-medium"
-            >
-              Need Help?
-            </Button>
-          </motion.div>
+      {/* Quick Actions */}
+      <div style={{ padding: '0 20px 24px 20px' }}>
+        <h3 style={{
+          fontSize: '14px',
+          fontWeight: '600',
+          color: '#1a1a1a',
+          margin: '0 0 12px 0'
+        }}>
+          Quick Actions
+        </h3>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '12px'
+        }}>
+          <motion.button 
+            onClick={onCheckIn}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            Check-In
+          </motion.button>
+          <motion.button 
+            onClick={onNeedHelp}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={{
+              padding: '14px 20px',
+              background: '#F97316',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)'
+            }}
+          >
+            Need Help?
+          </motion.button>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Key Themes - Only show if we have check-in data (not just baseline) */}
+      {/* Key Themes - Simple tags */}
       {!isPostBaselineView && latestSession?.themes && latestSession.themes.length > 0 && (
-        <motion.div variants={itemVariants} className="space-y-3">
-          <h3 className="text-gray-900">Key Themes</h3>
-          <div className="flex flex-wrap gap-2">
-            {latestSession.themes.slice(0, 6).map((theme, index) => (
+        <div style={{ padding: '0 20px 24px 20px' }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 12px 0'
+          }}>
+            Key Themes
+          </h3>
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            {latestSession.themes.slice(0, 8).map((theme, index) => (
               <motion.span
                 key={theme}
-                className="px-4 py-2 bg-white/60 backdrop-blur-md text-gray-700 rounded-full text-sm shadow-sm"
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.5 + index * 0.05, type: "spring", stiffness: 200 }}
-                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.8)' }}
+                transition={{ delay: 0.5 + index * 0.05 }}
+                style={{
+                  padding: '8px 16px',
+                  background: 'white',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '20px',
+                  fontSize: '13px',
+                  color: '#666666',
+                  fontWeight: '500'
+                }}
               >
                 {theme}
               </motion.span>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
-      {/* Latest Check-in Card - Only show for check-ins with summary */}
+      {/* Latest Check-in */}
       {!isPostBaselineView && latestSession?.summary && (
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-gray-900">Latest Check-in</h3>
-              <p className="text-gray-500 text-sm">{latestSession.createdAt}</p>
+        <div style={{ padding: '0 20px 24px 20px' }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h3 style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                margin: 0
+              }}>
+                Latest Check-in
+              </h3>
+              <span style={{
+                fontSize: '13px',
+                color: '#999999'
+              }}>
+                {latestSession.createdAt}
+              </span>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-gray-800 font-medium mb-2">Conversation Summary</h4>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {latestSession.summary}
-                </p>
-              </div>
-              
-              <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                <span className="text-gray-700">Mood Score</span>
-                <span className="text-2xl font-semibold text-gray-900">{latestSession.moodScore}/10</span>
+
+            {/* Conversation Summary */}
+            <div style={{ marginBottom: '16px' }}>
+              <h4 style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#666666',
+                margin: '0 0 8px 0'
+              }}>
+                Conversation Summary
+              </h4>
+              <p style={{
+                fontSize: '13px',
+                color: '#666666',
+                lineHeight: '1.6',
+                margin: 0
+              }}>
+                {latestSession.summary}
+              </p>
+            </div>
+
+            {/* Mood Score */}
+            <div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <h4 style={{
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: '#666666',
+                  margin: 0
+                }}>
+                  Mood Score
+                </h4>
+                <span style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#1a1a1a'
+                }}>
+                  {latestSession.moodScore}/10
+                </span>
               </div>
             </div>
-          </Card>
-        </motion.div>
+          </div>
+        </div>
       )}
 
-      {/* Topics Discussed - Positive/Negative drivers */}
+      {/* Topics Discussed */}
       {!isPostBaselineView && latestSession && (latestSession.driverPositive.length > 0 || latestSession.driverNegative.length > 0) && (
-        <motion.div variants={itemVariants} className="space-y-3">
-          <h3 className="text-gray-900">Topics Discussed</h3>
-          <div className="space-y-3">
-            {latestSession.driverPositive.length > 0 && (
-              <Card className="border-0 shadow-sm backdrop-blur-xl bg-green-50/80 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2" />
-                  <div className="flex-1">
-                    <p className="text-green-800 font-medium mb-2">Finding Pleasure In</p>
-                    <div className="flex flex-wrap gap-2">
-                      {latestSession.driverPositive.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 text-xs border border-green-300 text-green-700 bg-green-100/50 rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
+        <div style={{ padding: '0 20px 24px 20px' }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+          }}>
+            <h3 style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Topics Discussed
+            </h3>
             
-            {latestSession.driverNegative.length > 0 && (
-              <Card className="border-0 shadow-sm backdrop-blur-xl bg-orange-50/80 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2" />
-                  <div className="flex-1">
-                    <p className="text-orange-800 font-medium mb-2">Causing Concern</p>
-                    <div className="flex flex-wrap gap-2">
-                      {latestSession.driverNegative.map((tag) => (
+            {/* Finding Pleasure */}
+            {latestSession.driverPositive.length > 0 && (
+              <div style={{ marginBottom: latestSession.driverNegative.length > 0 ? '16px' : 0 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: '#10B981',
+                    marginTop: '6px',
+                    flexShrink: 0
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '13px',
+                      color: '#1a1a1a',
+                      marginBottom: '8px',
+                      fontWeight: '500'
+                    }}>
+                      Finding Pleasure in
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '6px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {latestSession.driverPositive.slice(0, 5).map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-1 text-xs border border-orange-300 text-orange-700 bg-orange-100/50 rounded"
+                          style={{
+                            padding: '6px 14px',
+                            background: '#D1FAE5',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            color: '#065F46',
+                            fontWeight: '500'
+                          }}
                         >
                           {tag}
                         </span>
@@ -364,79 +507,127 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
                     </div>
                   </div>
                 </div>
-              </Card>
+              </div>
+            )}
+
+            {/* Causing Worry */}
+            {latestSession.driverNegative.length > 0 && (
+              <div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: '#EF4444',
+                    marginTop: '6px',
+                    flexShrink: 0
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontSize: '13px',
+                      color: '#1a1a1a',
+                      marginBottom: '8px',
+                      fontWeight: '500'
+                    }}>
+                      Causing Worry
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '6px',
+                      flexWrap: 'wrap'
+                    }}>
+                      {latestSession.driverNegative.slice(0, 5).map((tag) => (
+                        <span
+                          key={tag}
+                          style={{
+                            padding: '6px 14px',
+                            background: '#FEE2E2',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            color: '#DC2626',
+                            fontWeight: '500'
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-        </motion.div>
+        </div>
       )}
 
-      {/* Last Check-in Card */}
-      {checkInActivity.length > 0 ? (
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <h3 className="text-gray-900 mb-4">Last Check-in</h3>
-            {(() => {
-              const lastCheckIn = checkInActivity[0];
-              const checkInDate = new Date(lastCheckIn.createdAt);
-              const now = new Date();
-              const diffDays = Math.floor((now.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-              const formattedDate = checkInDate.toLocaleDateString('en-GB', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              });
-              
-              return (
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Activity className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-gray-800 font-medium mb-1">{formattedDate}</p>
-                    <p className="text-gray-600 text-sm mb-2">
-                      {diffDays === 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : `${diffDays} days ago`}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-gray-900">{lastCheckIn.score}</span>
-                      <Badge className={`${
-                        lastCheckIn.score >= 80 ? 'bg-green-100 text-green-700' :
-                        lastCheckIn.score >= 60 ? 'bg-blue-100 text-blue-700' :
-                        lastCheckIn.score >= 40 ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      } border-0`}>
-                        {lastCheckIn.score >= 80 ? 'Excellent' : 
-                         lastCheckIn.score >= 60 ? 'Good' : 
-                         lastCheckIn.score >= 40 ? 'Fair' : 
-                         'Needs Attention'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </Card>
-        </motion.div>
-      ) : (
-        <motion.div variants={itemVariants}>
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <h3 className="text-gray-900 mb-4">No Check-ins Yet</h3>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-800 font-medium mb-1">Baseline Established</p>
-                <p className="text-gray-600 text-sm mb-2">
-                  {latestScore?.lastUpdated || 'Recently'}
-                </p>
-                <p className="text-gray-500 text-sm">
-                  Ready to start your first check-in
-                </p>
+      {/* Previous Check-in Card */}
+      {checkInActivity.length > 1 && (
+        <div style={{ padding: '0 20px 24px 20px' }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 12px 0'
+          }}>
+            Previous Check-in
+          </h3>
+          <div style={{
+            background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: 'white'
+              }}>
+                {new Date(checkInActivity[1].createdAt).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             </div>
-          </Card>
-        </motion.div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: '700',
+                color: 'white',
+                lineHeight: '1',
+                marginBottom: '2px'
+              }}>
+                {checkInActivity[1].score}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontWeight: '500'
+              }}>
+                {checkInActivity[1].score >= 80 ? 'Excellent' : checkInActivity[1].score >= 60 ? 'Good' : checkInActivity[1].score >= 40 ? 'Fair' : 'Needs attention'}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       
       {/* Bottom padding for navigation */}
