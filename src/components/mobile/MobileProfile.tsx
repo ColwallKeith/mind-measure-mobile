@@ -156,13 +156,26 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           orderBy: [{ column: 'created_at', ascending: true }]
         });
 
+        console.log('📊 Mood data - raw response:', analysisResponse);
+        console.log('📊 Mood data - count:', analysisResponse.data?.length);
+
         const moodScores = (analysisResponse.data || [])
-          .map((item: any) => {
+          .map((item: any, index: number) => {
             try {
+              console.log(`📊 Processing mood item ${index}:`, {
+                created_at: item.created_at,
+                analysis_type: typeof item.analysis,
+                analysis_sample: item.analysis ? JSON.stringify(item.analysis).substring(0, 200) : 'null'
+              });
+
               const analysis = typeof item.analysis === 'string' 
                 ? JSON.parse(item.analysis) 
                 : item.analysis;
+              
               const moodScore = analysis?.moodScore || analysis?.mood_score;
+              
+              console.log(`📊 Extracted mood score for item ${index}:`, moodScore);
+
               if (moodScore && moodScore > 0) {
                 return {
                   date: item.created_at,
@@ -171,11 +184,13 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               }
               return null;
             } catch (e) {
+              console.error('📊 Error processing mood item:', e);
               return null;
             }
           })
           .filter((item: any) => item !== null);
 
+        console.log('📊 Final mood scores array:', moodScores);
         setMoodData(moodScores);
 
         setUserData({
