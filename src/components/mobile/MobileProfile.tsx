@@ -350,6 +350,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
+          userEmail: user.email,
+          userName: userData.firstName || 'there',
           periodDays: exportPeriod
         })
       });
@@ -360,22 +362,11 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
 
       const data = await response.json();
 
-      // Create a downloadable text file
-      const blob = new Blob([data.report], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `MindMeasure_Report_${exportPeriod}days_${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
       setShowExportModal(false);
-      alert('Report downloaded successfully!');
+      alert(`Report sent successfully to ${user.email}!\n\nCheck your inbox (and spam folder) for your wellbeing report.`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to generate report. Please try again.');
+      alert('Failed to send report. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -1177,7 +1168,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               color: '#1a1a1a',
               margin: '0 0 16px 0'
             }}>
-              Export Wellbeing Report
+              Email Wellbeing Report
             </h3>
             
             <p style={{
@@ -1186,7 +1177,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               margin: '0 0 20px 0',
               lineHeight: '1.6'
             }}>
-              Generate a professional report including your scores, themes, and AI-generated insights.
+              We'll email a professional report to <strong>{user?.email}</strong> including your scores, themes, and AI-generated insights.
             </p>
 
             <div style={{ marginBottom: '24px' }}>
@@ -1304,7 +1295,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                   opacity: isExporting ? 0.7 : 1
                 }}
               >
-                {isExporting ? 'Generating...' : 'Generate Report'}
+                {isExporting ? 'Sending...' : 'Email Report to Me'}
               </button>
             </div>
           </div>
