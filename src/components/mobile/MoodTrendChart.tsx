@@ -50,13 +50,18 @@ export function MoodTrendChart({ data }: MoodTrendChartProps) {
 
   // Calculate chart dimensions
   const width = 100; // percentage
-  const height = 120; // pixels
-  const padding = { top: 10, right: 10, bottom: 20, left: 30 };
+  const height = 180; // pixels - increased for better visibility
+  const padding = { top: 15, right: 5, bottom: 25, left: 25 }; // Reduced padding for full width
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
   const maxScore = 10;
   const minScore = 0;
+
+  // Calculate statistics
+  const avgScore = chartData.reduce((sum, d) => sum + d.score, 0) / chartData.length;
+  const maxDataScore = Math.max(...chartData.map(d => d.score));
+  const minDataScore = Math.min(...chartData.map(d => d.score));
 
   // Create SVG points
   const points = chartData.map((d, i) => {
@@ -135,8 +140,8 @@ export function MoodTrendChart({ data }: MoodTrendChartProps) {
           overflow: 'visible'
         }}
       >
-        {/* Grid lines */}
-        {[0, 2.5, 5, 7.5, 10].map((value) => {
+        {/* Grid lines - whole numbers only */}
+        {[0, 2, 4, 6, 8, 10].map((value) => {
           const y = padding.top + ((maxScore - value) / (maxScore - minScore)) * chartHeight;
           return (
             <g key={value}>
