@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { MessageCircle, Activity, Shield, Loader2, GraduationCap, Plus } from 'lucide-react';
 import { SwipeableScoreCard } from './SwipeableScoreCard';
+import { MessageCard } from './MessageCard';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
@@ -651,6 +652,60 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </div>
         );
       })()}
+
+      {/* University Messages */}
+      {!isPostBaselineView && (
+        <div style={{ padding: '0 20px 24px 20px' }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 12px 0'
+          }}>
+            Messages from {profile?.university_name || 'Your University'}
+          </h3>
+          
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            {/* Sample Message 1 - Wellbeing Event */}
+            <MessageCard
+              id="msg-1"
+              type="wellbeing"
+              title="World Mental Health Day 🌍"
+              body="Join us this Thursday for a special workshop on managing stress during exam season. Free refreshments provided!"
+              ctaText="Register Now"
+              timestamp="Posted today"
+              onDismiss={(id) => console.log('Dismissed:', id)}
+              onCtaClick={(id) => console.log('CTA clicked:', id)}
+            />
+
+            {/* Sample Message 2 - Nudge */}
+            <MessageCard
+              id="msg-2"
+              type="nudge"
+              title="You're on a streak! 🎉"
+              body="You've checked in 3 times this week. Keep it up to maintain momentum with your mental wellbeing journey."
+              timestamp="2 hours ago"
+              onDismiss={(id) => console.log('Dismissed:', id)}
+            />
+
+            {/* Sample Message 3 - Announcement */}
+            <MessageCard
+              id="msg-3"
+              type="announcement"
+              title="Extended Counselling Hours"
+              body="Our Student Wellbeing Service has extended hours during exam period. Book your session through the Student Portal."
+              ctaText="Book Appointment"
+              timestamp="Yesterday"
+              onDismiss={(id) => console.log('Dismissed:', id)}
+              onCtaClick={(id) => console.log('CTA clicked:', id)}
+            />
+          </div>
+        </div>
+      )}
       
       {/* Bottom padding for navigation */}
       <div className="h-24" />
