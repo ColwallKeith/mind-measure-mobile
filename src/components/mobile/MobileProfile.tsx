@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Edit2, ArrowLeft } from 'lucide-react';
+import { Download, Edit2 } from 'lucide-react';
 import { Select } from './Select';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
@@ -13,6 +13,7 @@ interface UserData {
   email: string;
   phone: string;
   institution: string;
+  institutionLogo: string;
   accountType: string;
   ageRange: string;
   gender: string;
@@ -31,6 +32,14 @@ interface UserData {
   averageScore: number | null;
 }
 
+interface UniversityData {
+  id: string;
+  name: string;
+  logo?: string;
+  schools: Array<{ name: string; studentCount?: number }>;
+  halls_of_residence?: Array<{ name: string }>;
+}
+
 interface MobileProfileProps {
   onNavigateBack: () => void;
 }
@@ -41,13 +50,17 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [universityData, setUniversityData] = useState<UniversityData | null>(null);
+  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [hallOptions, setHallOptions] = useState<string[]>([]);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    institution: '',
+    institution: 'University of Worcester',
+    institutionLogo: '',
     accountType: 'Student',
     ageRange: '',
     gender: '',
@@ -92,11 +105,43 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
       if (profileResponse.data && profileResponse.data.length > 0) {
         const profile = profileResponse.data[0];
         
+        // Fetch university data (default to Worcester for now)
+        const universityResponse = await backendService.database.select({
+          table: 'universities',
+          filters: { name: 'University of Worcester' },
+          select: 'id, name, logo, schools, halls_of_residence'
+        });
+
+        let uniData: UniversityData | null = null;
+        let schools: string[] = [];
+        let halls: string[] = [];
+
+        if (universityResponse.data && universityResponse.data.length > 0) {
+          const uni = universityResponse.data[0];
+          uniData = {
+            id: uni.id,
+            name: uni.name,
+            logo: uni.logo,
+            schools: uni.schools || [],
+            halls_of_residence: uni.halls_of_residence || []
+          };
+
+          // Extract school names for dropdown
+          schools = (uni.schools || []).map((s: any) => s.name);
+          
+          // Extract hall names for dropdown
+          halls = (uni.halls_of_residence || []).map((h: any) => h.name);
+          
+          setUniversityData(uniData);
+          setSchoolOptions(schools);
+          setHallOptions(halls);
+        }
+        
         // Fetch wellness stats
         const sessionsResponse = await backendService.database.select({
           table: 'fusion_outputs',
           filters: { user_id: user.id },
-          select: 'final_score',
+          select: 'final_score, created_at',
           orderBy: [{ column: 'created_at', ascending: false }]
         });
 
@@ -106,12 +151,16 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           ? Math.round(sessions.reduce((sum: number, s: any) => sum + (s.final_score || 0), 0) / totalCheckIns)
           : null;
 
+        // Calculate current streak
+        const currentStreak = calculateCurrentStreak(sessions);
+
         setUserData({
           firstName: profile.first_name || '',
           lastName: profile.last_name || '',
           email: profile.email || user.email || '',
           phone: profile.phone || '',
-          institution: profile.university || '',
+          institution: uniData?.name || 'University of Worcester',
+          institutionLogo: uniData?.logo || '',
           accountType: 'Student',
           ageRange: profile.age_range || '',
           gender: profile.gender || '',
@@ -124,8 +173,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           domicileStatus: profile.domicile || '',
           firstGenStudent: profile.is_first_generation || false,
           caringResponsibilities: profile.has_caring_responsibilities || false,
-          currentStreak: profile.streak_count || 0,
-          longestStreak: profile.streak_count || 0, // TODO: Track longest streak separately
+          currentStreak,
+          longestStreak: currentStreak, // TODO: Track longest streak separately
           totalCheckIns,
           averageScore
         });
@@ -135,6 +184,42 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Calculate current streak from check-in dates
+  const calculateCurrentStreak = (sessions: any[]): number => {
+    if (sessions.length === 0) return 0;
+
+    // Sort by date descending
+    const sortedSessions = [...sessions].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let streak = 0;
+    let checkDate = new Date(today);
+
+    for (const session of sortedSessions) {
+      const sessionDate = new Date(session.created_at);
+      sessionDate.setHours(0, 0, 0, 0);
+
+      const daysDiff = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === 0 || daysDiff === 1) {
+        // Same day or consecutive day
+        if (daysDiff === 1) {
+          streak++;
+          checkDate = new Date(sessionDate);
+        }
+      } else {
+        // Streak broken
+        break;
+      }
+    }
+
+    return streak;
   };
 
   const handleSaveProfile = async () => {
@@ -209,27 +294,6 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         padding: '24px 20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
-        {/* Back Button */}
-        <button
-          onClick={onNavigateBack}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px',
-            marginBottom: '16px',
-            border: 'none',
-            background: 'transparent',
-            color: '#5B8FED',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer'
-          }}
-        >
-          <ArrowLeft size={18} />
-          Back
-        </button>
-
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -237,17 +301,34 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
           marginBottom: '20px'
         }}>
           {/* University Logo */}
-          <img
-            src={mindMeasureLogo}
-            alt="Logo"
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '12px',
-              objectFit: 'contain',
-              flexShrink: 0
-            }}
-          />
+          {userData.institutionLogo ? (
+            <img
+              src={userData.institutionLogo}
+              alt={userData.institution}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                flexShrink: 0,
+                border: '1px solid #E0E0E0',
+                padding: '4px',
+                backgroundColor: 'white'
+              }}
+            />
+          ) : (
+            <img
+              src={mindMeasureLogo}
+              alt="Logo"
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                flexShrink: 0
+              }}
+            />
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ 
               fontSize: '20px', 
@@ -594,7 +675,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                     <Select
                       value={userData.school}
                       onChange={(value) => setUserData({ ...userData, school: value })}
-                      options={['Arts & Humanities', 'Business', 'Education', 'Health', 'Science', 'Social Sciences']}
+                      options={schoolOptions.length > 0 ? schoolOptions : ['School of Arts and Humanities', 'Worcester Business School', 'School of Education', 'School of Health and Wellbeing', 'School of Science and the Environment', 'School of Sport and Exercise Science']}
                       disabled={!isEditing}
                     />
                   </div>
@@ -685,23 +766,33 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                     <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
                       Name of Accommodation
                     </label>
-                    <input
-                      type="text"
-                      value={userData.accommodationName}
-                      disabled={!isEditing}
-                      onChange={(e) => setUserData({ ...userData, accommodationName: e.target.value })}
-                      placeholder="e.g., Smith Hall"
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #E0E0E0',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        color: '#1a1a1a',
-                        background: isEditing ? 'white' : '#FAFAFA',
-                        outline: 'none'
-                      }}
-                    />
+                    {hallOptions.length > 0 ? (
+                      <Select
+                        value={userData.accommodationName}
+                        onChange={(value) => setUserData({ ...userData, accommodationName: value })}
+                        options={hallOptions}
+                        disabled={!isEditing}
+                        placeholder="Select hall of residence"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={userData.accommodationName}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserData({ ...userData, accommodationName: e.target.value })}
+                        placeholder="e.g., Smith Hall"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #E0E0E0',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          color: '#1a1a1a',
+                          background: isEditing ? 'white' : '#FAFAFA',
+                          outline: 'none'
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
