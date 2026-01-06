@@ -98,8 +98,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
       );
 
       // Fetch profile data
-      const profileResponse = await backendService.database.select({
-        table: 'profiles',
+      const profileResponse = await backendService.database.select('profiles', {
         filters: { user_id: user.id }
       });
 
@@ -107,8 +106,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         const profile = profileResponse.data[0];
         
         // Fetch university data (default to Worcester for now)
-        const universityResponse = await backendService.database.select({
-          table: 'universities',
+        const universityResponse = await backendService.database.select('universities', {
           filters: { name: 'University of Worcester' }
         });
 
@@ -138,12 +136,9 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         }
         
         // Fetch wellness stats
-        const sessionsResponse = await backendService.database.select({
-          table: 'fusion_outputs',
+        const sessionsResponse = await backendService.database.select('fusion_outputs', {
           filters: { user_id: user.id },
-          options: {
-            orderBy: [{ column: 'created_at', ascending: false }]
-          }
+          orderBy: [{ column: 'created_at', ascending: false }]
         });
 
         const sessions = sessionsResponse.data || [];
@@ -156,12 +151,9 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         const currentStreak = calculateCurrentStreak(sessions);
 
         // Fetch mood scores for trend chart
-        const analysisResponse = await backendService.database.select({
-          table: 'assessment_outputs',
+        const analysisResponse = await backendService.database.select('assessment_outputs', {
           filters: { user_id: user.id },
-          options: {
-            orderBy: [{ column: 'created_at', ascending: true }]
-          }
+          orderBy: [{ column: 'created_at', ascending: true }]
         });
 
         const moodScores = (analysisResponse.data || [])
