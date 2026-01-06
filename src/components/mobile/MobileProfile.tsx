@@ -151,7 +151,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
         const currentStreak = calculateCurrentStreak(sessions);
 
         // Fetch mood scores for trend chart
-        const analysisResponse = await backendService.database.select('assessment_outputs', {
+        const analysisResponse = await backendService.database.select('assessment_transcripts', {
           filters: { user_id: user.id },
           orderBy: [{ column: 'created_at', ascending: true }]
         });
@@ -162,15 +162,19 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               const analysis = typeof item.analysis === 'string' 
                 ? JSON.parse(item.analysis) 
                 : item.analysis;
-              return {
-                date: item.created_at,
-                score: analysis?.moodScore || analysis?.mood_score || 0
-              };
+              const moodScore = analysis?.moodScore || analysis?.mood_score;
+              if (moodScore && moodScore > 0) {
+                return {
+                  date: item.created_at,
+                  score: moodScore
+                };
+              }
+              return null;
             } catch (e) {
               return null;
             }
           })
-          .filter((item: any) => item !== null && item.score > 0);
+          .filter((item: any) => item !== null);
 
         setMoodData(moodScores);
 
