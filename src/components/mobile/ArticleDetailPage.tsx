@@ -44,7 +44,10 @@ export function ArticleDetailPage({
       {/* Header with Back Button */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '16px 20px',
+        paddingTop: '60px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        paddingBottom: '16px',
         borderBottom: '1px solid #F0F0F0',
         position: 'sticky',
         top: 0,

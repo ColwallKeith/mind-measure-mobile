@@ -717,7 +717,10 @@ Remember: Your breath is always with you, which means you always have access to 
       {/* Header */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '20px',
+        paddingTop: '60px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        paddingBottom: '20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
         {/* University Branding */}
@@ -746,9 +749,8 @@ Remember: Your breath is always with you, which means you always have access to 
               />
             )}
             <div style={{
-              fontSize: universityLogo ? '20px' : '24px',
+              fontSize: universityLogo ? '18px' : '20px',
               color: '#1a1a1a',
-              fontFamily: "'Chillax', sans-serif",
               fontWeight: '500',
               letterSpacing: '0.3px',
               textAlign: universityLogo ? 'left' : 'center'
