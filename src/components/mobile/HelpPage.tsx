@@ -212,7 +212,10 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
       {/* Header */}
       <div style={{
         backgroundColor: '#FFFFFF',
-        padding: '20px',
+        paddingTop: '60px',
+        paddingLeft: '20px',
+        paddingRight: '20px',
+        paddingBottom: '20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
         {onNavigateBack && (
@@ -250,7 +253,7 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
           color: '#666666',
           margin: 0
         }}>
-          Personalized support resources for the UK
+          Personalised support resources for the UK
         </p>
       </div>
 
