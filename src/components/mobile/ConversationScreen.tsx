@@ -46,12 +46,12 @@ export function ConversationScreen({
       <div style={{
         height: '60px',
         flexShrink: 0,
-        backgroundColor: '#2d1b69'
+        backgroundColor: '#7C3AED'
       }} />
 
-      {/* Header - Deep purple with white text */}
+      {/* Header - Vibrant purple matching swipe dots */}
       <div style={{
-        backgroundColor: '#2d1b69',
+        backgroundColor: '#7C3AED',
         textAlign: 'center',
         padding: '20px 0',
         flexShrink: 0
@@ -260,9 +260,9 @@ export function ConversationScreen({
         <div ref={contentEndRef} />
       </div>
 
-      {/* Bottom Bar - Deep purple with controls */}
+      {/* Bottom Bar - Vibrant purple matching swipe dots */}
       <div style={{
-        backgroundColor: '#2d1b69',
+        backgroundColor: '#7C3AED',
         padding: '20px 24px',
         display: 'flex',
         justifyContent: 'space-between',
