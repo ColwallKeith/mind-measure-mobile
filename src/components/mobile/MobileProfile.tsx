@@ -344,8 +344,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
     try {
       setIsExporting(true);
 
-      // Call the report generation API
-      const response = await fetch('/api/generate-report', {
+      // Call the Core unified reporting API
+      const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate-individual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
