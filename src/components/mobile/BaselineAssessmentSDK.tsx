@@ -44,25 +44,15 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // Clinical-focused processing messages for baseline
-  const processingMessages = {
-    extracting: [
-      'Assessing PHQ-2 responses',
-      'Evaluating GAD-7 indicators',
-      'Analysing mood scale responses',
-      'Processing clinical questionnaire data'
-    ],
-    calculating: [
-      'Analysing vocal pitch patterns',
-      'Evaluating pause duration patterns',
-      'Processing facial expressions',
-      'Analysing conversation content',
-      'Computing baseline wellbeing score'
-    ],
-    saving: [
-      'Finalising your baseline profile'
-    ]
-  };
+  // Clinical-focused processing messages for baseline (9 seconds total, 1.5s each)
+  const processingMessages = [
+    'Assessing PHQ-2 responses',
+    'Evaluating GAD-7 indicators',
+    'Analysing vocal pitch patterns',
+    'Processing facial expressions',
+    'Computing baseline wellbeing score',
+    'Finalising your baseline profile'
+  ];
   
   // Multimodal capture
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
@@ -222,25 +212,19 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const processAssessmentData = async () => {
     console.log('[SDK] 📊 Processing assessment data...');
 
-    // Helper function to rotate through messages for a phase
-    const rotateMessages = (phase: 'extracting' | 'calculating' | 'saving', duration: number) => {
-      const messages = processingMessages[phase];
-      let index = 0;
-      setProcessingMessage(messages[0]);
-      
-      const interval = setInterval(() => {
-        index = (index + 1) % messages.length;
-        setProcessingMessage(messages[index]);
-      }, duration / messages.length);
-      
-      return () => clearInterval(interval);
-    };
-
-    // Phase 1: Extracting (3 seconds)
-    setProcessingPhase('extracting');
-    const stopExtractingMessages = rotateMessages('extracting', 3000);
-
     const endedAt = Date.now();
+    
+    // Start smooth 9-second message roll (1.5s per message)
+    setProcessingPhase('extracting');
+    let messageIndex = 0;
+    setProcessingMessage(processingMessages[0]);
+    
+    const messageInterval = setInterval(() => {
+      messageIndex++;
+      if (messageIndex < processingMessages.length) {
+        setProcessingMessage(processingMessages[messageIndex]);
+      }
+    }, 1500); // 1.5 seconds per message
 
     // Extract PHQ/GAD/mood from the full transcript
     const { phqResponses, moodScore } = extractAssessmentFromTranscript(assessmentState.transcript);
@@ -275,19 +259,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     console.log('[SDK] 📊 Clinical scores:', clinical);
     console.log('[SDK] 📊 Mind Measure composite (clinical-only):', composite);
 
-    // Phase 2: Calculating (stop media capture + enrich with multimodal)
-    setTimeout(() => {
-      stopExtractingMessages();
-      setProcessingPhase('calculating');
-      const stopCalculatingMessages = rotateMessages('calculating', 3000);
-      
-      // Phase 3: Saving
-      setTimeout(() => {
-        stopCalculatingMessages();
-        setProcessingPhase('saving');
-        rotateMessages('saving', 3000);
-      }, 3000);
-    }, 3000);
+    // Visual phase transitions (for title changes only)
+    setTimeout(() => setProcessingPhase('calculating'), 3000);
+    setTimeout(() => setProcessingPhase('saving'), 6000);
+    
+    // Stop message rotation after all messages shown
+    setTimeout(() => clearInterval(messageInterval), 9000);
     
     // Stop media capture and get blobs
     let capturedMedia: any = null;

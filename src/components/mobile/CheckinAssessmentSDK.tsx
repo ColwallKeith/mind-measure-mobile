@@ -35,26 +35,15 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // Tech-focused processing messages for check-ins
-  const processingMessages = {
-    extracting: [
-      'Analysing vocal pitch patterns',
-      'Processing facial expressions',
-      'Evaluating pause duration patterns',
-      'Measuring speech rate dynamics'
-    ],
-    analyzing: [
-      'Calculating pitch variability',
-      'Assessing emotional valence',
-      'Analysing sentiment balance',
-      'Computing linguistic complexity',
-      'Computing multimodal fusion score'
-    ],
-    saving: [
-      'Synthesising wellbeing indicators',
-      'Finalising your check-in'
-    ]
-  };
+  // Tech-focused processing messages for check-ins (9 seconds total, 1.5s each)
+  const processingMessages = [
+    'Analysing vocal pitch patterns',
+    'Processing facial expressions',
+    'Measuring speech rate dynamics',
+    'Assessing emotional valence',
+    'Computing multimodal fusion score',
+    'Finalising your check-in'
+  ];
   
   // Multimodal capture
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
@@ -311,24 +300,24 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       console.log('[CheckinSDK] 📊 Processing check-in data...');
       console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
 
-      // Helper function to rotate through messages for a phase
-      const rotateMessages = (phase: 'extracting' | 'analyzing' | 'saving', duration: number) => {
-        const messages = processingMessages[phase];
-        let index = 0;
-        setProcessingMessage(messages[0]);
-        
-        const interval = setInterval(() => {
-          index = (index + 1) % messages.length;
-          setProcessingMessage(messages[index]);
-        }, duration / messages.length);
-        
-        return () => clearInterval(interval);
-      };
-
-      // Show processing overlay
-      setIsSaving(true);
+      // Start smooth 9-second message roll (1.5s per message)
       setProcessingPhase('extracting');
-      const stopExtractingMessages = rotateMessages('extracting', 3000);
+      let messageIndex = 0;
+      setProcessingMessage(processingMessages[0]);
+      
+      const messageInterval = setInterval(() => {
+        messageIndex++;
+        if (messageIndex < processingMessages.length) {
+          setProcessingMessage(processingMessages[messageIndex]);
+        }
+      }, 1500); // 1.5 seconds per message
+      
+      // Visual phase transitions (for title changes only)
+      setTimeout(() => setProcessingPhase('analyzing'), 3000);
+      setTimeout(() => setProcessingPhase('saving'), 6000);
+      
+      // Stop message rotation after all messages shown
+      setTimeout(() => clearInterval(messageInterval), 9000);
 
       // Stop media capture
       let capturedMedia: any = null;
@@ -342,19 +331,10 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         });
       }
 
-      // Run enrichment - Bedrock + Baseline Multimodal (50/50)
-      setTimeout(() => {
-        stopExtractingMessages();
-        setProcessingPhase('analyzing');
-        const stopAnalyzingMessages = rotateMessages('analyzing', 3000);
-        
-        // Transition to saving after analyzing
-        setTimeout(() => {
-          stopAnalyzingMessages();
-          setProcessingPhase('saving');
-          rotateMessages('saving', 3000);
-        }, 3000);
-      }, 3000);
+      // Show processing overlay
+      setIsSaving(true);
+
+      // Stop media capture
       let enrichmentResult = null;
       
       try {
