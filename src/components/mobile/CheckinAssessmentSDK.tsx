@@ -7,6 +7,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
 import { CheckinEnrichmentService } from '../../services/multimodal/checkin/enrichmentService';
+import { ConversationScreen } from './ConversationScreen';
 
 interface CheckinAssessmentSDKProps {
   onBack?: () => void;
@@ -14,9 +15,11 @@ interface CheckinAssessmentSDKProps {
 }
 
 interface Message {
-  role: 'agent' | 'user';
-  content: string;
-  timestamp: number;
+  id: string;
+  text: string;
+  sender: 'ai' | 'user';
+  timestamp: Date;
+  options?: string[];
 }
 
 export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSDKProps) {
@@ -89,9 +92,10 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       console.log('[CheckinSDK] 📩 Message received:', message);
       
       const newMessage: Message = {
-        role: message.source === 'ai' ? 'agent' : 'user',
-        content: message.message,
-        timestamp: Date.now()
+        id: crypto.randomUUID(),
+        text: message.message,
+        sender: message.source === 'ai' ? 'ai' : 'user',
+        timestamp: new Date()
       };
       
       setMessages(prev => [...prev, newMessage]);
@@ -503,13 +507,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   // Show conversation screen - EXACT COPY FROM BASELINE with title change
   if (showConversation) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        inset: 0, 
-        display: 'flex', 
-        flexDirection: 'column',
-        background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)'
-      }}>
+      <>
         {/* Processing Overlay - EXACT COPY FROM BASELINE */}
         {isSaving && (
           <div className="fixed inset-0 z-[9999] min-h-screen relative overflow-hidden flex items-center justify-center">
@@ -640,214 +638,15 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           </div>
         )}
 
-        {/* Header - EXACT COPY FROM BASELINE */}
-        <div style={{ 
-          paddingTop: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
-          paddingBottom: '1.5rem',
-          paddingLeft: '1rem',
-          paddingRight: '1rem',
-          backgroundColor: 'transparent',
-          position: 'relative'
-        }}>
-          {/* Back Button - Top Left */}
-          {onBack && (
-            <button
-              onClick={onBack}
-              style={{
-                position: 'absolute',
-                left: '1rem',
-                top: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                padding: '0.5rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '2.5rem',
-                height: '2.5rem',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.2s',
-                zIndex: 10
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f3f4f6';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-              }}
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                style={{ color: '#6b7280' }}
-              >
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-          )}
-          
-          <div style={{ textAlign: 'center' }}>
-            {/* Logo */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <img
-                src={mindMeasureLogo}
-                alt="Mind Measure"
-                style={{
-                  width: '6rem',
-                  height: '6rem',
-                  margin: '0 auto',
-                  objectFit: 'contain'
-                }}
-              />
-            </div>
-            {/* Title - ONLY CHANGE: "Daily Check-in" instead of "Baseline Assessment" */}
-            <h1 style={{ 
-              fontSize: '1.875rem', 
-              fontWeight: '400',
-              marginBottom: '0.75rem',
-              color: '#111827'
-            }}>
-              Daily Check-in
-            </h1>
-            {/* Subtitle */}
-            <p style={{ 
-              fontSize: '1rem',
-              color: '#6b7280',
-              margin: 0
-            }}>
-              Start your wellness journey
-            </p>
-          </div>
-        </div>
-
-        {/* Control Bar - EXACT COPY FROM BASELINE */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          padding: '0.75rem 1rem',
-          backgroundColor: 'transparent'
-        }}>
-          {/* Finish button - left */}
-          <Button
-            onClick={handleFinish}
-            style={{
-              background: 'linear-gradient(to right, #a855f7, #ec4899)',
-              color: 'white',
-              fontWeight: '600',
-              fontSize: '1rem',
-              padding: '0.625rem 1.5rem',
-              borderRadius: '0.75rem',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              transform: 'scale(1)',
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            Finish
-          </Button>
-
-          {/* Camera indicator - right */}
-          {conversation.status === 'connected' && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              backgroundColor: '#f0fdf4',
-              borderRadius: '9999px',
-              padding: '0.25rem 0.75rem'
-            }}>
-              <div style={{ 
-                width: '0.5rem', 
-                height: '0.5rem', 
-                backgroundColor: '#22c55e', 
-                borderRadius: '50%',
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-              }}></div>
-              <span style={{ fontSize: '0.875rem', color: '#15803d', fontWeight: '500' }}>
-                Camera Active
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Messages - EXACT COPY FROM BASELINE */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto',
-          padding: '1rem',
-          paddingBottom: 'max(8rem, calc(env(safe-area-inset-bottom, 0px) + 8rem))'
-        }}>
-          <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
-            {messages.map((msg, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: msg.role === 'agent' ? 'flex-start' : 'flex-end',
-                  marginBottom: '1rem'
-                }}
-              >
-                {/* Jodie's messages - White card on LEFT */}
-                {msg.role === 'agent' && (
-                  <div 
-                    style={{ 
-                      backgroundColor: '#ffffff', 
-                      borderColor: '#e5e7eb', 
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderRadius: '1.5rem', 
-                      borderTopLeftRadius: '0.25rem', 
-                      padding: '1rem 1.25rem', 
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', 
-                      maxWidth: '75%', 
-                      lineHeight: '1.6' 
-                    }}
-                  >
-                    <p style={{ color: '#1f2937', fontSize: '15px', margin: 0 }}>{msg.content}</p>
-                  </div>
-                )}
-                
-                {/* User's messages - Light blue card on RIGHT */}
-                {msg.role === 'user' && (
-                  <div 
-                    style={{ 
-                      backgroundColor: '#eff6ff', 
-                      borderColor: '#e0f2fe',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderRadius: '1.5rem', 
-                      borderTopRightRadius: '0.25rem', 
-                      padding: '1rem 1.25rem', 
-                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', 
-                      maxWidth: '75%', 
-                      lineHeight: '1.6' 
-                    }}
-                  >
-                    <p style={{ color: '#1f2937', fontSize: '15px', margin: 0 }}>{msg.content}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-      </div>
+        {/* New ConversationScreen Component */}
+        <ConversationScreen
+          type="checkin"
+          messages={messages}
+          isListening={conversation.status === 'connected'}
+          onFinish={handleFinish}
+          onBack={onBack}
+        />
+      </>
     );
   }
 
