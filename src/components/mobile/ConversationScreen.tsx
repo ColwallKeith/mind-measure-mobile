@@ -46,12 +46,12 @@ export function ConversationScreen({
       <div style={{
         height: '60px',
         flexShrink: 0,
-        backgroundColor: '#000000'
+        backgroundColor: '#2d1b69'
       }} />
 
-      {/* Header - Black with white text */}
+      {/* Header - Deep purple with white text */}
       <div style={{
-        backgroundColor: '#000000',
+        backgroundColor: '#2d1b69',
         textAlign: 'center',
         padding: '20px 0',
         flexShrink: 0
@@ -260,9 +260,9 @@ export function ConversationScreen({
         <div ref={contentEndRef} />
       </div>
 
-      {/* Bottom Bar - Black with controls */}
+      {/* Bottom Bar - Deep purple with controls */}
       <div style={{
-        backgroundColor: '#000000',
+        backgroundColor: '#2d1b69',
         padding: '20px 24px',
         display: 'flex',
         justifyContent: 'space-between',
