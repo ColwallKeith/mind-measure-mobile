@@ -598,7 +598,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
                 </p>
               </motion.div>
 
-              {/* Progress bar */}
+              {/* Progress bar - infinite loop */}
               <motion.div
                 className="mt-8 w-48 h-1 bg-white/30 rounded-full overflow-hidden"
                 initial={{ opacity: 0 }}
@@ -607,11 +607,13 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
               >
                 <motion.div
                   className="h-full bg-white/60 rounded-full"
-                  animate={{ width: ["0%", "100%"] }}
+                  animate={{ x: ["-100%", "200%"] }}
                   transition={{
-                    duration: 15,
+                    duration: 2,
+                    repeat: Infinity,
                     ease: "linear"
                   }}
+                  style={{ width: "50%" }}
                 />
               </motion.div>
             </motion.div>
