@@ -183,9 +183,17 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
   const handleFinish = async () => {
     console.log('[SDK] 🏁 Finish button clicked');
+    console.log('[SDK] 📊 Current state - isSaving:', isSaving, 'transcript length:', assessmentState.transcript.length);
+    
+    // Prevent double-clicking
+    if (isSaving) {
+      console.log('[SDK] ⚠️ Already processing, ignoring duplicate click');
+      return;
+    }
     
     // Show saving state immediately
     setIsSaving(true);
+    console.log('[SDK] ✅ Setting isSaving to true, processing overlay should appear');
     
     // Play click sound and haptics
     try {
@@ -199,14 +207,23 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
     // End the conversation
     try {
+      console.log('[SDK] 🔌 Ending ElevenLabs session...');
       await conversation.endSession();
       console.log('[SDK] ✅ Conversation ended');
     } catch (error) {
-      console.error('[SDK] Error ending conversation:', error);
+      console.error('[SDK] ❌ Error ending conversation:', error);
+      // Continue anyway - don't block on this
     }
 
     // Process assessment data (including multimodal enrichment)
-    await processAssessmentData();
+    console.log('[SDK] 📊 Starting processAssessmentData...');
+    try {
+      await processAssessmentData();
+    } catch (error) {
+      console.error('[SDK] ❌ CRITICAL ERROR in processAssessmentData:', error);
+      setIsSaving(false);
+      alert('There was an error processing your assessment. Please try again or contact support.');
+    }
   };
 
   const processAssessmentData = async () => {
@@ -227,7 +244,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     }, 1500); // 1.5 seconds per message
 
     // Extract PHQ/GAD/mood from the full transcript
+    console.log('[SDK] 📝 Transcript to analyze:', assessmentState.transcript.substring(0, 200) + '...');
+    console.log('[SDK] 📝 Full transcript length:', assessmentState.transcript.length);
+    
     const { phqResponses, moodScore } = extractAssessmentFromTranscript(assessmentState.transcript);
+    console.log('[SDK] 📊 Extracted PHQ responses:', phqResponses);
+    console.log('[SDK] 📊 Extracted mood score:', moodScore);
 
     const updatedState: AssessmentState = {
       ...assessmentState,
@@ -237,10 +259,14 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     };
 
     // Validate
+    console.log('[SDK] ✅ Starting validation...');
     const validation = validateAssessmentData(updatedState);
+    console.log('[SDK] 📋 Validation result:', validation);
 
     if (!validation.isValid) {
       console.error('[SDK] ❌ Incomplete assessment:', validation.details);
+      console.error('[SDK] ❌ Missing questions:', validation.details.missingQuestions);
+      clearInterval(messageInterval);
       setErrorMessage(
         'We didn\'t capture enough data to create your baseline assessment. ' +
         'This can happen if you pressed Finish before answering all five questions.'
