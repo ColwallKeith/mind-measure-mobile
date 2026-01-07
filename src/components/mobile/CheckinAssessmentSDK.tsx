@@ -26,10 +26,32 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [processingPhase, setProcessingPhase] = useState<'extracting' | 'analyzing' | 'saving'>('extracting');
+  const [processingMessage, setProcessingMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Tech-focused processing messages for check-ins
+  const processingMessages = {
+    extracting: [
+      'Analysing vocal pitch patterns',
+      'Processing facial expressions',
+      'Evaluating pause duration patterns',
+      'Measuring speech rate dynamics'
+    ],
+    analyzing: [
+      'Calculating pitch variability',
+      'Assessing emotional valence',
+      'Analysing sentiment balance',
+      'Computing linguistic complexity',
+      'Computing multimodal fusion score'
+    ],
+    saving: [
+      'Synthesising wellbeing indicators',
+      'Finalising your check-in'
+    ]
+  };
   
   // Multimodal capture
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
@@ -285,9 +307,24 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       console.log('[CheckinSDK] 📊 Processing check-in data...');
       console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
 
+      // Helper function to rotate through messages for a phase
+      const rotateMessages = (phase: 'extracting' | 'analyzing' | 'saving', duration: number) => {
+        const messages = processingMessages[phase];
+        let index = 0;
+        setProcessingMessage(messages[0]);
+        
+        const interval = setInterval(() => {
+          index = (index + 1) % messages.length;
+          setProcessingMessage(messages[index]);
+        }, duration / messages.length);
+        
+        return () => clearInterval(interval);
+      };
+
       // Show processing overlay
       setIsSaving(true);
       setProcessingPhase('extracting');
+      const stopExtractingMessages = rotateMessages('extracting', 3000);
 
       // Stop media capture
       let capturedMedia: any = null;
@@ -302,7 +339,18 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       }
 
       // Run enrichment - Bedrock + Baseline Multimodal (50/50)
-      setProcessingPhase('analyzing');
+      setTimeout(() => {
+        stopExtractingMessages();
+        setProcessingPhase('analyzing');
+        const stopAnalyzingMessages = rotateMessages('analyzing', 3000);
+        
+        // Transition to saving after analyzing
+        setTimeout(() => {
+          stopAnalyzingMessages();
+          setProcessingPhase('saving');
+          rotateMessages('saving', 3000);
+        }, 3000);
+      }, 3000);
       let enrichmentResult = null;
       
       try {
@@ -325,7 +373,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       }
 
       // Save to database
-      setProcessingPhase('saving');
       console.log('[CheckinSDK] 💾 Saving check-in to database... [v3-dec10]');
 
       // Step 1: Import backend service
@@ -556,22 +603,20 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl font-semibold text-white mb-3">
-                  {processingPhase === 'extracting' && 'Extracting Your Responses'}
-                  {processingPhase === 'analyzing' && 'Analyzing Your Check-in'}
-                  {processingPhase === 'saving' && 'Saving Your Check-in'}
+                  {processingPhase === 'extracting' && 'Processing Your Check-in'}
+                  {processingPhase === 'analyzing' && 'Analysing Multimodal Data'}
+                  {processingPhase === 'saving' && 'Finalising Your Check-in'}
                 </h1>
               </motion.div>
 
               <motion.div
-                key={`${processingPhase}-subtitle`}
+                key={processingMessage}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
                 <p className="text-white/90 text-lg font-medium mb-8">
-                  {processingPhase === 'extracting' && 'Analysing your conversation data...'}
-                  {processingPhase === 'analyzing' && 'Computing your wellbeing score...'}
-                  {processingPhase === 'saving' && 'Finalizing your check-in...'}
+                  {processingMessage}
                 </p>
               </motion.div>
 

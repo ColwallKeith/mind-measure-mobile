@@ -35,10 +35,31 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [processingPhase, setProcessingPhase] = useState<'extracting' | 'calculating' | 'saving'>('extracting');
+  const [processingMessage, setProcessingMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Clinical-focused processing messages for baseline
+  const processingMessages = {
+    extracting: [
+      'Assessing PHQ-2 responses',
+      'Evaluating GAD-7 indicators',
+      'Analysing mood scale responses',
+      'Processing clinical questionnaire data'
+    ],
+    calculating: [
+      'Analysing vocal pitch patterns',
+      'Evaluating pause duration patterns',
+      'Processing facial expressions',
+      'Analysing conversation content',
+      'Computing baseline wellbeing score'
+    ],
+    saving: [
+      'Finalising your baseline profile'
+    ]
+  };
   
   // Multimodal capture
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
@@ -197,8 +218,23 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const processAssessmentData = async () => {
     console.log('[SDK] 📊 Processing assessment data...');
 
+    // Helper function to rotate through messages for a phase
+    const rotateMessages = (phase: 'extracting' | 'calculating' | 'saving', duration: number) => {
+      const messages = processingMessages[phase];
+      let index = 0;
+      setProcessingMessage(messages[0]);
+      
+      const interval = setInterval(() => {
+        index = (index + 1) % messages.length;
+        setProcessingMessage(messages[index]);
+      }, duration / messages.length);
+      
+      return () => clearInterval(interval);
+    };
+
     // Phase 1: Extracting (3 seconds)
     setProcessingPhase('extracting');
+    const stopExtractingMessages = rotateMessages('extracting', 3000);
 
     const endedAt = Date.now();
 
@@ -236,7 +272,18 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     console.log('[SDK] 📊 Mind Measure composite (clinical-only):', composite);
 
     // Phase 2: Calculating (stop media capture + enrich with multimodal)
-    setTimeout(() => setProcessingPhase('calculating'), 3000);
+    setTimeout(() => {
+      stopExtractingMessages();
+      setProcessingPhase('calculating');
+      const stopCalculatingMessages = rotateMessages('calculating', 3000);
+      
+      // Phase 3: Saving
+      setTimeout(() => {
+        stopCalculatingMessages();
+        setProcessingPhase('saving');
+        rotateMessages('saving', 3000);
+      }, 3000);
+    }, 3000);
     
     // Stop media capture and get blobs
     let capturedMedia: any = null;
@@ -675,22 +722,20 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl font-semibold text-white mb-3">
-                  {processingPhase === 'extracting' && 'Extracting Your Responses'}
-                  {processingPhase === 'calculating' && 'Calculating Your Baseline'}
-                  {processingPhase === 'saving' && 'Saving Your Assessment'}
+                  {processingPhase === 'extracting' && 'Processing Your Assessment'}
+                  {processingPhase === 'calculating' && 'Analysing Your Data'}
+                  {processingPhase === 'saving' && 'Finalising Your Baseline'}
                 </h1>
               </motion.div>
 
               <motion.div
-                key={`${processingPhase}-subtitle`}
+                key={processingMessage}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
                 <p className="text-white/90 text-lg font-medium mb-8">
-                  {processingPhase === 'extracting' && 'Analysing your conversation data...'}
-                  {processingPhase === 'calculating' && 'Computing your Mind Measure score...'}
-                  {processingPhase === 'saving' && 'Finalizing your baseline profile...'}
+                  {processingMessage}
                 </p>
               </motion.div>
 
