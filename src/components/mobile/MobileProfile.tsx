@@ -60,6 +60,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportPeriod, setExportPeriod] = useState<14 | 30 | 90>(30);
   const [isExporting, setIsExporting] = useState(false);
+  const [hasBaselineToday, setHasBaselineToday] = useState<boolean | null>(null);
+  const [showBaselineRequired, setShowBaselineRequired] = useState(false);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
@@ -334,8 +336,49 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
     }
   };
 
-  const handleExportData = () => {
-    setShowExportModal(true);
+  // Check if user has completed baseline today
+  const checkBaselineToday = async () => {
+    if (!user?.id) return false;
+
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      const response = await backendService.database.select('fusion_outputs', {
+        filters: { 
+          user_id: user.id,
+        },
+        orderBy: [{ column: 'created_at', ascending: false }],
+        limit: 10 // Check last 10 entries
+      });
+
+      if (response.data && response.data.length > 0) {
+        // Check if any are baselines from today
+        const baselineToday = response.data.find((session: any) => {
+          const sessionDate = new Date(session.created_at).toISOString().split('T')[0];
+          const isBaseline = session.analysis?.assessment_type === 'baseline';
+          return isBaseline && sessionDate === today;
+        });
+        
+        console.log('[Baseline Check] Has baseline today:', !!baselineToday);
+        return !!baselineToday;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking baseline:', error);
+      return false;
+    }
+  };
+
+  const handleExportData = async () => {
+    const hasBaseline = await checkBaselineToday();
+    setHasBaselineToday(hasBaseline);
+    
+    if (!hasBaseline) {
+      setShowBaselineRequired(true);
+    } else {
+      setShowExportModal(true);
+    }
   };
 
   const handleConfirmExport = async () => {
@@ -1296,6 +1339,98 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
                 }}
               >
                 {isExporting ? 'Sending...' : 'Email Report to Me'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Baseline Required Modal */}
+      {showBaselineRequired && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Baseline Assessment Required
+            </h3>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 16px 0',
+              lineHeight: '1.6'
+            }}>
+              To generate your wellbeing report, we need your current PHQ-2 and GAD-2 scores.
+            </p>
+
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 24px 0',
+              lineHeight: '1.6'
+            }}>
+              Please complete a fresh baseline assessment today to ensure your report reflects your current wellbeing status.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowBaselineRequired(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowBaselineRequired(false);
+                  // Navigate to baseline assessment
+                  window.location.href = '#/baseline-welcome';
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Start Baseline Assessment
               </button>
             </div>
           </div>
