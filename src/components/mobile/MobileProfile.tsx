@@ -1177,7 +1177,7 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               margin: '0 0 20px 0',
               lineHeight: '1.6'
             }}>
-              We'll email a professional report to <strong>{user?.email}</strong> including your scores, themes, and AI-generated insights.
+              We'll email a detailed wellbeing report to <strong>{user?.email}</strong> including your check-in history, scores, themes, and AI-generated summary.
             </p>
 
             <div style={{ marginBottom: '24px' }}>
