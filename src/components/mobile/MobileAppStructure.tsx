@@ -321,7 +321,7 @@ export const MobileAppStructure: React.FC = () => {
       <div className="pb-24">
         {renderContent()}
       </div>
-      {!onboardingScreen && ['dashboard', 'content', 'buddies', 'profile', 'checkin_welcome', 'checkin_assessment'].includes(currentScreen) && (
+      {!onboardingScreen && ['dashboard', 'content', 'buddies', 'profile'].includes(currentScreen) && (
         <BottomNav
           activeView={activeTab === 'dashboard' ? 'home' : activeTab}
           onViewChange={(view) => handleTabChange((view === 'home' ? 'dashboard' : view) as MobileTab)}
