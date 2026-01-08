@@ -387,8 +387,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
     try {
       setIsExporting(true);
 
-      // Call the Core unified reporting API
-      const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate-individual', {
+      // Call the new report generation API
+      const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -400,16 +400,23 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate report');
+        const errorData = await response.json();
+        if (errorData.error === 'Baseline required') {
+          // Show baseline required modal
+          setShowExportModal(false);
+          setShowBaselineRequired(true);
+          return;
+        }
+        throw new Error(errorData.message || 'Failed to generate report');
       }
 
       const data = await response.json();
 
       setShowExportModal(false);
-      alert(`Report sent successfully to ${user.email}!\n\nCheck your inbox (and spam folder) for your wellbeing report.`);
+      alert(`Report generated successfully!\n\nWe've sent an email to ${user.email} with a link to view your report.\n\nCheck your inbox (and spam folder).`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to send report. Please try again.');
+      alert('Failed to generate report. Please try again.');
     } finally {
       setIsExporting(false);
     }
