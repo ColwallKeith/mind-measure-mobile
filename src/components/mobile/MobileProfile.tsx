@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Download, Edit2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Select } from './Select';
 import { MoodTrendChart } from './MoodTrendChart';
 import { KeyThemes, type ThemeData } from './KeyThemes';
@@ -48,6 +49,7 @@ interface MobileProfileProps {
 
 export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1422,8 +1424,8 @@ export function MobileProfile({ onNavigateBack }: MobileProfileProps) {
               <button
                 onClick={() => {
                   setShowBaselineRequired(false);
-                  // Navigate to baseline assessment
-                  window.location.href = '#/baseline-welcome';
+                  // Navigate to baseline assessment using React Router
+                  navigate('/baseline-welcome');
                 }}
                 style={{
                   flex: 1,
