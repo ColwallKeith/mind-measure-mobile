@@ -306,7 +306,7 @@ export const MobileAppStructure: React.FC = () => {
       case 'help':
         return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
-        return <MobileProfile />;
+        return <MobileProfile onNavigateBack={handleNavigateBack} onNavigateToBaseline={() => setCurrentScreen('baseline-welcome')} />;
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:
