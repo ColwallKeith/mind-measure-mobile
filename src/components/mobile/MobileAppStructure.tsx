@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
@@ -89,11 +89,18 @@ export const MobileAppStructure: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
   const [baselineReturnContext, setBaselineReturnContext] = useState<BaselineReturnContext>('dashboard');
+  const baselineReturnContextRef = useRef<BaselineReturnContext>('dashboard');
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [pendingPassword, setPendingPassword] = useState<string | null>(null);
   const [pendingFirstName, setPendingFirstName] = useState<string>('');
   const [pendingLastName, setPendingLastName] = useState<string>('');
   const [deviceUserData, setDeviceUserData] = useState<any>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    baselineReturnContextRef.current = baselineReturnContext;
+    console.log('🔄 baselineReturnContext updated to:', baselineReturnContext);
+  }, [baselineReturnContext]);
   
   useEffect(() => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
@@ -203,15 +210,16 @@ export const MobileAppStructure: React.FC = () => {
 
   const handleBaselineComplete = useCallback(async () => {
     console.log('✅ Baseline complete - marking on device');
-    console.log('🔍 Current baselineReturnContext:', baselineReturnContext);
+    console.log('🔍 Current baselineReturnContext (ref):', baselineReturnContextRef.current);
+    console.log('🔍 Current baselineReturnContext (state):', baselineReturnContext);
     
     // CRITICAL: Mark baseline as complete on device
     await markBaselineComplete();
     
     setOnboardingScreen(null);
     
-    // Check the return context to determine where to go
-    if (baselineReturnContext === 'export_data') {
+    // Use the ref value which is always current
+    if (baselineReturnContextRef.current === 'export_data') {
       console.log('📊 Baseline completed from export flow - returning to profile with auto-export');
       setCurrentScreen('profile');
       setActiveTab('profile');
@@ -221,7 +229,7 @@ export const MobileAppStructure: React.FC = () => {
       setCurrentScreen('dashboard');
       setActiveTab('dashboard');
     }
-  }, [baselineReturnContext]);
+  }, []);
 
   const handleTabChange = useCallback((tab: MobileTab) => {
     setActiveTab(tab);
