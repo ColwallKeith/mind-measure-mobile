@@ -203,6 +203,7 @@ export const MobileAppStructure: React.FC = () => {
 
   const handleBaselineComplete = useCallback(async () => {
     console.log('✅ Baseline complete - marking on device');
+    console.log('🔍 Current baselineReturnContext:', baselineReturnContext);
     
     // CRITICAL: Mark baseline as complete on device
     await markBaselineComplete();
@@ -321,18 +322,20 @@ export const MobileAppStructure: React.FC = () => {
         return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
         const shouldAutoExport = baselineReturnContext === 'export_data';
-        if (shouldAutoExport) {
-          // Reset context after passing it to component
-          setBaselineReturnContext('dashboard');
-        }
+        console.log('🎯 Rendering profile - shouldAutoExport:', shouldAutoExport, 'context:', baselineReturnContext);
         return <MobileProfile 
           onNavigateBack={handleNavigateBack} 
           onNavigateToBaseline={() => {
-            console.log('🔄 Starting baseline from export flow - setting return context');
+            console.log('🔄 Starting baseline from export flow - setting return context to export_data');
             setBaselineReturnContext('export_data');
             setOnboardingScreen('baseline_welcome');
           }}
           autoTriggerExport={shouldAutoExport}
+          onExportTriggered={() => {
+            // Reset context AFTER export is triggered
+            console.log('✅ Export triggered - resetting context to dashboard');
+            setBaselineReturnContext('dashboard');
+          }}
         />;
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;

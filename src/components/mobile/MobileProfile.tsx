@@ -46,9 +46,10 @@ interface MobileProfileProps {
   onNavigateBack?: () => void;
   onNavigateToBaseline?: () => void;
   autoTriggerExport?: boolean;
+  onExportTriggered?: () => void;
 }
 
-export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTriggerExport = false }: MobileProfileProps) {
+export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTriggerExport = false, onExportTriggered }: MobileProfileProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('wellness'); // Start on wellness if auto-triggering
   const [isEditing, setIsEditing] = useState(false);
@@ -99,6 +100,10 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
       // Open export modal after a short delay
       setTimeout(() => {
         handleExportData();
+        // Notify parent that export was triggered
+        if (onExportTriggered) {
+          onExportTriggered();
+        }
       }, 500);
     }
   }, [autoTriggerExport, user, isLoading]);

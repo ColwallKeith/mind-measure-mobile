@@ -219,7 +219,7 @@ export function MobileAppWrapper() {
         <Route path="/checkin-welcome" element={<MobileCheckin onNavigateToJodie={() => navigate('/checkin')} />} />
         <Route path="/buddies" element={<MobileBuddies />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} />} />
+        <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
         <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
