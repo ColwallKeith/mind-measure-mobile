@@ -208,7 +208,7 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_assessment');
   }, []);
 
-  const handleBaselineComplete = useCallback(async () => {
+  const handleBaselineComplete = async () => {
     console.log('✅ Baseline complete - marking on device');
     console.log('🔍 Current baselineReturnContext (ref):', baselineReturnContextRef.current);
     console.log('🔍 Current baselineReturnContext (state):', baselineReturnContext);
@@ -229,7 +229,7 @@ export const MobileAppStructure: React.FC = () => {
       setCurrentScreen('dashboard');
       setActiveTab('dashboard');
     }
-  }, []);
+  };
 
   const handleTabChange = useCallback((tab: MobileTab) => {
     setActiveTab(tab);
