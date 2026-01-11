@@ -81,10 +81,14 @@ import {
 type MobileTab = 'dashboard' | 'content' | 'buddies' | 'profile';
 type Screen = MobileTab | 'settings' | 'checkin_welcome' | 'checkin_assessment';
 type OnboardingScreen = 'splash' | 'name_entry' | 'email_lookup' | 'registration' | 'email_verification' | 'sign_in' | 'forgot_password' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
+
+type BaselineReturnContext = 'dashboard' | 'export_data';
+
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
+  const [baselineReturnContext, setBaselineReturnContext] = useState<BaselineReturnContext>('dashboard');
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [pendingPassword, setPendingPassword] = useState<string | null>(null);
   const [pendingFirstName, setPendingFirstName] = useState<string>('');
@@ -198,15 +202,25 @@ export const MobileAppStructure: React.FC = () => {
   }, []);
 
   const handleBaselineComplete = useCallback(async () => {
-    console.log('✅ Baseline complete - marking on device and going to dashboard');
+    console.log('✅ Baseline complete - marking on device');
     
     // CRITICAL: Mark baseline as complete on device
     await markBaselineComplete();
     
     setOnboardingScreen(null);
-    setCurrentScreen('dashboard');
-    setActiveTab('dashboard');
-  }, []);
+    
+    // Check the return context to determine where to go
+    if (baselineReturnContext === 'export_data') {
+      console.log('📊 Baseline completed from export flow - returning to profile with auto-export');
+      setCurrentScreen('profile');
+      setActiveTab('profile');
+      // Don't reset context yet - we'll use it to trigger auto-export
+    } else {
+      console.log('🏠 Baseline completed from normal flow - going to dashboard');
+      setCurrentScreen('dashboard');
+      setActiveTab('dashboard');
+    }
+  }, [baselineReturnContext]);
 
   const handleTabChange = useCallback((tab: MobileTab) => {
     setActiveTab(tab);
@@ -306,7 +320,20 @@ export const MobileAppStructure: React.FC = () => {
       case 'help':
         return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
-        return <MobileProfile onNavigateBack={handleNavigateBack} onNavigateToBaseline={() => setOnboardingScreen('baseline_welcome')} />;
+        const shouldAutoExport = baselineReturnContext === 'export_data';
+        if (shouldAutoExport) {
+          // Reset context after passing it to component
+          setBaselineReturnContext('dashboard');
+        }
+        return <MobileProfile 
+          onNavigateBack={handleNavigateBack} 
+          onNavigateToBaseline={() => {
+            console.log('🔄 Starting baseline from export flow - setting return context');
+            setBaselineReturnContext('export_data');
+            setOnboardingScreen('baseline_welcome');
+          }}
+          autoTriggerExport={shouldAutoExport}
+        />;
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:

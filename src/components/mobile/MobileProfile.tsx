@@ -45,11 +45,12 @@ interface UniversityData {
 interface MobileProfileProps {
   onNavigateBack?: () => void;
   onNavigateToBaseline?: () => void;
+  autoTriggerExport?: boolean;
 }
 
-export function MobileProfile({ onNavigateBack, onNavigateToBaseline }: MobileProfileProps) {
+export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTriggerExport = false }: MobileProfileProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('wellness'); // Start on wellness if auto-triggering
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,6 +89,19 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline }: MobilePr
     totalCheckIns: 0,
     averageScore: null
   });
+
+  // Auto-trigger export after completing baseline
+  useEffect(() => {
+    if (autoTriggerExport && user && !isLoading) {
+      console.log('🚀 Auto-triggering export after baseline completion');
+      // Switch to wellness tab
+      setActiveTab('wellness');
+      // Open export modal after a short delay
+      setTimeout(() => {
+        handleExportData();
+      }, 500);
+    }
+  }, [autoTriggerExport, user, isLoading]);
 
   // Fetch user profile data
   useEffect(() => {
