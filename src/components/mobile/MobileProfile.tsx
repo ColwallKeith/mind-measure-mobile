@@ -358,10 +358,14 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
 
   // Check if user has completed baseline today
   const checkBaselineToday = async () => {
-    if (!user?.id) return false;
+    if (!user?.id) {
+      console.log('[Baseline Check] No user ID');
+      return false;
+    }
 
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      console.log('[Baseline Check] Checking for baseline on date:', today);
       
       const response = await backendService.database.select('fusion_outputs', {
         filters: { 
@@ -371,11 +375,14 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
         limit: 10 // Check last 10 entries
       });
 
+      console.log('[Baseline Check] Found sessions:', response.data?.length);
+
       if (response.data && response.data.length > 0) {
         // Check if any are baselines from today
         const baselineToday = response.data.find((session: any) => {
           const sessionDate = new Date(session.created_at).toISOString().split('T')[0];
           const isBaseline = session.analysis?.assessment_type === 'baseline';
+          console.log('[Baseline Check] Session:', sessionDate, 'isBaseline:', isBaseline, 'matches today:', sessionDate === today);
           return isBaseline && sessionDate === today;
         });
         
@@ -391,12 +398,16 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
   };
 
   const handleExportData = async () => {
+    console.log('[Export Flow] Starting export data check...');
     const hasBaseline = await checkBaselineToday();
+    console.log('[Export Flow] Has baseline today?', hasBaseline);
     setHasBaselineToday(hasBaseline);
     
     if (!hasBaseline) {
+      console.log('[Export Flow] No baseline - showing requirement modal');
       setShowBaselineRequired(true);
     } else {
+      console.log('[Export Flow] Has baseline - showing export modal');
       setShowExportModal(true);
     }
   };
