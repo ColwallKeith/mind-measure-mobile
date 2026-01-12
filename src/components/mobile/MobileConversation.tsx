@@ -36,35 +36,55 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   // Use the assessmentMode prop instead of URL parameter
   const actualMode = assessmentMode === 'baseline';
   console.log('📱 MobileConversation initialized with mode:', assessmentMode, 'actualMode:', actualMode);
+  
+  // AWS Backend Service
+  const backendService = BackendServiceFactory.createService(
+    BackendServiceFactory.getEnvironmentConfig()
+  );
+  
+  // Load user context on mount
+  useEffect(() => {
+    loadUserContext();
+  }, [loadUserContext]);
+  
   // Load user context for personalized conversations
   const loadUserContext = useCallback(async () => {
     if (!user?.id) return null;
     try {
       console.log('Loading user context for mobile conversation...');
       // Get user profile data
-      const { data: profile } = await backendService.database.select('profiles')
-        .select('first_name, last_name, university, course, year_of_study')
-        .eq('id', user.id)
-        .single();
+      const { data: profile } = await backendService.database.select({
+        table: 'profiles',
+        select: 'first_name, last_name, university, course, year_of_study',
+        filters: { id: user.id },
+        limit: 1
+      });
+      
       // Get recent assessment history for context
-      const { data: recentAssessments } = await backendService.database.select('assessment_sessions')
-        .select('assessment_type, created_at, meta')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(3);
+      const { data: recentAssessments } = await backendService.database.select({
+        table: 'assessment_sessions',
+        select: 'assessment_type, created_at, meta',
+        filters: { user_id: user.id },
+        orderBy: [{ column: 'created_at', ascending: false }],
+        limit: 3
+      });
+      
       // Get wellness trends
-      const { data: wellnessData } = await backendService.database.select('fusion_outputs')
-        .select('score, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
+      const { data: wellnessData } = await backendService.database.select({
+        table: 'fusion_outputs',
+        select: 'score, created_at',
+        filters: { user_id: user.id },
+        orderBy: [{ column: 'created_at', ascending: false }],
+        limit: 5
+      });
+      
       const context = {
         user: {
-          name: profile?.first_name || 'there',
-          fullName: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
-          university: profile?.university,
-          course: profile?.course,
-          yearOfStudy: profile?.year_of_study
+          name: profile?.[0]?.first_name || 'there',
+          fullName: `${profile?.[0]?.first_name || ''} ${profile?.[0]?.last_name || ''}`.trim(),
+          university: profile?.[0]?.university,
+          course: profile?.[0]?.course,
+          yearOfStudy: profile?.[0]?.year_of_study
         },
         assessmentHistory: recentAssessments || [],
         wellnessTrends: wellnessData || [],
@@ -78,7 +98,7 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       console.error('Failed to load user context:', error);
       return null;
     }
-  }, [user?.id]);
+  }, [user?.id, backendService]);
   // Load ElevenLabs script
   useEffect(() => {
     const id = 'elevenlabs-convai-embed';
@@ -197,10 +217,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
     widgetInitializedRef.current = true;
     // Set up client tools for the ElevenLabs widget
     const setupClientTools = () => {
-  // AWS Backend Service
-  const backendService = BackendServiceFactory.createService(
-    BackendServiceFactory.getEnvironmentConfig()
-  );
       const widget = widgetRef.current?.querySelector('elevenlabs-convai');
       if (widget && (widget as any).shadowRoot) {
         // Inject client tools into the widget
@@ -210,14 +226,94 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
             return 'Mobile conversation completed';
           },
           getConversationContext: () => {
-            // Provide context for mobile conversation
+            console.log('[ClientTools] getConversationContext called');
+            console.log('[ClientTools] userContext available:', !!userContext);
+            
+            // Check if userContext is available
+            if (!userContext) {
+              console.warn('[ClientTools] No userContext available, returning basic context');
+              return JSON.stringify({
+                platform: 'mobile',
+                sessionId: currentSession?.id,
+                userId: user?.id,
+                assessmentType: actualMode ? 'baseline' : 'checkin',
+                conversationStage: 'active',
+                studentName: 'there',
+                lastCheckinDays: null,
+                recentTrend: [],
+                currentPeriod: 'General'
+              });
+            }
+            
+            // Calculate daysSinceLastCheckin from assessmentHistory
+            let lastCheckinDays = null;
+            if (userContext.assessmentHistory && userContext.assessmentHistory.length > 0) {
+              const lastCheckin = userContext.assessmentHistory[0];
+              const lastCheckinDate = new Date(lastCheckin.created_at);
+              const now = new Date();
+              const diffTime = Math.abs(now.getTime() - lastCheckinDate.getTime());
+              lastCheckinDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              console.log('[ClientTools] Last check-in was', lastCheckinDays, 'days ago');
+            } else {
+              console.log('[ClientTools] No previous check-ins found');
+            }
+            
+            // Extract last 3 scores from wellnessTrends
+            const recentTrend = [];
+            if (userContext.wellnessTrends && userContext.wellnessTrends.length > 0) {
+              for (let i = 0; i < Math.min(3, userContext.wellnessTrends.length); i++) {
+                recentTrend.push(userContext.wellnessTrends[i].score);
+              }
+              console.log('[ClientTools] Recent trend scores:', recentTrend);
+            } else {
+              console.log('[ClientTools] No wellness trends available');
+            }
+            
+            // Determine current period (e.g., "Exam Season")
+            const now = new Date();
+            const month = now.getMonth(); // 0-11
+            let currentPeriod = 'General';
+            
+            // UK Academic Calendar approximate periods
+            if (month >= 0 && month <= 1) {
+              currentPeriod = 'Exam Season'; // Jan-Feb
+            } else if (month >= 2 && month <= 3) {
+              currentPeriod = 'Spring Term'; // Mar-Apr
+            } else if (month >= 4 && month <= 5) {
+              currentPeriod = 'Exam Season'; // May-Jun
+            } else if (month >= 6 && month <= 8) {
+              currentPeriod = 'Summer Break'; // Jul-Sep
+            } else if (month >= 9 && month <= 10) {
+              currentPeriod = 'Autumn Term'; // Oct-Nov
+            } else {
+              currentPeriod = 'Winter Break'; // Dec
+            }
+            
+            console.log('[ClientTools] Current period:', currentPeriod);
+            
+            // Build rich context object
             const context = {
               platform: 'mobile',
               sessionId: currentSession?.id,
               userId: user?.id,
               assessmentType: actualMode ? 'baseline' : 'checkin',
-              conversationStage: 'active'
+              conversationStage: 'active',
+              
+              // Dynamic user data
+              studentName: userContext.user?.name || 'there',
+              fullName: userContext.user?.fullName || '',
+              university: userContext.user?.university || '',
+              course: userContext.user?.course || '',
+              yearOfStudy: userContext.user?.yearOfStudy || '',
+              
+              // Wellness tracking data
+              lastCheckinDays: lastCheckinDays,
+              recentTrend: recentTrend,
+              currentPeriod: currentPeriod,
+              isFirstTime: userContext.isFirstTime
             };
+            
+            console.log('[ClientTools] Sending context to widget:', context);
             return JSON.stringify(context);
           }
         };

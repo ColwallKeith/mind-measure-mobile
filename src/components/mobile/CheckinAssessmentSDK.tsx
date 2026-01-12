@@ -286,7 +286,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
     try {
       console.log('[CheckinSDK] 🏁 Finish button clicked');
       
-      await Haptics.impact({ style: ImpactStyle.Medium });
+      // Try haptics, but don't fail if not supported (web browsers)
+      try {
+        await Haptics.impact({ style: ImpactStyle.Medium });
+      } catch (hapticsError) {
+        console.log('[CheckinSDK] ℹ️ Haptics not supported (expected on web)');
+      }
       
       // End ElevenLabs session
       if (conversation.status === 'connected') {
