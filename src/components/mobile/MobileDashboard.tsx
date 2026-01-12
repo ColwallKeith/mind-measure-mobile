@@ -78,6 +78,14 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   // This happens when: user has baseline data but only baseline assessments (no check-ins yet)
   const isPostBaselineView = recentActivity.length > 0 && 
     recentActivity.every(activity => activity.type === 'baseline');
+  
+  console.log('[Dashboard] Render state:', {
+    isPostBaselineView,
+    hasLatestSession: !!latestSession,
+    latestSessionSummary: latestSession?.summary?.substring(0, 50),
+    recentActivityCount: recentActivity.length,
+    recentActivityTypes: recentActivity.map(a => a.type)
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },
