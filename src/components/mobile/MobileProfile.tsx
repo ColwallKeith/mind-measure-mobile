@@ -422,6 +422,8 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
     try {
       setIsExporting(true);
 
+      console.log('[MobileProfile] Generating report with periodDays:', exportPeriod);
+
       // Call the new report generation API
       const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate', {
         method: 'POST',
