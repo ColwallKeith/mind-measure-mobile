@@ -168,6 +168,7 @@ export function useDashboardData(): DashboardData {
       })));
 
       // Get latest session with score (use score or final_score from fusion_outputs)
+      // This is used for the score card display - can be baseline or check-in
       const latestSessionWithScore = sessions?.find(s => s.final_score || s.score);
       let latestScore = null;
       let latestSession = null;
@@ -206,54 +207,62 @@ export function useDashboardData(): DashboardData {
           trend,
           label: getScoreLabel(currentScore),
         };
+      }
+      
+      // Find latest CHECK-IN specifically (not baseline) for the "Latest Check-in" section
+      const latestCheckIn = sessions?.find(s => {
+        if (!(s.final_score || s.score)) return false;
         
-        // Parse analysis field to determine if baseline or check-in
         let analysisData: any = {};
         try {
-          analysisData = typeof latestSessionWithScore.analysis === 'string' 
-            ? JSON.parse(latestSessionWithScore.analysis) 
-            : latestSessionWithScore.analysis || {};
+          analysisData = typeof s.analysis === 'string' 
+            ? JSON.parse(s.analysis) 
+            : s.analysis || {};
         } catch (e) {
-          console.warn('Failed to parse analysis field:', e);
+          return false;
         }
         
-        // Include detailed conversation data for check-ins from the actual analysis data
-        const isCheckin = analysisData.assessment_type === 'checkin';
-        const isBaseline = analysisData.assessment_type === 'baseline';
+        return analysisData.assessment_type === 'checkin';
+      });
+      
+      console.log('🔍 Latest check-in found:', latestCheckIn ? {
+        id: latestCheckIn.id,
+        created_at: latestCheckIn.created_at,
+        score: latestCheckIn.final_score || latestCheckIn.score
+      } : 'No check-ins found');
+      
+      if (latestCheckIn) {
+        const checkInScore = latestCheckIn.final_score || latestCheckIn.score;
         
-        console.log('🔍 Latest session type:', { 
-          isCheckin, 
-          isBaseline, 
+        // Parse analysis field
+        let analysisData: any = {};
+        try {
+          analysisData = typeof latestCheckIn.analysis === 'string' 
+            ? JSON.parse(latestCheckIn.analysis) 
+            : latestCheckIn.analysis || {};
+        } catch (e) {
+          console.warn('Failed to parse check-in analysis:', e);
+        }
+        
+        console.log('🔍 Check-in details:', { 
           assessment_type: analysisData.assessment_type,
-          has_conversation_summary: !!analysisData.conversation_summary
+          has_conversation_summary: !!analysisData.conversation_summary,
+          themes_count: analysisData.themes?.length || 0,
+          positives_count: (analysisData.driver_positive || analysisData.drivers_positive || []).length,
+          negatives_count: (analysisData.driver_negative || analysisData.drivers_negative || []).length
         });
         
         latestSession = {
-          id: latestSessionWithScore.id,
-          createdAt: new Date(latestSessionWithScore.created_at).toLocaleDateString('en-GB'),
-          // Read actual conversation summary from check-in, null for baseline
-          summary: isCheckin 
-            ? (analysisData.conversation_summary || 'Check-in completed.') 
-            : null,
-          // Read actual themes from check-in data
+          id: latestCheckIn.id,
+          createdAt: new Date(latestCheckIn.created_at).toLocaleDateString('en-GB'),
+          summary: analysisData.conversation_summary || 'Check-in completed.',
           themes: analysisData.themes || [],
-          // Read actual mood score (1-10 scale) - extracted from conversation by Bedrock
-          // For check-ins: use mood_score directly (1-10)
-          // For baselines: derive from score (0-100 → 1-10)
-          moodScore: analysisData.mood_score 
-            || Math.round(currentScore / 10),  // Fallback: convert 0-100 to 1-10
-          // Read actual positive drivers from check-in data
-          driverPositive: analysisData.driver_positive 
-            || analysisData.drivers_positive 
-            || [],
-          // Read actual negative drivers from check-in data
-          driverNegative: analysisData.driver_negative 
-            || analysisData.drivers_negative 
-            || [],
+          moodScore: analysisData.mood_score || Math.round(checkInScore / 10),
+          driverPositive: analysisData.driver_positive || analysisData.drivers_positive || [],
+          driverNegative: analysisData.driver_negative || analysisData.drivers_negative || [],
         };
         
-        console.log('📊 Latest session analysis:', {
-          type: analysisData.assessment_type,
+        console.log('📊 Latest check-in loaded:', {
           summary: latestSession.summary?.substring(0, 50),
           themes: latestSession.themes,
           moodScore: latestSession.moodScore,
