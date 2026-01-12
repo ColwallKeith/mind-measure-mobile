@@ -438,22 +438,27 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[Export] API returned error:', errorData);
+        console.error('[Export] Status code:', response.status);
+        
         if (errorData.error === 'Baseline required') {
           // Show baseline required modal
           setShowExportModal(false);
           setShowBaselineRequired(true);
           return;
         }
-        throw new Error(errorData.message || 'Failed to generate report');
+        throw new Error(errorData.message || errorData.error || 'Failed to generate report');
       }
 
       const data = await response.json();
+      console.log('[Export] Report generated successfully:', data);
 
       setShowExportModal(false);
       alert(`Report generated successfully!\n\nWe've sent an email to ${user.email} with a link to view your report.\n\nCheck your inbox (and spam folder).`);
     } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to generate report. Please try again.');
+      console.error('[Export] Full error object:', error);
+      console.error('[Export] Error message:', error instanceof Error ? error.message : String(error));
+      alert(`Failed to generate report. Please try again.\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
     }
