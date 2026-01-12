@@ -364,6 +364,10 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
     }
 
     try {
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+      
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
       console.log('[Baseline Check] Checking for baseline on date:', today);
       
