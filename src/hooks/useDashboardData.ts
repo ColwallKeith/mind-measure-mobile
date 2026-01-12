@@ -184,9 +184,10 @@ export function useDashboardData(): DashboardData {
       
       if (latestSessionWithScore) {
         const currentScore = latestSessionWithScore.final_score || latestSessionWithScore.score;
-        const previousSession = sessions?.find((s, index) =>
-          index > 0 && (s.final_score || s.score)
-        );
+        
+        // Find the second session with a score (skip the first one which is latestSessionWithScore)
+        const sessionsWithScores = sessions?.filter(s => s.final_score || s.score) || [];
+        const previousSession = sessionsWithScores.length > 1 ? sessionsWithScores[1] : null;
         
         let trend: 'up' | 'down' | 'stable' = 'stable';
         if (previousSession) {
@@ -219,6 +220,13 @@ export function useDashboardData(): DashboardData {
         // Include detailed conversation data for check-ins from the actual analysis data
         const isCheckin = analysisData.assessment_type === 'checkin';
         const isBaseline = analysisData.assessment_type === 'baseline';
+        
+        console.log('🔍 Latest session type:', { 
+          isCheckin, 
+          isBaseline, 
+          assessment_type: analysisData.assessment_type,
+          has_conversation_summary: !!analysisData.conversation_summary
+        });
         
         latestSession = {
           id: latestSessionWithScore.id,
