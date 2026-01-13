@@ -398,6 +398,19 @@ export const cognitoApiClient = {
     return () => {
       console.log('🔕 Auth state listener unsubscribed');
     };
+  },
+
+  /**
+   * Get current ID token for API authentication
+   */
+  async getIdToken(): Promise<string | null> {
+    try {
+      const tokens = await getStoredTokens();
+      return tokens?.idToken || null;
+    } catch (error) {
+      console.error('❌ Error getting ID token:', error);
+      return null;
+    }
   }
 };
 

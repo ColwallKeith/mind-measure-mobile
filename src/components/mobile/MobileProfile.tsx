@@ -5,6 +5,7 @@ import { MoodTrendChart } from './MoodTrendChart';
 import { KeyThemes, type ThemeData } from './KeyThemes';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
+import { cognitoApiClient } from '@/services/cognito-api-client';
 import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
 
 type TabType = 'overview' | 'details' | 'wellness';
@@ -424,10 +425,21 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
 
       console.log('[MobileProfile] Generating report with periodDays:', exportPeriod);
 
-      // Call the new report generation API
+      // Get JWT token for authentication
+      const idToken = await cognitoApiClient.getIdToken();
+      if (!idToken) {
+        console.error('[MobileProfile] No authentication token available');
+        alert('Authentication required. Please sign in again.');
+        return;
+      }
+
+      // Call the report generation API with authentication
       const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
         body: JSON.stringify({
           userId: user.id,
           userEmail: user.email,
