@@ -8,9 +8,10 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 
 // Cognito configuration
-const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR';
-const COGNITO_REGION = process.env.AWS_REGION || 'eu-west-2';
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID;
+// Trim any whitespace/newlines from env vars
+const COGNITO_USER_POOL_ID = (process.env.AWS_COGNITO_USER_POOL_ID || process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR').trim();
+const COGNITO_REGION = (process.env.AWS_REGION || 'eu-west-2').trim();
+const COGNITO_CLIENT_ID = (process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID || '').trim();
 
 // JWKS client for fetching public keys
 const jwksClientInstance = jwksClient({
