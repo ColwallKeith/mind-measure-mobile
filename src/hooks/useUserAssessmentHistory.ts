@@ -45,6 +45,8 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
         return;
       }
 
+      console.log('[useUserAssessmentHistory] Token retrieved:', idToken.substring(0, 20) + '...' + idToken.substring(idToken.length - 20));
+
       // Call secure assessment history endpoint
       const response = await fetch('https://mobile.mindmeasure.app/api/assessments/history', {
         method: 'GET',
@@ -54,7 +56,8 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
       });
 
       if (!response.ok) {
-        console.error('[useUserAssessmentHistory] API error:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('[useUserAssessmentHistory] API error:', response.status, response.statusText, errorText);
         // On error, assume needs baseline (safe default)
         setHasAssessmentHistory(false);
         setNeedsBaseline(true);
