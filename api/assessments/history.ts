@@ -25,25 +25,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { userId } = auth;
 
   try {
-    // Query assessment history for THIS user ONLY
-    const assessments = await queryDatabase(
+    // Direct pg client connection (bypassing queryDatabase helper for now)
+    const { Client } = require('pg');
+    const client = new Client({
+      host: process.env.AWS_AURORA_HOST,
+      port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
+      database: process.env.AWS_AURORA_DATABASE,
+      user: process.env.AWS_AURORA_USERNAME,
+      password: process.env.AWS_AURORA_PASSWORD,
+      ssl: { rejectUnauthorized: true }
+    });
+
+    await client.connect();
+    
+    const result = await client.query(
       `SELECT id, user_id, final_score, created_at, analysis
        FROM fusion_outputs
        WHERE user_id = $1
        ORDER BY created_at DESC`,
       [userId]
     );
+    
+    await client.end();
 
     res.status(200).json({
-      data: assessments,
-      count: assessments.length
+      data: result.rows,
+      count: result.rows.length
     });
 
   } catch (error: any) {
-    console.error(`[API] Assessment history fetch error for user ${userId}:`, error.message);
+    console.error(`[API] Assessment history fetch error for user ${userId}:`, error);
     res.status(500).json({
       error: 'Internal server error',
-      code: 'ASSESSMENT_HISTORY_FETCH_ERROR'
+      code: 'ASSESSMENT_HISTORY_FETCH_ERROR',
+      details: error.message
     });
   }
 }
