@@ -1,88 +1,26 @@
-// API endpoint for database INSERT operations
-// Vercel serverless function
+/**
+ * ⚠️ DEPRECATED - SECURITY RISK ⚠️
+ * 
+ * This generic database proxy endpoint is a CRITICAL SECURITY VULNERABILITY.
+ * STATUS: DISABLED - Returns 410 Gone
+ */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-// @ts-ignore - pg types not available in Vercel environment
-import { Client } from 'pg';
-
-// Aurora Serverless v2 configuration
-const dbConfig = {
-  host: process.env.AWS_AURORA_HOST || process.env.AWS_RDS_HOST || 'mindmeasure-aurora.cluster-cz8c8wq4k3ak.eu-west-2.rds.amazonaws.com',
-  port: parseInt(process.env.AWS_AURORA_PORT || process.env.AWS_RDS_PORT || '5432'),
-  database: process.env.AWS_AURORA_DATABASE || process.env.AWS_RDS_DATABASE || 'mindmeasure',
-  user: process.env.AWS_AURORA_USERNAME || process.env.AWS_RDS_USERNAME || 'mindmeasure_admin',
-  password: process.env.AWS_AURORA_PASSWORD || process.env.AWS_RDS_PASSWORD || 'K31th50941964!',
-  ssl: { rejectUnauthorized: false }
-};
+import { setCorsHeaders, handleCorsPreflightIfNeeded } from '../_lib/cors-config';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Add CORS headers for Capacitor
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCorsHeaders(req, res);
+  if (handleCorsPreflightIfNeeded(req, res)) return;
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  console.error('[SECURITY] Deprecated endpoint access attempt', {
+    method: req.method,
+    url: req.url,
+    origin: req.headers.origin
+  });
 
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { table, data, options } = req.body;
-
-  if (!table || !data) {
-    return res.status(400).json({ error: 'Table name and data are required' });
-  }
-
-  const client = new Client(dbConfig);
-
-  try {
-    await client.connect();
-
-    // Handle single record or array of records
-    const records = Array.isArray(data) ? data : [data];
-    const results = [];
-
-    for (const record of records) {
-      const columns = Object.keys(record);
-      const values = Object.values(record);
-      const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
-
-      let sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
-      
-      // Add RETURNING clause if specified
-      if (options?.returning) {
-        sql += ` RETURNING ${options.returning}`;
-      } else {
-        sql += ` RETURNING *`;
-      }
-
-      // Handle ON CONFLICT if specified
-      if (options?.onConflict) {
-        sql += ` ${options.onConflict}`;
-      }
-
-      console.log('Executing SQL:', sql, 'with values:', values);
-
-      const result = await client.query(sql, values);
-      results.push(result.rows[0]);
-    }
-
-    res.status(200).json({
-      data: Array.isArray(data) ? results : results[0],
-      error: null
-    });
-
-  } catch (error: any) {
-    console.error('Database insert error:', error);
-    res.status(500).json({
-      data: null,
-      error: error.message
-    });
-  } finally {
-    await client.end();
-  }
+  res.status(410).json({
+    error: 'Endpoint Deprecated',
+    message: 'Generic database endpoints disabled for security. Use task-specific APIs.',
+    code: 'ENDPOINT_DEPRECATED'
+  });
 }
