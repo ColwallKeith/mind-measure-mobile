@@ -50,11 +50,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'cognito:username': payload['cognito:username']
       },
       config: {
-        COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID || 'NOT_SET',
+        raw_COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID || 'NOT_SET',
+        raw_AWS_COGNITO_USER_POOL_ID: process.env.AWS_COGNITO_USER_POOL_ID || 'NOT_SET',
+        trimmed_user_pool_id: (process.env.AWS_COGNITO_USER_POOL_ID || process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR').trim(),
         AWS_COGNITO_CLIENT_ID: process.env.AWS_COGNITO_CLIENT_ID ? '***' + process.env.AWS_COGNITO_CLIENT_ID.slice(-4) : 'NOT_SET',
         COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID ? '***' + process.env.COGNITO_CLIENT_ID.slice(-4) : 'NOT_SET',
+        trimmed_client_id: (process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID || '').trim(),
         AWS_REGION: process.env.AWS_REGION || 'NOT_SET',
-        expected_issuer: `https://cognito-idp.${process.env.AWS_REGION || 'eu-west-2'}.amazonaws.com/${process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR'}`
+        expected_issuer_after_trim: `https://cognito-idp.${(process.env.AWS_REGION || 'eu-west-2').trim()}.amazonaws.com/${(process.env.AWS_COGNITO_USER_POOL_ID || process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR').trim()}`
       }
     });
   } catch (error: any) {
