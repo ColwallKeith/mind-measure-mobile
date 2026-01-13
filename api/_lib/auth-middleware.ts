@@ -37,6 +37,14 @@ function getKey(header: any, callback: any) {
  * Verify Cognito JWT token
  */
 export async function verifyToken(token: string): Promise<any> {
+  // Log configuration for debugging
+  console.log('[AUTH] Verification config:', {
+    userPoolId: COGNITO_USER_POOL_ID,
+    region: COGNITO_REGION,
+    clientId: COGNITO_CLIENT_ID ? '***' + COGNITO_CLIENT_ID.slice(-4) : 'NOT_SET',
+    issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`
+  });
+
   return new Promise((resolve, reject) => {
     jwt.verify(
       token,
@@ -49,6 +57,7 @@ export async function verifyToken(token: string): Promise<any> {
       },
       (err, decoded) => {
         if (err) {
+          console.error('[AUTH] JWT verification failed:', err.message);
           reject(err);
           return;
         }
@@ -57,11 +66,13 @@ export async function verifyToken(token: string): Promise<any> {
         if (decoded && typeof decoded === 'object' && 'exp' in decoded) {
           const now = Math.floor(Date.now() / 1000);
           if (decoded.exp < now) {
+            console.error('[AUTH] Token expired:', { exp: decoded.exp, now });
             reject(new Error('Token expired'));
             return;
           }
         }
         
+        console.log('[AUTH] Token verified successfully for user:', decoded?.sub);
         resolve(decoded);
       }
     );
