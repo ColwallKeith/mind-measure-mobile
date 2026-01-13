@@ -10,7 +10,7 @@ import jwksClient from 'jwks-rsa';
 // Cognito configuration
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID || 'eu-west-2_ClAG4fQXR';
 const COGNITO_REGION = process.env.AWS_REGION || 'eu-west-2';
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
+const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID;
 
 // JWKS client for fetching public keys
 const jwksClientInstance = jwksClient({
