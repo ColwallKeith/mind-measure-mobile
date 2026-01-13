@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       database: process.env.AWS_AURORA_DATABASE,
       user: process.env.AWS_AURORA_USERNAME,
       password: process.env.AWS_AURORA_PASSWORD,
-      ssl: { rejectUnauthorized: true }
+      ssl: { rejectUnauthorized: false } // Vercel serverless doesn't have RDS CA bundle
     });
 
     await client.connect();
