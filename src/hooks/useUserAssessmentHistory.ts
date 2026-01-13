@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { cognitoApiClient } from '@/services/cognito-api-client';
 
 export interface UserAssessmentHistory {
   needsBaseline: boolean;
@@ -33,50 +34,51 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
       setLoading(true);
       console.log('[useUserAssessmentHistory] Checking assessment history for user:', userId);
       
-      // Import and create backend service using same pattern as BaselineAssessment
-      const { BackendServiceFactory } = await import('@/services/database/BackendServiceFactory');
-      const backendService = BackendServiceFactory.createService(
-        BackendServiceFactory.getEnvironmentConfig()
-      );
-      
-      // Query fusion_outputs table for baseline assessments - use correct options signature
-      const { data: assessments, error } = await backendService.database.select(
-        'fusion_outputs',
-        {
-          columns: ['id', 'score', 'created_at', 'analysis'],
-          filters: { user_id: userId }
-        }
-      );
+      // Get JWT token for authentication
+      const idToken = await cognitoApiClient.getIdToken();
+      if (!idToken) {
+        console.warn('[useUserAssessmentHistory] No auth token - assuming needs baseline');
+        setHasAssessmentHistory(false);
+        setNeedsBaseline(true);
+        setNeedsCheckin(false);
+        setLoading(false);
+        return;
+      }
 
-      if (error) {
-        console.error('[useUserAssessmentHistory] Database error:', error);
-        console.error('[useUserAssessmentHistory] Error type:', typeof error);
-        console.error('[useUserAssessmentHistory] Error details:', JSON.stringify(error, null, 2));
+      // Call secure assessment history endpoint
+      const response = await fetch('https://mobile.mindmeasure.app/api/assessments/history', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('[useUserAssessmentHistory] API error:', response.status, response.statusText);
         // On error, assume needs baseline (safe default)
         setHasAssessmentHistory(false);
         setNeedsBaseline(true);
         setNeedsCheckin(false);
-      } else if (assessments && assessments.length > 0) {
-        console.log('[useUserAssessmentHistory] Found', assessments.length, 'assessment(s) - baseline complete');
-        setHasAssessmentHistory(true);
-        setNeedsBaseline(false);
-        // Check if needs check-in (future feature)
-        setNeedsCheckin(false);
       } else {
-        console.log('[useUserAssessmentHistory] No assessments found - needs baseline');
-        setHasAssessmentHistory(false);
-        setNeedsBaseline(true);
-        setNeedsCheckin(false);
+        const data = await response.json();
+        const assessments = data.data || [];
+        
+        if (assessments.length > 0) {
+          console.log('[useUserAssessmentHistory] Found', assessments.length, 'assessment(s) - has history');
+          setHasAssessmentHistory(true);
+          setNeedsBaseline(false);
+          setNeedsCheckin(false);
+        } else {
+          console.log('[useUserAssessmentHistory] No assessments found - needs baseline');
+          setHasAssessmentHistory(false);
+          setNeedsBaseline(true);
+          setNeedsCheckin(false);
+        }
       }
     } catch (error) {
       console.error('[useUserAssessmentHistory] Exception caught:', error);
-      // Log full error details
       if (error instanceof Error) {
-        console.error('[useUserAssessmentHistory] Error name:', error.name);
-        console.error('[useUserAssessmentHistory] Error message:', error.message);
-        console.error('[useUserAssessmentHistory] Error stack:', error.stack);
-      } else {
-        console.error('[useUserAssessmentHistory] Non-Error object:', JSON.stringify(error));
+        console.error('[useUserAssessmentHistory] Error:', error.message);
       }
       // On error, assume needs baseline (safe default)
       setHasAssessmentHistory(false);

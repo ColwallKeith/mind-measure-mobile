@@ -196,11 +196,13 @@ export const MobileAppStructure: React.FC = () => {
   const handleSignInComplete = useCallback(async (userId: string) => {
     console.log('✅ Sign in successful - received userId:', userId);
     
-    // CRITICAL: Save user to device IMMEDIATELY with the passed userId
+    // Save user to device
     console.log('💾 Saving signed-in user to device:', userId);
-    await saveUserToDevice(userId, false); // baselineCompleted = false (they need to do it)
+    await saveUserToDevice(userId, false); // baselineCompleted = false
     
-    setOnboardingScreen('baseline_welcome');
+    // Let the useEffect hook (lines 160-173) handle routing based on hasAssessmentHistory
+    // It will check assessment history and route to dashboard or baseline welcome
+    console.log('🔄 Sign-in complete - letting useEffect handle routing based on assessment history');
   }, []);
 
   const handleBaselineStart = useCallback(() => {
