@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useAuth } from '@/contexts/AuthContext';
+import { cognitoApiClient } from '@/services/cognito-api-client';
 
 interface DashboardData {
   profile: {

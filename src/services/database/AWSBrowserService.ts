@@ -12,6 +12,7 @@ import {
   UpdateResult,
   DeleteResult
 } from './DatabaseService';
+import { cognitoApiClient } from '../cognito-api-client';
 // Browser-compatible database service that uses API endpoints
 export class AWSBrowserDatabaseService implements DatabaseService {
   private config: DatabaseConfig;
@@ -43,11 +44,14 @@ export class AWSBrowserDatabaseService implements DatabaseService {
     console.log('🔄 API Call:', method, `${this.apiBaseUrl}${endpoint}`);
     
     try {
+      // Get JWT token for authentication
+      const token = await cognitoApiClient.getIdToken();
+      
       const response = await fetch(`${this.apiBaseUrl}${endpoint}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          // Add authentication headers here when needed
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: body ? JSON.stringify(body) : undefined
       });
@@ -82,7 +86,13 @@ export class AWSBrowserDatabaseService implements DatabaseService {
     }
   ): Promise<QueryResult<T>> {
     try {
-      const result = await this.apiCall('/select', 'POST', { table, options });
+      const result = await this.apiCall('/select', 'POST', {
+        table,
+        columns: options?.columns || '*',
+        filters: options?.filters || {},
+        orderBy: options?.orderBy || [],
+        limit: options?.limit
+      });
       return {
         data: result.data,
         error: null,
