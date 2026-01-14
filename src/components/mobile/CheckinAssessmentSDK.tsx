@@ -462,6 +462,32 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       const savedId = Array.isArray(fusionResult) ? fusionResult[0]?.id : fusionResult?.id;
       console.log('[CheckinSDK] ✅ Check-in saved successfully with ID:', savedId);
 
+      // Step 8: Save transcript to assessment_transcripts table (CRITICAL for reports)
+      if (savedId && transcript.length > 0) {
+        console.log('[CheckinSDK] Step 8: 📝 Saving transcript...');
+        const transcriptData = {
+          fusion_output_id: savedId,
+          user_id: user!.id,
+          conversation_id: sessionId || null,
+          transcript: transcript,
+          message_count: transcript.split('\n').filter(l => l.trim()).length,
+          word_count: transcript.split(/\s+/).length,
+          duration_seconds: Math.round(duration),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
+        if (transcriptError) {
+          console.warn('[CheckinSDK] ⚠️ Failed to store transcript:', transcriptError);
+          // Non-blocking - continue
+        } else {
+          console.log('[CheckinSDK] ✅ Transcript stored');
+        }
+      } else {
+        console.warn('[CheckinSDK] ⚠️ Skipping transcript save - no ID or empty transcript');
+      }
+
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 1000));
 

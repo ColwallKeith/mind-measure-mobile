@@ -3,7 +3,7 @@
  * Verifies JWT tokens from AWS Cognito and extracts user identity
  */
 
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 
