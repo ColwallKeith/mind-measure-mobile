@@ -45,7 +45,7 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
       let universityId = null;
       if (user?.id) {
         const { data: profileData } = await backendService.database.select('profiles', {
-          filter: { user_id: user.id },
+          filters: { user_id: user.id },
           limit: 1
         });
         
@@ -110,7 +110,7 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
       if (universityId) {
         // Fetch CMS data for this university
         const { data: universityData } = await backendService.database.select('universities', {
-          filter: { id: universityId },
+          filters: { id: universityId },
           limit: 1
         });
 
