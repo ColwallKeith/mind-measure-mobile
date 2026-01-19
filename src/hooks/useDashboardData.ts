@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { useAuth } from '@/contexts/AuthContext';
+import { cognitoApiClient } from '@/services/cognito-api-client';
 
 interface DashboardData {
   profile: {
@@ -9,6 +10,7 @@ interface DashboardData {
     displayName: string;
     streakCount: number;
     baselineEstablished: boolean;
+    createdAt?: string; // Account creation date for determining available views
   };
   latestScore: {
     score: number;
@@ -30,6 +32,13 @@ interface DashboardData {
     score: number;
     createdAt: string;
   }>;
+  trendData: {
+    last7CheckIns: Array<{ date: string; score: number }>;
+    last7Days: Array<{ date: string; score: number }>;
+    last30Days: Array<{ date: string; score: number }>;
+    weeklyAverages: Array<{ date: string; score: number }>;
+    monthlyAverages: Array<{ date: string; score: number }>;
+  };
   hasData: boolean;
   loading: boolean;
   error: string | null;
@@ -52,6 +61,13 @@ export function useDashboardData(): DashboardData {
     latestScore: null,
     latestSession: null,
     recentActivity: [],
+    trendData: {
+      last7CheckIns: [],
+      last7Days: [],
+      last30Days: [],
+      weeklyAverages: [],
+      monthlyAverages: []
+    },
     hasData: false,
     loading: true,
     error: null,
@@ -85,7 +101,7 @@ export function useDashboardData(): DashboardData {
       // Fetch user profile
       const { data: profiles, error: profileError } = await backendService.database.select('profiles', {
         filters: { user_id: user.id },
-        columns: 'first_name, last_name, display_name, streak_count, baseline_established'
+        columns: 'first_name, last_name, display_name, streak_count, baseline_established, created_at'
       });
       
       const profile = profiles && profiles.length > 0 ? profiles[0] : null;
@@ -153,6 +169,7 @@ export function useDashboardData(): DashboardData {
       })));
 
       // Get latest session with score (use score or final_score from fusion_outputs)
+      // This is used for the score card display - can be baseline or check-in
       const latestSessionWithScore = sessions?.find(s => s.final_score || s.score);
       let latestScore = null;
       let latestSession = null;
@@ -169,9 +186,10 @@ export function useDashboardData(): DashboardData {
       
       if (latestSessionWithScore) {
         const currentScore = latestSessionWithScore.final_score || latestSessionWithScore.score;
-        const previousSession = sessions?.find((s, index) =>
-          index > 0 && (s.final_score || s.score)
-        );
+        
+        // Find the second session with a score (skip the first one which is latestSessionWithScore)
+        const sessionsWithScores = sessions?.filter(s => s.final_score || s.score) || [];
+        const previousSession = sessionsWithScores.length > 1 ? sessionsWithScores[1] : null;
         
         let trend: 'up' | 'down' | 'stable' = 'stable';
         if (previousSession) {
@@ -190,28 +208,68 @@ export function useDashboardData(): DashboardData {
           trend,
           label: getScoreLabel(currentScore),
         };
+      }
+      
+      // Find latest CHECK-IN specifically (not baseline) for the "Latest Check-in" section
+      const latestCheckIn = sessions?.find(s => {
+        if (!(s.final_score || s.score)) return false;
         
-        // Parse analysis field to determine if baseline or check-in
         let analysisData: any = {};
         try {
-          analysisData = typeof latestSessionWithScore.analysis === 'string' 
-            ? JSON.parse(latestSessionWithScore.analysis) 
-            : latestSessionWithScore.analysis || {};
+          analysisData = typeof s.analysis === 'string' 
+            ? JSON.parse(s.analysis) 
+            : s.analysis || {};
         } catch (e) {
-          console.warn('Failed to parse analysis field:', e);
+          return false;
         }
         
-        // Only include detailed conversation data for check-ins, not baseline assessments
-        const isBaselineOnly = analysisData.assessment_type === 'baseline';
+        return analysisData.assessment_type === 'checkin';
+      });
+      
+      console.log('🔍 Latest check-in found:', latestCheckIn ? {
+        id: latestCheckIn.id,
+        created_at: latestCheckIn.created_at,
+        score: latestCheckIn.final_score || latestCheckIn.score
+      } : 'No check-ins found');
+      
+      if (latestCheckIn) {
+        const checkInScore = latestCheckIn.final_score || latestCheckIn.score;
+        
+        // Parse analysis field
+        let analysisData: any = {};
+        try {
+          analysisData = typeof latestCheckIn.analysis === 'string' 
+            ? JSON.parse(latestCheckIn.analysis) 
+            : latestCheckIn.analysis || {};
+        } catch (e) {
+          console.warn('Failed to parse check-in analysis:', e);
+        }
+        
+        console.log('🔍 Check-in details:', { 
+          assessment_type: analysisData.assessment_type,
+          has_conversation_summary: !!analysisData.conversation_summary,
+          themes_count: analysisData.themes?.length || 0,
+          positives_count: (analysisData.driver_positive || analysisData.drivers_positive || []).length,
+          negatives_count: (analysisData.driver_negative || analysisData.drivers_negative || []).length
+        });
+        
         latestSession = {
-          id: latestSessionWithScore.id,
-          createdAt: new Date(latestSessionWithScore.created_at).toLocaleDateString('en-GB'),
-          summary: isBaselineOnly ? null : 'Assessment completed successfully.', // conversation_summary doesn't exist for baseline
-          themes: isBaselineOnly ? [] : ['wellbeing', 'mood', 'energy'], // No themes for baseline
-          moodScore: Math.round(currentScore / 10), // Convert 0-100 to 0-10
-          driverPositive: isBaselineOnly ? [] : ['positive outlook', 'good energy'],
-          driverNegative: isBaselineOnly ? [] : ['stress', 'fatigue'],
+          id: latestCheckIn.id,
+          createdAt: new Date(latestCheckIn.created_at).toLocaleDateString('en-GB'),
+          summary: analysisData.conversation_summary || 'Check-in completed.',
+          themes: analysisData.themes || [],
+          moodScore: analysisData.mood_score || Math.round(checkInScore / 10),
+          driverPositive: analysisData.driver_positive || analysisData.drivers_positive || [],
+          driverNegative: analysisData.driver_negative || analysisData.drivers_negative || [],
         };
+        
+        console.log('📊 Latest check-in loaded:', {
+          summary: latestSession.summary?.substring(0, 50),
+          themes: latestSession.themes,
+          moodScore: latestSession.moodScore,
+          driverPositive: latestSession.driverPositive,
+          driverNegative: latestSession.driverNegative
+        });
       }
       
       // Recent activity from all sessions (parse analysis to get assessment_type)
@@ -232,6 +290,9 @@ export function useDashboardData(): DashboardData {
         };
       }) || [];
       
+      // Calculate trend data for charts
+      const trendData = calculateTrendData(sessions || []);
+      
       const hasData = sessions && sessions.length > 0;
       
       setData({
@@ -241,10 +302,12 @@ export function useDashboardData(): DashboardData {
           displayName: profileData.display_name || 'User',
           streakCount: profileData.streak_count || 0,
           baselineEstablished: profileData.baseline_established || (sessions && sessions.length > 0),
+          createdAt: profileData.created_at, // Account creation date
         },
         latestScore,
         latestSession,
         recentActivity,
+        trendData,
         hasData: !!hasData,
         loading: false,
         error: null,
@@ -271,4 +334,131 @@ function getScoreLabel(score: number): string {
   return 'Needs Attention';
 }
 
+function calculateTrendData(sessions: any[]) {
+  // Filter only check-ins (exclude baseline)
+  const checkIns = sessions.filter(s => {
+    let analysisData: any = {};
+    try {
+      analysisData = typeof s.analysis === 'string' ? JSON.parse(s.analysis) : s.analysis || {};
+    } catch (e) {
+      return false;
+    }
+    return analysisData.assessment_type !== 'baseline';
+  });
+
+  // Last 7 check-ins
+  const last7CheckIns = checkIns.slice(0, 7).reverse().map(s => ({
+    date: s.created_at,
+    score: s.final_score || s.score || 0
+  }));
+
+  // Last 7 days (one data point per day, using most recent score for that day)
+  const last7Days: Array<{ date: string; score: number }> = [];
+  const now = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() - i);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const nextDate = new Date(targetDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    // Find the most recent check-in for this day
+    const dayCheckIn = checkIns.find(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= targetDate && sessionDate < nextDate;
+    });
+    
+    if (dayCheckIn) {
+      last7Days.push({
+        date: targetDate.toISOString(),
+        score: dayCheckIn.final_score || dayCheckIn.score || 0
+      });
+    }
+  }
+
+  // Last 30 days (one data point per day)
+  const last30Days: Array<{ date: string; score: number }> = [];
+  
+  for (let i = 29; i >= 0; i--) {
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() - i);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const nextDate = new Date(targetDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    
+    // Find the most recent check-in for this day
+    const dayCheckIn = checkIns.find(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= targetDate && sessionDate < nextDate;
+    });
+    
+    if (dayCheckIn) {
+      last30Days.push({
+        date: targetDate.toISOString(),
+        score: dayCheckIn.final_score || dayCheckIn.score || 0
+      });
+    }
+  }
+
+  // Weekly averages (last 10 weeks)
+  const weeklyAverages: Array<{ date: string; score: number }> = [];
+  
+  for (let i = 9; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - (i * 7));
+    weekStart.setHours(0, 0, 0, 0);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    
+    const weekSessions = checkIns.filter(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= weekStart && sessionDate < weekEnd;
+    });
+    
+    if (weekSessions.length > 0) {
+      const avgScore = Math.round(
+        weekSessions.reduce((sum, s) => sum + (s.final_score || s.score || 0), 0) / weekSessions.length
+      );
+      weeklyAverages.push({
+        date: weekStart.toISOString(),
+        score: avgScore
+      });
+    }
+  }
+
+  // Monthly averages (last 12 months)
+  const monthlyAverages: Array<{ date: string; score: number }> = [];
+  
+  for (let i = 11; i >= 0; i--) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    
+    const monthSessions = checkIns.filter(s => {
+      const sessionDate = new Date(s.created_at);
+      return sessionDate >= monthStart && sessionDate <= monthEnd;
+    });
+    
+    if (monthSessions.length > 0) {
+      const avgScore = Math.round(
+        monthSessions.reduce((sum, s) => sum + (s.final_score || s.score || 0), 0) / monthSessions.length
+      );
+      monthlyAverages.push({
+        date: monthStart.toISOString(),
+        score: avgScore
+      });
+    }
+  }
+
+  return {
+    last7CheckIns,
+    last7Days,
+    last30Days,
+    weeklyAverages,
+    monthlyAverages
+  };
+}
 

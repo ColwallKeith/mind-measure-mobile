@@ -44,6 +44,9 @@ export type AssessmentState = {
  * Extract PHQ-2, GAD-2, and mood responses from the full conversation transcript.
  * This is called once at the end of the conversation.
  * 
+ * HANDLES REPEATED QUESTIONS: Jodie sometimes repeats a question (e.g., asks Question 2 twice).
+ * We parse question numbers from Jodie's messages and only keep the LAST response for each question.
+ * 
  * The transcript format is:
  * agent: [Jodie's message]
  * user: [User's response]
@@ -56,24 +59,49 @@ export function extractAssessmentFromTranscript(
 ): ExtractedAssessment {
   const lines = transcript.split('\n');
   
-  // Extract all user responses (lines starting with "user:")
-  const userResponses: string[] = [];
+  // Parse the conversation as question-answer pairs
+  // We look for Jodie announcing "question 1", "question 2", etc.
+  // Then capture the user's next response
+  
+  const questionResponses: Map<number, string> = new Map();
+  let lastQuestionNumber: number | null = null;
+  
   for (const line of lines) {
-    if (line.trim().startsWith('user:')) {
+    const trimmed = line.trim().toLowerCase();
+    
+    if (trimmed.startsWith('agent:') || trimmed.startsWith('jodie:')) {
+      // Look for question number announcements like "question 1", "question one", etc.
+      const questionMatch = trimmed.match(/question\s+(one|two|three|four|five|1|2|3|4|5)/i);
+      if (questionMatch) {
+        const qNum = parseQuestionNumber(questionMatch[1]);
+        if (qNum) {
+          lastQuestionNumber = qNum;
+          console.log(`[SDK] 🔍 Found question ${qNum} in: "${line.substring(0, 50)}..."`);
+        }
+      }
+    } else if (trimmed.startsWith('user:') && lastQuestionNumber !== null) {
+      // This is the user's response to the last question announced
       const response = line.replace(/^user:\s*/i, '').trim().toLowerCase();
-      userResponses.push(response);
+      
+      // If this question was already answered, we're overwriting with the latest response
+      if (questionResponses.has(lastQuestionNumber)) {
+        console.log(`[SDK] ⚠️ Question ${lastQuestionNumber} repeated - using latest response`);
+      }
+      
+      questionResponses.set(lastQuestionNumber, response);
+      console.log(`[SDK] 📝 Q${lastQuestionNumber} response: "${response}"`);
+      lastQuestionNumber = null; // Reset for next question
     }
   }
   
-  console.log('[SDK] 📋 User responses extracted:', userResponses);
+  console.log('[SDK] 📋 Question-response map:', Array.from(questionResponses.entries()));
   
-  // The assessment follows a specific order:
-  // Response 0: "Yes" (ready confirmation)
-  // Response 1: PHQ-2 Q1 (little interest or pleasure)
-  // Response 2: PHQ-2 Q2 (down, depressed, hopeless)
-  // Response 3: GAD-2 Q1 (nervous, anxious, on edge)
-  // Response 4: GAD-2 Q2 (unable to stop worrying)
-  // Response 5: Mood (1-10 scale)
+  // Now map questions to PHQ/GAD/Mood based on question numbers
+  // Question 1: PHQ-2 Q1 (little interest or pleasure)
+  // Question 2: PHQ-2 Q2 (down, depressed, hopeless)
+  // Question 3: GAD-2 Q1 (nervous, anxious, on edge)
+  // Question 4: GAD-2 Q2 (unable to stop worrying)
+  // Question 5: Mood (1-10 scale)
   
   function parseFrequencyResponse(response: string): number | null {
     if (response.includes('not at all')) return 0;
@@ -83,15 +111,15 @@ export function extractAssessmentFromTranscript(
     return null;
   }
   
-  const phq2_q1 = userResponses[1] ? parseFrequencyResponse(userResponses[1]) : null;
-  const phq2_q2 = userResponses[2] ? parseFrequencyResponse(userResponses[2]) : null;
-  const gad2_q1 = userResponses[3] ? parseFrequencyResponse(userResponses[3]) : null;
-  const gad2_q2 = userResponses[4] ? parseFrequencyResponse(userResponses[4]) : null;
+  const phq2_q1 = questionResponses.get(1) ? parseFrequencyResponse(questionResponses.get(1)!) : null;
+  const phq2_q2 = questionResponses.get(2) ? parseFrequencyResponse(questionResponses.get(2)!) : null;
+  const gad2_q1 = questionResponses.get(3) ? parseFrequencyResponse(questionResponses.get(3)!) : null;
+  const gad2_q2 = questionResponses.get(4) ? parseFrequencyResponse(questionResponses.get(4)!) : null;
   
-  // Mood: Extract from response 5
+  // Mood: Extract from question 5
   let moodScore: number | null = null;
-  if (userResponses[5]) {
-    const moodResponse = userResponses[5];
+  if (questionResponses.has(5)) {
+    const moodResponse = questionResponses.get(5)!;
     
     // Map of word numbers to numeric values
     const wordNumbers: Record<string, number> = {
@@ -124,6 +152,30 @@ export function extractAssessmentFromTranscript(
   console.log("[SDK] 📝 Extracted from transcript:", { phqResponses, moodScore });
 
   return { phqResponses, moodScore };
+}
+
+/**
+ * Parse question number from text (handles both words and digits)
+ */
+function parseQuestionNumber(text: string): number | null {
+  const wordMap: Record<string, number> = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5
+  };
+  
+  const lower = text.toLowerCase().trim();
+  
+  // Try word form first
+  if (wordMap[lower]) {
+    return wordMap[lower];
+  }
+  
+  // Try digit form
+  const num = parseInt(lower, 10);
+  if (!isNaN(num) && num >= 1 && num <= 5) {
+    return num;
+  }
+  
+  return null;
 }
 
 /**
@@ -227,15 +279,22 @@ export function validateAssessmentData(state: AssessmentState) {
 
   const isValid =
     hasTranscript && hasDuration && hasAllQuestions && hasMood;
+  
+  // For debugging: list which questions are missing
+  const missingQuestions = requiredKeys.filter((key) => {
+    const value = phqResponses[key];
+    return !(typeof value === "number" && !Number.isNaN(value));
+  });
 
   console.log("[SDK] ✅ Validation result:", {
     isValid,
     details: { hasAllQuestions, hasMood, hasTranscript, hasDuration },
+    missingQuestions: missingQuestions.length > 0 ? missingQuestions : 'none'
   });
 
   return {
     isValid,
-    details: { hasAllQuestions, hasMood, hasTranscript, hasDuration },
+    details: { hasAllQuestions, hasMood, hasTranscript, hasDuration, missingQuestions },
   };
 }
 

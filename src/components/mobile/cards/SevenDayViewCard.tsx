@@ -1,0 +1,231 @@
+interface SevenDayViewCardProps {
+  baselineScore: number;
+  weekData: number[];
+  averageScore?: number;
+}
+
+export function SevenDayViewCard({ 
+  baselineScore, 
+  weekData,
+  averageScore
+}: SevenDayViewCardProps) {
+  console.log('🎨 SevenDayViewCard rendering with weekData:', weekData);
+  
+  // Calculate day labels based on current date
+  const getDayLabels = () => {
+    const labels: string[] = [];
+    const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const now = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      labels.push(dayLetters[date.getDay()]);
+    }
+    
+    return labels;
+  };
+  
+  const days = getDayLabels();
+  const maxValue = 100;
+  
+  // Calculate average if not provided
+  const calculatedAverage = averageScore ?? Math.round(weekData.reduce((sum, val) => sum + val, 0) / weekData.length);
+  
+  // Get background gradient based on average score
+  const getBackgroundGradient = (score: number) => {
+    if (score >= 80) return 'linear-gradient(to bottom right, #10B981, #34D399)'; // Green
+    if (score >= 60) return 'linear-gradient(to bottom right, #5B8FED, #6BA3FF)'; // Blue
+    if (score >= 40) return 'linear-gradient(to bottom right, #F59E0B, #FBBF24)'; // Amber
+    return 'linear-gradient(to bottom right, #EF4444, #F87171)'; // Red
+  };
+  
+  // Calculate bar heights as percentages
+  const getBarHeight = (value: number) => {
+    // If no data (0), show tiny bar; otherwise calculate height
+    if (value === 0) return 2;
+    return Math.max((value / maxValue) * 256, 8);
+  };
+  
+  // Calculate baseline position
+  const baselinePosition = ((maxValue - baselineScore) / maxValue) * 100;
+  
+  return (
+    <div style={{
+      width: '100%',
+      maxWidth: '448px',
+      margin: '0 auto',
+      borderRadius: '24px',
+      overflow: 'hidden',
+      background: getBackgroundGradient(calculatedAverage),
+      padding: '24px',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+    }}>
+      {/* Header */}
+      <div style={{ marginBottom: '16px' }}>
+        <h2 style={{ 
+          color: 'rgba(255, 255, 255, 0.9)', 
+          letterSpacing: '0.05em', 
+          marginBottom: '24px',
+          fontSize: '14px',
+          fontWeight: '400'
+        }}>
+          SEVEN DAY VIEW
+        </h2>
+        
+        {/* Scores Display - Outside graph */}
+        <div style={{ display: 'flex', gap: '32px', marginBottom: '16px' }}>
+          {/* Baseline Score */}
+          <div>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.9)', 
+              letterSpacing: '0.05em', 
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              BASELINE SCORE
+            </div>
+            <div style={{ 
+              color: 'white', 
+              fontSize: '48px',
+              lineHeight: '1',
+              fontWeight: '700'
+            }}>
+              {baselineScore}
+            </div>
+          </div>
+          
+          {/* Average Score */}
+          <div>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.9)', 
+              letterSpacing: '0.05em', 
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              AVERAGE SCORE
+            </div>
+            <div style={{ 
+              color: 'white', 
+              fontSize: '48px',
+              lineHeight: '1',
+              fontWeight: '700'
+            }}>
+              {calculatedAverage}
+            </div>
+          </div>
+          
+          {/* Check-ins Count */}
+          <div>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.9)', 
+              letterSpacing: '0.05em', 
+              fontSize: '12px',
+              marginBottom: '4px'
+            }}>
+              CHECK-INS
+            </div>
+            <div style={{ 
+              color: 'white', 
+              fontSize: '48px',
+              lineHeight: '1',
+              fontWeight: '700'
+            }}>
+              {weekData.filter(score => score > 0).length}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Chart Area */}
+      <div style={{ position: 'relative' }}>
+        {/* Chart Container */}
+        <div style={{ position: 'relative', height: '256px' }}>
+          {/* Y-axis labels on right */}
+          <div style={{ 
+            position: 'absolute', 
+            right: '-4px', 
+            top: 0, 
+            bottom: 0, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'space-between',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: '14px'
+          }}>
+            <span>100</span>
+            <span>50</span>
+            <span>0</span>
+          </div>
+          
+          {/* Baseline Line */}
+          <div style={{ 
+            position: 'absolute', 
+            left: 0, 
+            right: '48px',
+            height: '4px',
+            background: 'linear-gradient(to right, #FFA726, #FFB74D)',
+            borderRadius: '9999px',
+            zIndex: 10,
+            top: `${baselinePosition}%`
+          }} />
+          
+          {/* Bars Container */}
+          <div style={{ 
+            position: 'absolute', 
+            inset: 0,
+            right: '48px',
+            display: 'flex', 
+            alignItems: 'flex-end', 
+            justifyContent: 'space-around', 
+            gap: '8px'
+          }}>
+            {weekData.map((value, index) => {
+              const barHeight = getBarHeight(value);
+              console.log(`📊 Bar ${index}: value=${value}, height=${barHeight}px`);
+              return (
+                <div key={index} style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'flex-end', 
+                  justifyContent: 'center' 
+                }}>
+                  {/* Bar */}
+                  <div style={{ 
+                    width: '100%',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderTopLeftRadius: '4px',
+                    borderTopRightRadius: '4px',
+                    transition: 'all 0.3s',
+                    height: `${barHeight}px`,
+                    minHeight: '8px'
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* X-axis Day Labels - Lower position */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-around', 
+          gap: '8px', 
+          marginTop: '12px',
+          marginRight: '48px'
+        }}>
+          {days.map((day, index) => (
+            <span key={index} style={{ 
+              flex: 1, 
+              textAlign: 'center',
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontSize: '14px'
+            }}>
+              {day}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

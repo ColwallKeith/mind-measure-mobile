@@ -2,16 +2,14 @@ import { useState, useEffect, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowRight } from 'lucide-react';
-// Using your actual student images from public/images/
-import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
-
-// Move constants OUTSIDE component to prevent re-creation on every render
-const student1 = "https://app.mindmeasure.co.uk/images/student1.png";
-const student2 = "https://app.mindmeasure.co.uk/images/student2.png";
-const student3 = "https://app.mindmeasure.co.uk/images/student3.png";
-const student4 = "https://app.mindmeasure.co.uk/images/student4.png";
-const student5 = "https://app.mindmeasure.co.uk/images/student5.png";
-const student6 = "https://app.mindmeasure.co.uk/images/student6.png";
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
+// Mind Measure student images
+import student1 from '@/assets/068152bfc12d21732b8aeafbd4eab27fa36c38dd.png';
+import student2 from '@/assets/09faec71f9d3802be7219825a1035943a576793f.png';
+import student3 from '@/assets/57232a2e8f77967ba1ae01ab3f5468b0c102a4b8.png';
+import student4 from '@/assets/a5ec0d9266e5c8d1d4ca0c6daf9753d43ff512ff.png';
+import student5 from '@/assets/bb827a19515889bb062d58859b831662378c36cb.png';
+import student6 from '@/assets/d0f6eaab8491562aeb8c3df2cfcd2c6a20b00e1e.png';
 
 const taglineWords = ['Measure', 'Monitor', 'Manage'];
 

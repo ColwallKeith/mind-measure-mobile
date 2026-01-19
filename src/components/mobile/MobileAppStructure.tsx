@@ -1,37 +1,106 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Preferences } from '@capacitor/preferences';
+import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { CheckInWelcome } from './CheckInWelcome';
-import { CheckinAssessment } from './CheckinAssessment';
+import { CheckinAssessmentSDK } from './CheckinAssessmentSDK';
 import { HelpScreen } from './HelpPage';
-import { MobileBuddies } from './MobileBuddies';
+import { SupportCircle } from './SupportCircle';
 import { MobileProfile } from './MobileProfile';
+import { ContentPage } from './ContentPage';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
 import { EmailVerificationScreen } from "./EmailVerificationScreen";
+import { EmailLookupScreen } from "./EmailLookupScreen";
 import { SignInScreen } from "./SignInScreen";
+import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessmentSDK } from './BaselineAssessmentSDK';
 import { SplashScreen } from './LandingPage';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Device user data management helpers
+const saveUserToDevice = async (userId: string, baselineCompleted: boolean = false) => {
+  try {
+    const userData = {
+      userId,
+      baselineCompleted,
+      lastLogin: Date.now(),
+      savedAt: new Date().toISOString()
+    };
+    console.log('💾 Saving user data to device:', userData);
+    await Preferences.set({
+      key: 'mindmeasure_user',
+      value: JSON.stringify(userData)
+    });
+    
+    // Verify it was saved
+    const { value } = await Preferences.get({ key: 'mindmeasure_user' });
+    console.log('🔍 Verification read after save:', value);
+    console.log('✅ User data saved successfully to device');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to save user data to device:', error);
+    return false;
+  }
+};
+
+const markBaselineComplete = async () => {
+  try {
+    console.log('🎯 Marking baseline complete...');
+    const { value } = await Preferences.get({ key: 'mindmeasure_user' });
+    if (value) {
+      const userData = JSON.parse(value);
+      userData.baselineCompleted = true;
+      userData.baselineCompletedAt = new Date().toISOString();
+      await Preferences.set({
+        key: 'mindmeasure_user',
+        value: JSON.stringify(userData)
+      });
+      
+      // Verify
+      const { value: newValue } = await Preferences.get({ key: 'mindmeasure_user' });
+      console.log('🔍 Verification after baseline complete:', newValue);
+      console.log('✅ Baseline completion marked on device');
+      return true;
+    }
+  } catch (error) {
+    console.error('❌ Failed to mark baseline complete:', error);
+  }
+  return false;
+};
 import {
   Home,
-  Heart,
-  TrendingUp,
-  HelpCircle,
+  BookOpen,
+  User,
   Users
 } from 'lucide-react';
-type MobileTab = 'dashboard' | 'checkin' | 'buddies' | 'help';
-type Screen = MobileTab | 'profile' | 'settings' | 'checkin_welcome' | 'checkin_assessment';
-type OnboardingScreen = 'splash' | 'registration' | 'email_verification' | 'sign_in' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
+type MobileTab = 'dashboard' | 'content' | 'buddies' | 'profile';
+type Screen = MobileTab | 'settings' | 'checkin_welcome' | 'checkin_assessment';
+type OnboardingScreen = 'splash' | 'name_entry' | 'email_lookup' | 'registration' | 'email_verification' | 'sign_in' | 'forgot_password' | 'baseline_welcome' | 'returning_splash' | 'baseline_assessment';
+
+type BaselineReturnContext = 'dashboard' | 'export_data';
+
 export const MobileAppStructure: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MobileTab>('dashboard');
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
   const [onboardingScreen, setOnboardingScreen] = useState<OnboardingScreen | null>(null);
+  const [baselineReturnContext, setBaselineReturnContext] = useState<BaselineReturnContext>('dashboard');
+  const baselineReturnContextRef = useRef<BaselineReturnContext>('dashboard');
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [pendingPassword, setPendingPassword] = useState<string | null>(null);
+  const [pendingFirstName, setPendingFirstName] = useState<string>('');
+  const [pendingLastName, setPendingLastName] = useState<string>('');
+  const [deviceUserData, setDeviceUserData] = useState<any>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    baselineReturnContextRef.current = baselineReturnContext;
+    console.log('🔄 baselineReturnContext updated to:', baselineReturnContext);
+  }, [baselineReturnContext]);
   
   useEffect(() => {
     console.log('🔄 Onboarding screen changed to:', onboardingScreen);
@@ -40,6 +109,28 @@ export const MobileAppStructure: React.FC = () => {
   const [hasCompletedInitialSplash, setHasCompletedInitialSplash] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const { hasAssessmentHistory, loading: historyLoading } = useUserAssessmentHistory();
+  
+  // Check device preferences on mount to determine if this is a returning user
+  useEffect(() => {
+    const checkDeviceUser = async () => {
+      try {
+        console.log('📱 Checking device preferences for returning user...');
+        const { value } = await Preferences.get({ key: 'mindmeasure_user' });
+        if (value) {
+          const userData = JSON.parse(value);
+          console.log('👤 Found device user data:', userData);
+          setDeviceUserData(userData);
+        } else {
+          console.log('🆕 No device user data found - new user');
+          setDeviceUserData(null);
+        }
+      } catch (error) {
+        console.error('❌ Error reading device preferences:', error);
+        setDeviceUserData(null);
+      }
+    };
+    checkDeviceUser();
+  }, []);
   
   // Simple logic: Always show returning splash on launch, then route after 5 seconds
   useEffect(() => {
@@ -76,7 +167,7 @@ export const MobileAppStructure: React.FC = () => {
       setCurrentScreen('dashboard');
       setActiveTab('dashboard');
     } else {
-      console.log('🎯 User needs baseline - showing baseline welcome');
+      console.log('🎯 Returning user without history - showing baseline welcome');
       setOnboardingScreen('baseline_welcome');
     }
   }, [user, hasAssessmentHistory]);
@@ -102,9 +193,16 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('registration');
   }, []);
 
-  const handleSignInComplete = useCallback(() => {
-    console.log('✅ Sign in successful - going to baseline welcome');
-    setOnboardingScreen('baseline_welcome');
+  const handleSignInComplete = useCallback(async (userId: string) => {
+    console.log('✅ Sign in successful - received userId:', userId);
+    
+    // Save user to device
+    console.log('💾 Saving signed-in user to device:', userId);
+    await saveUserToDevice(userId, false); // baselineCompleted = false
+    
+    // Let the useEffect hook (lines 160-173) handle routing based on hasAssessmentHistory
+    // It will check assessment history and route to dashboard or baseline welcome
+    console.log('🔄 Sign-in complete - letting useEffect handle routing based on assessment history');
   }, []);
 
   const handleBaselineStart = useCallback(() => {
@@ -112,12 +210,28 @@ export const MobileAppStructure: React.FC = () => {
     setOnboardingScreen('baseline_assessment');
   }, []);
 
-  const handleBaselineComplete = useCallback(() => {
-    console.log('✅ Baseline complete - going to dashboard');
+  const handleBaselineComplete = async () => {
+    console.log('✅ Baseline complete - marking on device');
+    console.log('🔍 Current baselineReturnContext (ref):', baselineReturnContextRef.current);
+    console.log('🔍 Current baselineReturnContext (state):', baselineReturnContext);
+    
+    // CRITICAL: Mark baseline as complete on device
+    await markBaselineComplete();
+    
     setOnboardingScreen(null);
-    setCurrentScreen('dashboard');
-    setActiveTab('dashboard');
-  }, []);
+    
+    // Use the ref value which is always current
+    if (baselineReturnContextRef.current === 'export_data') {
+      console.log('📊 Baseline completed from export flow - returning to profile with auto-export');
+      setCurrentScreen('profile');
+      setActiveTab('profile');
+      // Don't reset context yet - we'll use it to trigger auto-export
+    } else {
+      console.log('🏠 Baseline completed from normal flow - going to dashboard');
+      setCurrentScreen('dashboard');
+      setActiveTab('dashboard');
+    }
+  };
 
   const handleTabChange = useCallback((tab: MobileTab) => {
     setActiveTab(tab);
@@ -138,9 +252,9 @@ export const MobileAppStructure: React.FC = () => {
 
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: Home },
-    { id: 'checkin', label: 'Check-in', icon: Heart },
+    { id: 'content', label: 'Content', icon: BookOpen },
     { id: 'buddies', label: 'Buddies', icon: Users },
-    { id: 'help', label: 'Help', icon: HelpCircle },
+    { id: 'profile', label: 'Profile', icon: User },
   ];
 
   const renderContent = () => {
@@ -201,7 +315,7 @@ export const MobileAppStructure: React.FC = () => {
         return <CheckInWelcome userName={firstName} onStartCheckIn={() => setCurrentScreen('checkin_assessment')} />;
       case 'checkin_assessment':
         return (
-          <CheckinAssessment
+          <CheckinAssessmentSDK
             onBack={() => setCurrentScreen('dashboard')}
             onComplete={() => {
               console.log('✅ Check-in complete');
@@ -211,11 +325,28 @@ export const MobileAppStructure: React.FC = () => {
           />
         );
       case 'buddies':
-        return <MobileBuddies />;
+        return <SupportCircle onNavigateToHelp={() => setCurrentScreen('help')} />;
+      case 'content':
+        return <ContentPage universityName="University of Worcester" />;
       case 'help':
-        return <HelpScreen />;
+        return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
-        return <MobileProfile onNavigateBack={handleNavigateBack} />;
+        const shouldAutoExport = baselineReturnContext === 'export_data';
+        console.log('🎯 Rendering profile - shouldAutoExport:', shouldAutoExport, 'context:', baselineReturnContext);
+        return <MobileProfile 
+          onNavigateBack={handleNavigateBack} 
+          onNavigateToBaseline={() => {
+            console.log('🔄 Starting baseline from export flow - setting return context to export_data');
+            setBaselineReturnContext('export_data');
+            setOnboardingScreen('baseline_welcome');
+          }}
+          autoTriggerExport={shouldAutoExport}
+          onExportTriggered={() => {
+            // Reset context AFTER export is triggered
+            console.log('✅ Export triggered - resetting context to dashboard');
+            setBaselineReturnContext('dashboard');
+          }}
+        />;
       case 'settings':
         return <MobileSettings onNavigateBack={handleNavigateBack} />;
       default:
@@ -230,31 +361,11 @@ export const MobileAppStructure: React.FC = () => {
       <div className="pb-24">
         {renderContent()}
       </div>
-      {!onboardingScreen && ['dashboard', 'checkin', 'checkin_assessment', 'buddies', 'help'].includes(currentScreen) && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-200/60 shadow-lg">
-          <div className="flex items-center justify-around px-2 py-3">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.id === activeTab;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleTabChange(item.id as MobileTab)}
-                  className={`flex flex-col items-center justify-center w-16 h-14 rounded-2xl transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
-                  }`}
-                >
-                  <Icon className={`w-6 h-6 mb-1 ${isActive ? 'text-white' : ''}`} />
-                  <span className={`text-xs font-medium ${isActive ? 'text-white' : ''}`}>
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {!onboardingScreen && ['dashboard', 'content', 'buddies', 'profile'].includes(currentScreen) && (
+        <BottomNav
+          activeView={activeTab === 'dashboard' ? 'home' : activeTab}
+          onViewChange={(view) => handleTabChange((view === 'home' ? 'dashboard' : view) as MobileTab)}
+        />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
 interface ReturningSplashScreenProps {
   onComplete: () => void;
 }

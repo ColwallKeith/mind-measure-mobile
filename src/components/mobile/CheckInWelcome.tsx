@@ -1,122 +1,302 @@
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Play, Eye, Mic, MessageCircle, Shield } from 'lucide-react';
-import mindMeasureLogo from '@/assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
+import { Eye, Mic, MessageCircle, Shield } from 'lucide-react';
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
 
 interface CheckInWelcomeProps {
-  onStartCheckIn: () => void;
-  userName: string;
+  userName?: string;
+  onStartCheckIn?: () => void;
 }
 
-export function CheckInWelcome({ onStartCheckIn, userName }: CheckInWelcomeProps) {
+export function CheckInWelcome({ userName = 'Keith', onStartCheckIn }: CheckInWelcomeProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-8">
-      {/* Header */}
-      <div className="text-center pt-8">
-        <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-          <img 
-            src={mindMeasureLogo} 
-            alt="Mind Measure" 
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <h1 className="text-3xl text-gray-900 mb-3">Welcome back, {userName}</h1>
-        <p className="text-gray-600 leading-relaxed">
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#F5F5F5',
+      padding: '20px',
+      paddingBottom: '100px'
+    }}>
+      {/* Logo & Welcome */}
+      <div style={{
+        textAlign: 'center',
+        marginBottom: '24px',
+        paddingTop: '60px'
+      }}>
+        <img 
+          src={mindMeasureLogo} 
+          alt="Mind Measure" 
+          style={{
+            width: '80px',
+            height: '80px',
+            margin: '0 auto 20px'
+          }}
+        />
+        <h1 style={{
+          fontSize: '24px',
+          fontWeight: '600',
+          color: '#1a1a1a',
+          margin: '0 0 8px 0',
+          lineHeight: '1.2'
+        }}>
+          Welcome back, {userName}
+        </h1>
+        <p style={{
+          fontSize: '15px',
+          color: '#666666',
+          margin: 0,
+          lineHeight: '1.5'
+        }}>
           Ready for your daily mental wellness check-in?
         </p>
       </div>
 
       {/* Start Check-in Button */}
-      <div className="text-center space-y-4">
-        <Button 
-          onClick={onStartCheckIn}
-          className="w-full h-16 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 border-0 shadow-2xl text-lg backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 rounded-2xl"
-        >
-          <Play className="w-6 h-6 mr-3" />
-          Start Check-in with Jodie
-        </Button>
-        <p className="text-gray-500 text-sm">
-          Find a quiet, comfortable space where you can speak freely
-        </p>
-      </div>
+      <button
+        onClick={onStartCheckIn}
+        style={{
+          width: '100%',
+          padding: '16px',
+          background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '12px',
+          fontSize: '16px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          transition: 'all 0.2s',
+          marginBottom: '12px'
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Start Check-in
+      </button>
 
-      {/* What to Expect */}
-      <div className="space-y-4">
-        <h3 className="text-gray-900 text-center">What to Expect</h3>
-        <div className="space-y-3">
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-blue-50/70 p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center backdrop-blur-xl">
-                <Eye className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-blue-900 mb-1">Visual Analysis</h4>
-                <p className="text-blue-700 text-sm">Facial expression insights</p>
-              </div>
-            </div>
-          </Card>
+      {/* Helper Text */}
+      <p style={{
+        fontSize: '13px',
+        color: '#999999',
+        textAlign: 'center',
+        margin: '0 0 32px 0',
+        lineHeight: '1.5'
+      }}>
+        Find a quiet, comfortable space where you can speak freely
+      </p>
 
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-green-50/70 p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center backdrop-blur-xl">
-                <Mic className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-green-900 mb-1">Voice Patterns</h4>
-                <p className="text-green-700 text-sm">Speech and tone analysis</p>
-              </div>
-            </div>
-          </Card>
+      {/* What to Expect Heading */}
+      <h2 style={{
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#1a1a1a',
+        margin: '0 0 16px 0',
+        textAlign: 'center'
+      }}>
+        What to Expect
+      </h2>
 
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-purple-50/70 p-5">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-2xl flex items-center justify-center backdrop-blur-xl">
-                <MessageCircle className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-purple-900 mb-1">Conversation</h4>
-                <p className="text-purple-700 text-sm">Natural dialogue with Jodie</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Private & Secure */}
-      <Card className="border-0 shadow-lg backdrop-blur-xl bg-indigo-50/70 p-6">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-indigo-500/20 rounded-2xl flex items-center justify-center backdrop-blur-xl flex-shrink-0">
-            <Shield className="w-6 h-6 text-indigo-600" />
+      {/* Feature Cards */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        marginBottom: '40px'
+      }}>
+        {/* Visual Analysis */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #E0F2FE, #BAE6FD)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Eye size={24} style={{ color: '#0284C7' }} />
           </div>
           <div>
-            <h4 className="text-indigo-900 mb-2">Private & Secure</h4>
-            <p className="text-indigo-700 text-sm leading-relaxed">
+            <h3 style={{
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 4px 0'
+            }}>
+              Visual Analysis
+            </h3>
+            <p style={{
+              fontSize: '13px',
+              color: '#666666',
+              margin: 0,
+              lineHeight: '1.4'
+            }}>
+              Facial expression insights
+            </p>
+          </div>
+        </div>
+
+        {/* Voice Patterns */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Mic size={24} style={{ color: '#059669' }} />
+          </div>
+          <div>
+            <h3 style={{
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 4px 0'
+            }}>
+              Voice Patterns
+            </h3>
+            <p style={{
+              fontSize: '13px',
+              color: '#666666',
+              margin: 0,
+              lineHeight: '1.4'
+            }}>
+              Speech and tone analysis
+            </p>
+          </div>
+        </div>
+
+        {/* Conversation */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #FCE7F3, #FBCFE8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <MessageCircle size={24} style={{ color: '#DB2777' }} />
+          </div>
+          <div>
+            <h3 style={{
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 4px 0'
+            }}>
+              Conversation
+            </h3>
+            <p style={{
+              fontSize: '13px',
+              color: '#666666',
+              margin: 0,
+              lineHeight: '1.4'
+            }}>
+              Natural dialogue
+            </p>
+          </div>
+        </div>
+
+        {/* Private & Secure */}
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '16px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            <Shield size={24} style={{ color: '#7C3AED' }} />
+          </div>
+          <div>
+            <h3 style={{
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 4px 0'
+            }}>
+              Private & Secure
+            </h3>
+            <p style={{
+              fontSize: '13px',
+              color: '#666666',
+              margin: 0,
+              lineHeight: '1.4'
+            }}>
               Your data is encrypted and confidential. This takes about 3 minutes.
             </p>
           </div>
         </div>
-      </Card>
-
-      {/* Mind Measure Branding */}
-      <div className="text-center space-y-6 py-8">
-        <div className="w-16 h-16 mx-auto flex items-center justify-center">
-          <img 
-            src={mindMeasureLogo} 
-            alt="Mind Measure" 
-            className="w-full h-full object-contain opacity-80"
-          />
-        </div>
-        <div>
-          <h3 className="text-gray-900 mb-3">Mind Measure</h3>
-          <p className="text-gray-600 text-sm leading-relaxed max-w-sm mx-auto">
-            Your trusted companion for understanding and measuring your mental wellbeing through intelligent conversation and analysis.
-          </p>
-        </div>
       </div>
 
-      {/* Bottom padding for navigation */}
-      <div className="h-24" />
+      {/* Footer */}
+      <div style={{
+        textAlign: 'center',
+        paddingTop: '20px'
+      }}>
+        <p style={{
+          fontSize: '18px',
+          fontWeight: '700',
+          color: '#8B5CF6',
+          margin: 0,
+          letterSpacing: '3px'
+        }}>
+          MEASURE, MONITOR, MANAGE
+        </p>
+      </div>
     </div>
   );
 }
-

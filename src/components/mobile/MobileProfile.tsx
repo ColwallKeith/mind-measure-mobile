@@ -1,550 +1,1504 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  User,
-  Mail,
-  GraduationCap,
-  Calendar,
-  TrendingUp,
-  Target,
-  Sparkles,
-  Clock,
-  Moon,
-  Dumbbell,
-  BookOpen,
-  Users,
-  Brain,
-  Coffee,
-  Smartphone,
-  Sun,
-  DollarSign,
-  Edit,
-  Download,
-  FileText,
-  Shield,
-  ChevronRight,
-  BarChart3,
-  Heart
-} from 'lucide-react';
-import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
-export function ProfileScreen() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'wellness' | 'institutional'>('overview');
+import { useState, useEffect } from 'react';
+import { Download, Edit2 } from 'lucide-react';
+import { Select } from './Select';
+import { MoodTrendChart } from './MoodTrendChart';
+import { KeyThemes, type ThemeData } from './KeyThemes';
+import { useAuth } from '@/contexts/AuthContext';
+import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
+import { cognitoApiClient } from '@/services/cognito-api-client';
+import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
+
+type TabType = 'overview' | 'details' | 'wellness';
+
+interface UserData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  institution: string;
+  institutionLogo: string;
+  accountType: string;
+  ageRange: string;
+  gender: string;
+  school: string;
+  yearOfStudy: string;
+  course: string;
+  studyMode: string;
+  livingArrangement: string;
+  accommodationName: string;
+  domicileStatus: string;
+  firstGenStudent: boolean;
+  caringResponsibilities: boolean;
+  currentStreak: number;
+  longestStreak: number;
+  totalCheckIns: number;
+  averageScore: number | null;
+}
+
+interface UniversityData {
+  id: string;
+  name: string;
+  logo?: string;
+  schools: Array<{ name: string; studentCount?: number }>;
+  halls_of_residence?: Array<{ name: string }>;
+}
+
+interface MobileProfileProps {
+  onNavigateBack?: () => void;
+  onNavigateToBaseline?: () => void;
+  autoTriggerExport?: boolean;
+  onExportTriggered?: () => void;
+}
+
+export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTriggerExport = false, onExportTriggered }: MobileProfileProps) {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('wellness'); // Start on wellness if auto-triggering
   const [isEditing, setIsEditing] = useState(false);
-  // User data
-  const [userData, setUserData] = useState({
-    firstName: 'Alex',
-    lastName: 'Johnson',
-    email: 'alex.johnson@worc.ac.uk',
-    course: 'Social Sciences',
-    yearOfStudy: 'Year 2',
-    studyMode: 'Full-time',
-    residence: 'On Campus',
-    domicile: 'Home'
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [universityData, setUniversityData] = useState<UniversityData | null>(null);
+  const [schoolOptions, setSchoolOptions] = useState<string[]>([]);
+  const [hallOptions, setHallOptions] = useState<string[]>([]);
+  const [moodData, setMoodData] = useState<Array<{ date: string; score: number }>>([]);
+  const [themesData, setThemesData] = useState<ThemeData[]>([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportPeriod, setExportPeriod] = useState<14 | 30 | 90>(30);
+  const [isExporting, setIsExporting] = useState(false);
+  const [hasBaselineToday, setHasBaselineToday] = useState<boolean | null>(null);
+  const [showBaselineRequired, setShowBaselineRequired] = useState(false);
+  
+  const [userData, setUserData] = useState<UserData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    institution: 'University of Worcester',
+    institutionLogo: '',
+    accountType: 'Student',
+    ageRange: '',
+    gender: '',
+    school: '',
+    yearOfStudy: '',
+    course: '',
+    studyMode: '',
+    livingArrangement: '',
+    accommodationName: '',
+    domicileStatus: '',
+    firstGenStudent: false,
+    caringResponsibilities: false,
+    currentStreak: 0,
+    longestStreak: 0,
+    totalCheckIns: 0,
+    averageScore: null
   });
-  // Wellness stats
-  const wellnessStats = {
-    currentStreak: 7,
-    longestStreak: 23,
-    totalCheckIns: 45,
-    averageScore: 72,
-    moodTrend: 'Improving',
-    topThemes: ['academic pressure', 'social connections', 'exercise', 'sleep']
+
+  // Auto-trigger export after completing baseline
+  useEffect(() => {
+    if (autoTriggerExport && user && !isLoading) {
+      console.log('🚀 Auto-triggering export after baseline completion');
+      // Switch to wellness tab
+      setActiveTab('wellness');
+      // Open export modal after a short delay
+      setTimeout(() => {
+        handleExportData();
+        // Notify parent that export was triggered
+        if (onExportTriggered) {
+          onExportTriggered();
+        }
+      }, 500);
+    }
+  }, [autoTriggerExport, user, isLoading]);
+
+  // Fetch user profile data
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+
+      // Fetch profile data
+      const profileResponse = await backendService.database.select('profiles', {
+        filters: { user_id: user.id }
+      });
+
+      if (profileResponse.data && profileResponse.data.length > 0) {
+        const profile = profileResponse.data[0];
+        
+        // Fetch university data (default to Worcester for now)
+        const universityResponse = await backendService.database.select('universities', {
+          filters: { name: 'University of Worcester' }
+        });
+
+        let uniData: UniversityData | null = null;
+        let schools: string[] = [];
+        let halls: string[] = [];
+
+        if (universityResponse.data && universityResponse.data.length > 0) {
+          const uni = universityResponse.data[0];
+          uniData = {
+            id: uni.id,
+            name: uni.name,
+            logo: uni.logo,
+            schools: uni.schools || [],
+            halls_of_residence: uni.halls_of_residence || []
+          };
+
+          // Extract school names for dropdown
+          schools = (uni.schools || []).map((s: any) => s.name);
+          
+          // Extract hall names for dropdown
+          halls = (uni.halls_of_residence || []).map((h: any) => h.name);
+          
+          setUniversityData(uniData);
+          setSchoolOptions(schools);
+          setHallOptions(halls);
+        }
+        
+        // Fetch wellness stats and mood scores from fusion_outputs
+        const sessionsResponse = await backendService.database.select('fusion_outputs', {
+          filters: { user_id: user.id },
+          orderBy: [{ column: 'created_at', ascending: false }],
+          select: 'id, user_id, final_score, analysis, created_at'
+        });
+
+        const sessions = sessionsResponse.data || [];
+        
+        console.log('📊 Sessions fetched:', sessions.length);
+        if (sessions.length > 0) {
+          console.log('📊 Sample session:', {
+            has_analysis: !!sessions[0].analysis,
+            analysis_type: typeof sessions[0].analysis,
+            analysis_preview: sessions[0].analysis ? JSON.stringify(sessions[0].analysis).substring(0, 100) : 'null'
+          });
+        }
+        
+        const totalCheckIns = sessions.length;
+        
+        // Calculate average score
+        const averageScore = totalCheckIns > 0
+          ? Math.round(sessions.reduce((sum: number, s: any) => sum + (s.final_score || 0), 0) / totalCheckIns)
+          : null;
+
+        // Calculate current streak
+        const currentStreak = calculateCurrentStreak(sessions);
+
+        // Extract mood scores from sessions
+        // The analysis field contains the moodScore
+        const moodScores = sessions
+          .map((session: any) => {
+            try {
+              // Analysis might be in the session already or need to be parsed
+              const analysis = typeof session.analysis === 'string'
+                ? JSON.parse(session.analysis)
+                : session.analysis;
+              
+              const moodScore = analysis?.moodScore || analysis?.mood_score;
+              
+              if (moodScore && moodScore > 0) {
+                return {
+                  date: session.created_at,
+                  score: moodScore
+                };
+              }
+              return null;
+            } catch (e) {
+              return null;
+            }
+          })
+          .filter((item: any) => item !== null);
+
+        console.log('📊 Mood scores extracted:', moodScores.length, 'from', sessions.length, 'sessions');
+        setMoodData(moodScores);
+
+        // Extract themes from sessions
+        const themeCounts: Record<string, number> = {};
+        sessions.forEach((session: any) => {
+          try {
+            const analysis = typeof session.analysis === 'string'
+              ? JSON.parse(session.analysis)
+              : session.analysis;
+            
+            const themes = analysis?.themes || [];
+            themes.forEach((theme: string) => {
+              if (theme && typeof theme === 'string') {
+                // Capitalize first letter
+                const capitalizedTheme = theme.charAt(0).toUpperCase() + theme.slice(1);
+                themeCounts[capitalizedTheme] = (themeCounts[capitalizedTheme] || 0) + 1;
+              }
+            });
+          } catch (e) {
+            // Skip invalid analysis
+          }
+        });
+
+        // Convert to ThemeData array and sort by frequency
+        const themesArray: ThemeData[] = Object.entries(themeCounts)
+          .map(([text, value]) => ({ text, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 15); // Top 15 themes
+
+        console.log('📊 Themes extracted:', themesArray.length, 'unique themes');
+        setThemesData(themesArray);
+
+        setUserData({
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          email: profile.email || user.email || '',
+          phone: profile.phone || '',
+          institution: uniData?.name || 'University of Worcester',
+          institutionLogo: uniData?.logo || '',
+          accountType: 'Student',
+          ageRange: profile.age_range || '',
+          gender: profile.gender || '',
+          school: profile.school || '',
+          yearOfStudy: profile.year_of_study || '',
+          course: profile.course || '',
+          studyMode: profile.study_mode || '',
+          livingArrangement: profile.living_situation || '',
+          accommodationName: profile.hall_of_residence || '',
+          domicileStatus: profile.domicile || '',
+          firstGenStudent: profile.is_first_generation || false,
+          caringResponsibilities: profile.has_caring_responsibilities || false,
+          currentStreak,
+          longestStreak: currentStreak, // TODO: Track longest streak separately
+          totalCheckIns,
+          averageScore
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
-  // Additional tracking metrics that students might want
-  const trackingMetrics = [
-    { icon: Moon, label: 'Sleep Quality', value: '7.2/10', trend: '+0.3', color: 'purple' },
-    { icon: Dumbbell, label: 'Exercise Frequency', value: '4x/week', trend: '+1', color: 'green' },
-    { icon: BookOpen, label: 'Study Hours', value: '32h/week', trend: '-2h', color: 'blue' },
-    { icon: Users, label: 'Social Activities', value: '3x/week', trend: '+1', color: 'pink' },
-    { icon: Brain, label: 'Focus Level', value: '6.8/10', trend: '+0.5', color: 'indigo' },
-    { icon: Coffee, label: 'Caffeine Intake', value: '2 cups/day', trend: '-1', color: 'amber' },
-    { icon: Smartphone, label: 'Screen Time', value: '5.2h/day', trend: '-0.8h', color: 'red' },
-    { icon: Sun, label: 'Outdoor Time', value: '1.5h/day', trend: '+0.3h', color: 'orange' },
-    { icon: DollarSign, label: 'Financial Stress', value: '4/10', trend: '-1', color: 'emerald' }
-  ];
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0]}${lastName[0]}`;
+
+  // Calculate current streak from check-in dates
+  const calculateCurrentStreak = (sessions: any[]): number => {
+    if (sessions.length === 0) return 0;
+
+    // Sort by date descending
+    const sortedSessions = [...sessions].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let streak = 0;
+    let checkDate = new Date(today);
+
+    for (const session of sortedSessions) {
+      const sessionDate = new Date(session.created_at);
+      sessionDate.setHours(0, 0, 0, 0);
+
+      const daysDiff = Math.floor((checkDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysDiff === 0 || daysDiff === 1) {
+        // Same day or consecutive day
+        if (daysDiff === 1) {
+          streak++;
+          checkDate = new Date(sessionDate);
+        }
+      } else {
+        // Streak broken
+        break;
+      }
+    }
+
+    return streak;
   };
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'from-green-400 to-emerald-500';
-    if (score >= 60) return 'from-blue-400 to-cyan-500';
-    if (score >= 40) return 'from-amber-400 to-orange-500';
-    return 'from-red-400 to-rose-500';
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    try {
+      setIsSaving(true);
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+
+      await backendService.database.update({
+        table: 'profiles',
+        filters: { user_id: user.id },
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone: userData.phone,
+          age_range: userData.ageRange,
+          gender: userData.gender,
+          school: userData.school,
+          year_of_study: userData.yearOfStudy,
+          course: userData.course,
+          study_mode: userData.studyMode,
+          living_situation: userData.livingArrangement,
+          hall_of_residence: userData.accommodationName,
+          domicile: userData.domicileStatus,
+          is_first_generation: userData.firstGenStudent,
+          has_caring_responsibilities: userData.caringResponsibilities
+        }
+      });
+
+      setIsEditing(false);
+      console.log('✅ Profile saved successfully');
+    } catch (error) {
+      console.error('❌ Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
-  const TabButton = ({ tab, label, isActive, onClick }: {
-    tab: string;
-    label: string;
-    isActive: boolean;
-    onClick: () => void;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm ${
-        isActive
-          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-          : 'bg-white/60 text-gray-600 hover:bg-white/80'
-      }`}
-    >
-      {label}
-    </button>
-  );
+
+  // Check if user has completed baseline today
+  const checkBaselineToday = async () => {
+    if (!user?.id) {
+      console.log('[Baseline Check] No user ID');
+      return false;
+    }
+
+    try {
+      const backendService = BackendServiceFactory.createService(
+        BackendServiceFactory.getEnvironmentConfig()
+      );
+      
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      console.log('[Baseline Check] Checking for baseline on date:', today);
+      
+      const response = await backendService.database.select('fusion_outputs', {
+        filters: { 
+          user_id: user.id,
+        },
+        orderBy: [{ column: 'created_at', ascending: false }],
+        limit: 10 // Check last 10 entries
+      });
+
+      console.log('[Baseline Check] Found sessions:', response.data?.length);
+
+      if (response.data && response.data.length > 0) {
+        // Check if any are baselines from today
+        const baselineToday = response.data.find((session: any) => {
+          const sessionDate = new Date(session.created_at).toISOString().split('T')[0];
+          const isBaseline = session.analysis?.assessment_type === 'baseline';
+          console.log('[Baseline Check] Session:', sessionDate, 'isBaseline:', isBaseline, 'matches today:', sessionDate === today);
+          return isBaseline && sessionDate === today;
+        });
+        
+        console.log('[Baseline Check] Has baseline today:', !!baselineToday);
+        return !!baselineToday;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking baseline:', error);
+      return false;
+    }
+  };
+
+  const handleExportData = async () => {
+    console.log('[Export Flow] Starting export data check...');
+    const hasBaseline = await checkBaselineToday();
+    console.log('[Export Flow] Has baseline today?', hasBaseline);
+    setHasBaselineToday(hasBaseline);
+    
+    if (!hasBaseline) {
+      console.log('[Export Flow] No baseline - showing requirement modal');
+      setShowBaselineRequired(true);
+    } else {
+      console.log('[Export Flow] Has baseline - showing export modal');
+      setShowExportModal(true);
+    }
+  };
+
+  const handleConfirmExport = async () => {
+    if (!user) return;
+
+    try {
+      setIsExporting(true);
+
+      console.log('[MobileProfile] Generating report with periodDays:', exportPeriod);
+
+      // Get JWT token for authentication
+      const idToken = await cognitoApiClient.getIdToken();
+      if (!idToken) {
+        console.error('[MobileProfile] No authentication token available');
+        alert('Authentication required. Please sign in again.');
+        return;
+      }
+
+      // Call the report generation API with authentication
+      const response = await fetch('https://admin.mindmeasure.co.uk/api/reports/generate', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          userEmail: user.email,
+          userName: userData.firstName || 'there',
+          periodDays: exportPeriod
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('[Export] API returned error:', errorData);
+        console.error('[Export] Status code:', response.status);
+        
+        if (errorData.error === 'Baseline required') {
+          // Show baseline required modal
+          setShowExportModal(false);
+          setShowBaselineRequired(true);
+          return;
+        }
+        throw new Error(errorData.message || errorData.error || 'Failed to generate report');
+      }
+
+      const data = await response.json();
+      console.log('[Export] Report generated successfully:', data);
+
+      setShowExportModal(false);
+      alert(`Report generated successfully!\n\nWe've sent an email to ${user.email} with a link to view your report.\n\nCheck your inbox (and spam folder).`);
+    } catch (error) {
+      console.error('[Export] Full error object:', error);
+      console.error('[Export] Error message:', error instanceof Error ? error.message : String(error));
+      alert(`Failed to generate report. Please try again.\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#F5F5F5',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ fontSize: '14px', color: '#999999' }}>Loading profile...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-50 px-6 py-8 space-y-6">
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#F5F5F5',
+      paddingBottom: '80px' // Space for bottom nav
+    }}>
       {/* Header */}
-      <div className="pt-8">
-        <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-          <img
-            src={mindMeasureLogo}
-            alt="Mind Measure"
-            className="w-full h-full object-contain opacity-80"
-          />
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        padding: '72px 20px 24px 20px',
+        borderBottom: '1px solid #F0F0F0'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          marginBottom: '20px'
+        }}>
+          {/* University Logo */}
+          {userData.institutionLogo ? (
+            <img
+              src={userData.institutionLogo}
+              alt={userData.institution}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                flexShrink: 0,
+                border: '1px solid #E0E0E0',
+                padding: '4px',
+                backgroundColor: 'white'
+              }}
+            />
+          ) : (
+            <img
+              src={mindMeasureLogo}
+              alt="Logo"
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                flexShrink: 0
+              }}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ 
+              fontSize: '20px', 
+              fontWeight: '600', 
+              color: '#1a1a1a',
+              marginBottom: '2px',
+              lineHeight: '1.2'
+            }}>
+              {userData.firstName} {userData.lastName}
+            </div>
+            <div style={{ 
+              fontSize: '13px', 
+              color: '#999999',
+              marginBottom: '2px'
+            }}>
+              {userData.institution || 'No institution'}
+            </div>
+            <div style={{ 
+              fontSize: '13px', 
+              color: '#666666'
+            }}>
+              {userData.email}
+            </div>
+          </div>
         </div>
-        <h1 className="text-gray-900 text-center mb-2 text-lg">Your Profile</h1>
-        <p className="text-gray-600 text-sm text-center">Your wellness journey & institutional info</p>
+
+        {/* Tabs */}
+        <div style={{
+          display: 'flex',
+          gap: '8px'
+        }}>
+          <button
+            onClick={() => setActiveTab('overview')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'overview' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'overview' ? 'white' : '#666666'
+            }}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('details')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'details' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'details' ? 'white' : '#666666'
+            }}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => setActiveTab('wellness')}
+            style={{
+              flex: 1,
+              padding: '10px 16px',
+              borderRadius: '12px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'wellness' 
+                ? 'linear-gradient(135deg, #5B8FED, #6BA3FF)' 
+                : '#F5F5F5',
+              color: activeTab === 'wellness' ? 'white' : '#666666'
+            }}
+          >
+            Wellness
+          </button>
+        </div>
       </div>
-      {/* User Profile Card */}
-      <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-blue-50/80 to-purple-50/80 p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white shadow-lg">
-            <div className="text-lg">
-              {getInitials(userData.firstName, userData.lastName)}
+
+      {/* Tab Content */}
+      <div style={{ padding: '20px' }}>
+        {activeTab === 'overview' && (
+          <div>
+            {/* Stats Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '12px', 
+              marginBottom: '16px' 
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.currentStreak}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Day Streak
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.averageScore ?? '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Avg Score
+                </div>
+              </div>
             </div>
+
+            {/* Mood Trend Card */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px'
+              }}>
+                <span style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a' }}>
+                  Mood Trend
+                </span>
+              </div>
+              <MoodTrendChart data={moodData} />
+            </div>
+
+            {/* Key Themes Card */}
+            <KeyThemes 
+              themes={themesData.length > 0 ? themesData : undefined}
+              title="Your Key Themes"
+              subtitle={themesData.length > 0 ? `From ${userData.totalCheckIns} check-ins` : 'Top themes'}
+              height="240px"
+            />
           </div>
-          <div className="flex-1">
-            <h3 className="text-gray-900 mb-1 text-sm">{userData.firstName} {userData.lastName}</h3>
-            <p className="text-gray-600 text-sm mb-2">{userData.email}</p>
-            <div className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-blue-500" />
-              <span className="text-blue-700 text-sm">{userData.course}</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-      {/* Tab Navigation */}
-      <div className="flex gap-2 p-1 bg-white/60 rounded-xl backdrop-blur-sm">
-        <TabButton
-          tab="overview"
-          label="Overview"
-          isActive={activeTab === 'overview'}
-          onClick={() => setActiveTab('overview')}
-        />
-        <TabButton
-          tab="wellness"
-          label="Wellness"
-          isActive={activeTab === 'wellness'}
-          onClick={() => setActiveTab('wellness')}
-        />
-        <TabButton
-          tab="institutional"
-          label="Institutional"
-          isActive={activeTab === 'institutional'}
-          onClick={() => setActiveTab('institutional')}
-        />
-      </div>
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Key Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-green-50/80 to-blue-50/80 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center">
-                  <Target className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-xl text-green-900">{wellnessStats.currentStreak}</div>
-                  <div className="text-green-700 text-sm">Day Streak</div>
-                </div>
+        )}
+
+        {activeTab === 'details' && (
+          <div>
+            {/* Your Information Section */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '16px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '24px'
+              }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', margin: 0 }}>
+                  Your Information
+                </h2>
+                <button
+                  onClick={() => isEditing ? handleSaveProfile() : setIsEditing(true)}
+                  disabled={isSaving}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    border: '1px solid #E0E0E0',
+                    borderRadius: '8px',
+                    background: 'white',
+                    color: '#1a1a1a',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: isSaving ? 'default' : 'pointer',
+                    opacity: isSaving ? 0.6 : 1
+                  }}
+                >
+                  <Edit2 size={14} />
+                  {isSaving ? 'Saving...' : isEditing ? 'Save' : 'Edit'}
+                </button>
               </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-blue-50/80 to-purple-50/80 p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-xl text-blue-900">{wellnessStats.averageScore}</div>
-                  <div className="text-blue-700 text-sm">Avg Score</div>
-                </div>
-              </div>
-            </Card>
-          </div>
-          {/* Top Wellness Themes */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              <h3 className="text-gray-900 text-sm">Your Top Wellness Themes</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {wellnessStats.topThemes.map((theme, index) => (
-                <Badge key={index} className="bg-purple-100 text-purple-700 border-0">
-                  {theme}
-                </Badge>
-              ))}
-            </div>
-          </Card>
-          {/* Mood Trend */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                <h3 className="text-gray-900 text-sm">Mood Trend</h3>
-              </div>
-              <Badge className="bg-green-100 text-green-700 border-0">
-                {wellnessStats.moodTrend}
-              </Badge>
-            </div>
-            <p className="text-gray-600 text-sm">Based on your last 10 check-ins</p>
-          </Card>
-          {/* AI Wellness Report Preview */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br from-purple-50/80 to-pink-50/80 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Brain className="w-5 h-5 text-purple-600" />
-                <h3 className="text-purple-900 text-sm">AI Wellness Report</h3>
-              </div>
-              <Badge className="bg-purple-100 text-purple-700 border-0 text-xs">
-                Updated 2025-01-25
-              </Badge>
-            </div>
-            <p className="text-purple-800 text-sm mb-4">
-              Over the past 3 months, you've shown consistent improvement in managing academic stress through regular exercise and maintaining social connections. Your sleep patterns have stabilized, contributing to better overall wellbeing.
-            </p>
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white w-full">
-              <FileText className="w-4 h-4 mr-2" />
-              View Full Report
-            </Button>
-          </Card>
-        </div>
-      )}
-      {/* Wellness Tab */}
-      {activeTab === 'wellness' && (
-        <div className="space-y-6">
-          {/* Wellness Stats Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-blue-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-blue-900">{wellnessStats.currentStreak}</div>
-                <div className="text-blue-700 text-sm">Current Streak</div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-green-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-green-900">{wellnessStats.longestStreak}</div>
-                <div className="text-green-700 text-sm">Longest Streak</div>
-              </div>
-            </Card>
-            <Card className="border-0 shadow-lg backdrop-blur-xl bg-purple-50/70 p-4">
-              <div className="text-center">
-                <div className="text-lg text-purple-900">{wellnessStats.totalCheckIns}</div>
-                <div className="text-purple-700 text-sm">Total Check-ins</div>
-              </div>
-            </Card>
-            <Card className={`border-0 shadow-lg backdrop-blur-xl bg-gradient-to-br ${getScoreColor(wellnessStats.averageScore)}/20 p-4`}>
-              <div className="text-center">
-                <div className="text-lg text-gray-900">{wellnessStats.averageScore}</div>
-                <div className="text-gray-700 text-sm">Average Score</div>
-              </div>
-            </Card>
-          </div>
-          {/* Detailed Tracking Metrics */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <h3 className="text-gray-900 mb-4 text-sm">Your Wellbeing Metrics</h3>
-            <Accordion type="single" collapsible>
-              <AccordionItem value="lifestyle">
-                <AccordionTrigger className="text-gray-800">
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-red-500" />
-                    Lifestyle & Health
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-3 pt-2">
-                    {trackingMetrics.slice(0, 3).map((metric, index) => {
-                      const Icon = metric.icon;
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50/60 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 bg-${metric.color}-100 rounded-full flex items-center justify-center`}>
-                              <Icon className={`w-4 h-4 text-${metric.color}-600`} />
-                            </div>
-                            <span className="text-gray-700">{metric.label}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-gray-900">{metric.value}</div>
-                            <div className={`text-xs ${metric.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                              {metric.trend}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="academic">
-                <AccordionTrigger className="text-gray-800">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-blue-500" />
-                    Academic & Social
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-3 pt-2">
-                    {trackingMetrics.slice(3, 6).map((metric, index) => {
-                      const Icon = metric.icon;
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50/60 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 bg-${metric.color}-100 rounded-full flex items-center justify-center`}>
-                              <Icon className={`w-4 h-4 text-${metric.color}-600`} />
-                            </div>
-                            <span className="text-gray-700">{metric.label}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-gray-900">{metric.value}</div>
-                            <div className={`text-xs ${metric.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                              {metric.trend}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="digital">
-                <AccordionTrigger className="text-gray-800">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-purple-500" />
-                    Digital & Environmental
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-3 pt-2">
-                    {trackingMetrics.slice(6).map((metric, index) => {
-                      const Icon = metric.icon;
-                      return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50/60 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 bg-${metric.color}-100 rounded-full flex items-center justify-center`}>
-                              <Icon className={`w-4 h-4 text-${metric.color}-600`} />
-                            </div>
-                            <span className="text-gray-700">{metric.label}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-gray-900">{metric.value}</div>
-                            <div className={`text-xs ${metric.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                              {metric.trend}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </Card>
-          {/* Export Data */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-green-50/70 p-6">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="text-green-900 mb-2 text-sm">This is YOUR Data</h4>
-                <div className="text-green-700 text-sm space-y-1 mb-4">
-                  <div>• Every conversation, score, and insight belongs to you</div>
-                  <div>• Use this data for personal reflection and growth</div>
-                  <div>• Share with therapists or counselors when helpful</div>
-                  <div>• Export and keep for your personal records</div>
-                </div>
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export My Data
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-      {/* Institutional Tab */}
-      {activeTab === 'institutional' && (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-white/70 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-gray-900 text-sm">Institutional Information</h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(!isEditing)}
-                className="bg-white/60 border-gray-200"
-              >
-                <Edit className="w-4 h-4 mr-1" />
-                {isEditing ? 'Save' : 'Edit'}
-              </Button>
-            </div>
-            <div className="space-y-6">
+
               {/* Personal Information */}
-              <div>
-                <h4 className="text-gray-800 mb-3 text-sm">Personal Information</h4>
-                <div className="grid grid-cols-2 gap-4">
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Personal Information
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                   <div>
-                    <Label htmlFor="firstName" className="text-gray-700">First Name</Label>
-                    <Input
-                      id="firstName"
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      First Name
+                    </label>
+                    <input
+                      type="text"
                       value={userData.firstName}
                       disabled={!isEditing}
-                      onChange={(e) => setUserData({...userData, firstName: e.target.value})}
-                      className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
+                      onChange={(e) => setUserData({ ...userData, firstName: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: '#1a1a1a',
+                        background: isEditing ? 'white' : '#FAFAFA',
+                        outline: 'none'
+                      }}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lastName" className="text-gray-700">Last Name</Label>
-                    <Input
-                      id="lastName"
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
                       value={userData.lastName}
                       disabled={!isEditing}
-                      onChange={(e) => setUserData({...userData, lastName: e.target.value})}
-                      className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}
+                      onChange={(e) => setUserData({ ...userData, lastName: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #E0E0E0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        color: '#1a1a1a',
+                        background: isEditing ? 'white' : '#FAFAFA',
+                        outline: 'none'
+                      }}
                     />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <Label htmlFor="email" className="text-gray-700">University Email</Label>
-                  <Input
-                    id="email"
-                    value={userData.email}
-                    disabled
-                    className="bg-gray-50/60 border-gray-200"
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={userData.phone}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#1a1a1a',
+                      background: isEditing ? 'white' : '#FAFAFA',
+                      outline: 'none'
+                    }}
                   />
-                  <p className="text-gray-500 text-xs mt-1">
-                    This email is used for institutional data analysis and cannot be changed
-                  </p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Age Range
+                    </label>
+                    <Select
+                      value={userData.ageRange}
+                      onChange={(value) => setUserData({ ...userData, ageRange: value })}
+                      options={['17-18', '19-21', '22-25', '26-30', '31-40', '41+']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Gender
+                    </label>
+                    <Select
+                      value={userData.gender}
+                      onChange={(value) => setUserData({ ...userData, gender: value })}
+                      options={['Female', 'Male', 'Non-binary', 'Prefer not to say', 'Other']}
+                      disabled={!isEditing}
+                    />
+                  </div>
                 </div>
               </div>
+
               {/* Academic Information */}
-              <Accordion type="single" collapsible>
-                <AccordionItem value="academic">
-                  <AccordionTrigger className="text-gray-800">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-blue-500" />
-                      Academic Information
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-4">
-                    <div className="grid gap-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="course" className="text-gray-700">Faculty/School</Label>
-                          <Select disabled={!isEditing} value={userData.course}>
-                            <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Social Sciences">Social Sciences</SelectItem>
-                              <SelectItem value="Business">Business</SelectItem>
-                              <SelectItem value="Arts">Arts</SelectItem>
-                              <SelectItem value="Sciences">Sciences</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="year" className="text-gray-700">Year of Study</Label>
-                          <Select disabled={!isEditing} value={userData.yearOfStudy}>
-                            <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Year 1">Year 1</SelectItem>
-                              <SelectItem value="Year 2">Year 2</SelectItem>
-                              <SelectItem value="Year 3">Year 3</SelectItem>
-                              <SelectItem value="Year 4">Year 4</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="studyMode" className="text-gray-700">Study Mode</Label>
-                        <Select disabled={!isEditing} value={userData.studyMode}>
-                          <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Full-time">Full-time</SelectItem>
-                            <SelectItem value="Part-time">Part-time</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="living">
-                  <AccordionTrigger className="text-gray-800">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-green-500" />
-                      Living Situation
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="residence" className="text-gray-700">Residence</Label>
-                        <Select disabled={!isEditing} value={userData.residence}>
-                          <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="On Campus">On Campus</SelectItem>
-                            <SelectItem value="Off Campus">Off Campus</SelectItem>
-                            <SelectItem value="At Home">At Home</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="domicile" className="text-gray-700">Domicile</Label>
-                        <Select disabled={!isEditing} value={userData.domicile}>
-                          <SelectTrigger className={`${isEditing ? 'bg-white' : 'bg-gray-50/60'} border-gray-200`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Home">Home</SelectItem>
-                            <SelectItem value="International">International</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </div>
-          </Card>
-          {/* Privacy Information */}
-          <Card className="border-0 shadow-lg backdrop-blur-xl bg-blue-50/70 p-6">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Academic Information
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      School / Faculty <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.school}
+                      onChange={(value) => setUserData({ ...userData, school: value })}
+                      options={schoolOptions.length > 0 ? schoolOptions : ['School of Arts and Humanities', 'Worcester Business School', 'School of Education', 'School of Health and Wellbeing', 'School of Science and the Environment', 'School of Sport and Exercise Science']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Year of Study <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.yearOfStudy}
+                      onChange={(value) => setUserData({ ...userData, yearOfStudy: value })}
+                      options={['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Postgraduate', 'Foundation']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Course / Programme
+                  </label>
+                  <input
+                    type="text"
+                    value={userData.course}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, course: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      color: '#1a1a1a',
+                      background: isEditing ? 'white' : '#FAFAFA',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                    Study Mode
+                  </label>
+                  <Select
+                    value={userData.studyMode}
+                    onChange={(value) => setUserData({ ...userData, studyMode: value })}
+                    options={['Full-time', 'Part-time', 'Distance Learning']}
+                    disabled={!isEditing}
+                  />
+                </div>
+              </div>
+
+              {/* Living Situation */}
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Living Situation
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: userData.livingArrangement === 'University Accommodation' ? '12px' : '0' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Where do you live? <span style={{ color: '#FF4444' }}>*</span>
+                    </label>
+                    <Select
+                      value={userData.livingArrangement}
+                      onChange={(value) => setUserData({ ...userData, livingArrangement: value, accommodationName: value === 'University Accommodation' ? userData.accommodationName : '' })}
+                      options={['University Accommodation', 'Off Campus - Private', 'Living at Home', 'Commuting']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Domicile Status
+                    </label>
+                    <Select
+                      value={userData.domicileStatus}
+                      onChange={(value) => setUserData({ ...userData, domicileStatus: value })}
+                      options={['Home (UK)', 'EU', 'International']}
+                      disabled={!isEditing}
+                    />
+                  </div>
+                </div>
+                {userData.livingArrangement === 'University Accommodation' && (
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#666666', marginBottom: '6px', display: 'block' }}>
+                      Name of Accommodation
+                    </label>
+                    {hallOptions.length > 0 ? (
+                      <Select
+                        value={userData.accommodationName}
+                        onChange={(value) => setUserData({ ...userData, accommodationName: value })}
+                        options={hallOptions}
+                        disabled={!isEditing}
+                        placeholder="Select hall of residence"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={userData.accommodationName}
+                        disabled={!isEditing}
+                        onChange={(e) => setUserData({ ...userData, accommodationName: e.target.value })}
+                        placeholder="e.g., Smith Hall"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #E0E0E0',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          color: '#1a1a1a',
+                          background: isEditing ? 'white' : '#FAFAFA',
+                          outline: 'none'
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Additional Information */}
               <div>
-                <h4 className="text-blue-900 mb-2 text-sm">How we use your information</h4>
-                <div className="text-blue-700 text-sm space-y-2">
-                  <div>• Your personal details are kept private and secure</div>
-                  <div>• Academic information helps universities understand student wellbeing patterns</div>
-                  <div>• Data is anonymized for institutional research and support services</div>
-                  <div>• You can update or remove your information at any time</div>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#999999',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  Additional Information
+                </div>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  marginBottom: '16px',
+                  cursor: isEditing ? 'pointer' : 'default'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={userData.firstGenStudent}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, firstGenStudent: e.target.checked })}
+                    style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: isEditing ? 'pointer' : 'default'
+                    }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500', marginBottom: '2px' }}>
+                      First generation student
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#999999' }}>
+                      First in your immediate family to attend university
+                    </div>
+                  </div>
+                </label>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  cursor: isEditing ? 'pointer' : 'default'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={userData.caringResponsibilities}
+                    disabled={!isEditing}
+                    onChange={(e) => setUserData({ ...userData, caringResponsibilities: e.target.checked })}
+                    style={{
+                      marginTop: '2px',
+                      width: '18px',
+                      height: '18px',
+                      cursor: isEditing ? 'pointer' : 'default'
+                    }}
+                  />
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500', marginBottom: '2px' }}>
+                      Caring responsibilities
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#999999' }}>
+                      You care for a family member or dependent
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Data Usage Info */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+              border: '1px solid #E8F0FE'
+            }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#5B8FED',
+                marginBottom: '12px'
+              }}>
+                How we use your information
+              </div>
+              <ul style={{
+                margin: 0,
+                paddingLeft: '20px',
+                fontSize: '12px',
+                color: '#666666',
+                lineHeight: '1.6'
+              }}>
+                <li style={{ marginBottom: '4px' }}>Your data helps us personalise your wellbeing support</li>
+                <li style={{ marginBottom: '4px' }}>Academic info enables aggregate cohort insights</li>
+                <li style={{ marginBottom: '4px' }}>All data is anonymised for institutional research</li>
+                <li>You can update or delete your information anytime</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'wellness' && (
+          <div>
+            {/* Wellness Stats */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '12px', 
+              marginBottom: '16px' 
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.currentStreak}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Current Streak
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.longestStreak}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Longest Streak
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.totalCheckIns}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Total Check-ins
+                </div>
+              </div>
+
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              }}>
+                <div style={{ 
+                  fontSize: '40px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  marginBottom: '4px',
+                  lineHeight: '1'
+                }}>
+                  {userData.averageScore ?? '-'}
+                </div>
+                <div style={{ fontSize: '13px', color: '#666666' }}>
+                  Average Score
                 </div>
               </div>
             </div>
-          </Card>
+
+            {/* Data Ownership Card */}
+            <div style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              <h3 style={{ 
+                fontSize: '18px', 
+                fontWeight: '600', 
+                color: '#1a1a1a',
+                margin: 0,
+                marginBottom: '16px'
+              }}>
+                This is YOUR Data
+              </h3>
+              <p style={{
+                margin: '0 0 20px 0',
+                fontSize: '14px',
+                color: '#666666',
+                lineHeight: '1.6'
+              }}>
+                Every conversation, score, and insight belongs to you. Use this data for personal reflection and growth, share with therapists or counsellors when helpful, and export to keep for your personal records.
+              </p>
+              <button
+                onClick={handleExportData}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '14px 24px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <Download size={18} />
+                Export My Data
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Email Wellbeing Report
+            </h3>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 20px 0',
+              lineHeight: '1.6'
+            }}>
+              We'll email a detailed wellbeing report to <strong>{user?.email}</strong> including your check-in history, scores, themes, and AI-generated summary.
+            </p>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1a1a1a',
+                display: 'block',
+                marginBottom: '12px'
+              }}>
+                Time Period
+              </label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 14 ? '#5B8FED' : '#E0E0E0'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 14 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="14"
+                    checked={exportPeriod === 14}
+                    onChange={() => setExportPeriod(14)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last 14 Days
+                  </span>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 30 ? '#5B8FED' : '#E0E0E0'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 30 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="30"
+                    checked={exportPeriod === 30}
+                    onChange={() => setExportPeriod(30)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last Month (30 Days)
+                  </span>
+                </label>
+
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px',
+                  border: `2px solid ${exportPeriod === 90 ? '#5B8FED' : '#E0E0E0'}`,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: exportPeriod === 90 ? '#F0F7FF' : 'white'
+                }}>
+                  <input
+                    type="radio"
+                    name="period"
+                    value="90"
+                    checked={exportPeriod === 90}
+                    onChange={() => setExportPeriod(90)}
+                    style={{ marginRight: '12px' }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>
+                    Last 3 Months (90 Days)
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                disabled={isExporting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isExporting ? 'default' : 'pointer',
+                  opacity: isExporting ? 0.5 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmExport}
+                disabled={isExporting}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isExporting ? 'default' : 'pointer',
+                  opacity: isExporting ? 0.7 : 1
+                }}
+              >
+                {isExporting ? 'Sending...' : 'Email Report to Me'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-      {/* Bottom padding for navigation */}
-      <div className="h-24" />
+
+      {/* Baseline Required Modal */}
+      {showBaselineRequired && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Baseline Assessment Required
+            </h3>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 16px 0',
+              lineHeight: '1.6'
+            }}>
+              To generate your wellbeing report, we need your current PHQ-2 and GAD-2 scores.
+            </p>
+
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 24px 0',
+              lineHeight: '1.6'
+            }}>
+              Please complete a fresh baseline assessment today to ensure your report reflects your current wellbeing status.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowBaselineRequired(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowBaselineRequired(false);
+                  // Navigate to baseline assessment
+                  if (onNavigateToBaseline) {
+                    onNavigateToBaseline();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #5B8FED, #6BA3FF)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Start Baseline Assessment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-// Keep the original export for compatibility
-export const MobileProfile = ProfileScreen;

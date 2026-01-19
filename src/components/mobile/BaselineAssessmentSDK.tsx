@@ -16,6 +16,7 @@ import {
 } from '../../utils/baselineScoring';
 import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
 import { BaselineEnrichmentService } from '../../services/multimodal/baseline';
+import { ConversationScreen } from './ConversationScreen';
 
 interface BaselineAssessmentSDKProps {
   onBack?: () => void;
@@ -23,9 +24,11 @@ interface BaselineAssessmentSDKProps {
 }
 
 interface Message {
-  role: 'agent' | 'user';
-  content: string;
-  timestamp: number;
+  id: string;
+  text: string;
+  sender: 'ai' | 'user';
+  timestamp: Date;
+  options?: string[];
 }
 
 export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessmentSDKProps) {
@@ -35,10 +38,21 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [processingPhase, setProcessingPhase] = useState<'extracting' | 'calculating' | 'saving'>('extracting');
+  const [processingMessage, setProcessingMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Clinical-focused processing messages for baseline (9 seconds total, 1.5s each)
+  const processingMessages = [
+    'Assessing PHQ-2 responses',
+    'Evaluating GAD-7 indicators',
+    'Analysing vocal pitch patterns',
+    'Processing facial expressions',
+    'Computing baseline wellbeing score',
+    'Finalising your baseline profile'
+  ];
   
   // Multimodal capture
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
@@ -67,9 +81,10 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
       console.log('[SDK] 📩 Message received:', message);
       
       const newMessage: Message = {
-        role: message.source === 'ai' ? 'agent' : 'user',
-        content: message.message,
-        timestamp: Date.now()
+        id: crypto.randomUUID(),
+        text: message.message,
+        sender: message.source === 'ai' ? 'ai' : 'user',
+        timestamp: new Date()
       };
       
       // Update messages for UI display
@@ -168,9 +183,17 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
   const handleFinish = async () => {
     console.log('[SDK] 🏁 Finish button clicked');
+    console.log('[SDK] 📊 Current state - isSaving:', isSaving, 'transcript length:', assessmentState.transcript.length);
+    
+    // Prevent double-clicking
+    if (isSaving) {
+      console.log('[SDK] ⚠️ Already processing, ignoring duplicate click');
+      return;
+    }
     
     // Show saving state immediately
     setIsSaving(true);
+    console.log('[SDK] ✅ Setting isSaving to true, processing overlay should appear');
     
     // Play click sound and haptics
     try {
@@ -184,26 +207,49 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
     // End the conversation
     try {
+      console.log('[SDK] 🔌 Ending ElevenLabs session...');
       await conversation.endSession();
       console.log('[SDK] ✅ Conversation ended');
     } catch (error) {
-      console.error('[SDK] Error ending conversation:', error);
+      console.error('[SDK] ❌ Error ending conversation:', error);
+      // Continue anyway - don't block on this
     }
 
     // Process assessment data (including multimodal enrichment)
-    await processAssessmentData();
+    console.log('[SDK] 📊 Starting processAssessmentData...');
+    try {
+      await processAssessmentData();
+    } catch (error) {
+      console.error('[SDK] ❌ CRITICAL ERROR in processAssessmentData:', error);
+      setIsSaving(false);
+      alert('There was an error processing your assessment. Please try again or contact support.');
+    }
   };
 
   const processAssessmentData = async () => {
     console.log('[SDK] 📊 Processing assessment data...');
 
-    // Phase 1: Extracting (3 seconds)
-    setProcessingPhase('extracting');
-
     const endedAt = Date.now();
+    
+    // Start smooth 9-second message roll (1.5s per message)
+    setProcessingPhase('extracting');
+    let messageIndex = 0;
+    setProcessingMessage(processingMessages[0]);
+    
+    const messageInterval = setInterval(() => {
+      messageIndex++;
+      if (messageIndex < processingMessages.length) {
+        setProcessingMessage(processingMessages[messageIndex]);
+      }
+    }, 1500); // 1.5 seconds per message
 
     // Extract PHQ/GAD/mood from the full transcript
+    console.log('[SDK] 📝 Transcript to analyze:', assessmentState.transcript.substring(0, 200) + '...');
+    console.log('[SDK] 📝 Full transcript length:', assessmentState.transcript.length);
+    
     const { phqResponses, moodScore } = extractAssessmentFromTranscript(assessmentState.transcript);
+    console.log('[SDK] 📊 Extracted PHQ responses:', phqResponses);
+    console.log('[SDK] 📊 Extracted mood score:', moodScore);
 
     const updatedState: AssessmentState = {
       ...assessmentState,
@@ -213,10 +259,14 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     };
 
     // Validate
+    console.log('[SDK] ✅ Starting validation...');
     const validation = validateAssessmentData(updatedState);
+    console.log('[SDK] 📋 Validation result:', validation);
 
     if (!validation.isValid) {
       console.error('[SDK] ❌ Incomplete assessment:', validation.details);
+      console.error('[SDK] ❌ Missing questions:', validation.details.missingQuestions);
+      clearInterval(messageInterval);
       setErrorMessage(
         'We didn\'t capture enough data to create your baseline assessment. ' +
         'This can happen if you pressed Finish before answering all five questions.'
@@ -235,8 +285,12 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
     console.log('[SDK] 📊 Clinical scores:', clinical);
     console.log('[SDK] 📊 Mind Measure composite (clinical-only):', composite);
 
-    // Phase 2: Calculating (stop media capture + enrich with multimodal)
+    // Visual phase transitions (for title changes only)
     setTimeout(() => setProcessingPhase('calculating'), 3000);
+    setTimeout(() => setProcessingPhase('saving'), 6000);
+    
+    // Stop message rotation after all messages shown
+    setTimeout(() => clearInterval(messageInterval), 9000);
     
     // Stop media capture and get blobs
     let capturedMedia: any = null;
@@ -575,13 +629,7 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
   // Show conversation UI
   if (showConversation) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        inset: 0, 
-        display: 'flex', 
-        flexDirection: 'column',
-        background: 'linear-gradient(to bottom right, #eff6ff, #faf5ff, #fce7f3)'
-      }}>
+      <>
         {/* Processing Overlay */}
         {isSaving && (
           <div className="fixed inset-0 z-[9999] min-h-screen relative overflow-hidden flex items-center justify-center">
@@ -675,26 +723,24 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl font-semibold text-white mb-3">
-                  {processingPhase === 'extracting' && 'Extracting Your Responses'}
-                  {processingPhase === 'calculating' && 'Calculating Your Baseline'}
-                  {processingPhase === 'saving' && 'Saving Your Assessment'}
+                  {processingPhase === 'extracting' && 'Processing Your Assessment'}
+                  {processingPhase === 'calculating' && 'Analysing Your Data'}
+                  {processingPhase === 'saving' && 'Finalising Your Baseline'}
                 </h1>
               </motion.div>
 
               <motion.div
-                key={`${processingPhase}-subtitle`}
+                key={processingMessage}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
               >
                 <p className="text-white/90 text-lg font-medium mb-8">
-                  {processingPhase === 'extracting' && 'Analysing your conversation data...'}
-                  {processingPhase === 'calculating' && 'Computing your Mind Measure score...'}
-                  {processingPhase === 'saving' && 'Finalizing your baseline profile...'}
+                  {processingMessage}
                 </p>
               </motion.div>
 
-              {/* Progress bar */}
+              {/* Progress bar - infinite loop */}
               <motion.div
                 className="mt-8 w-48 h-1 bg-white/30 rounded-full overflow-hidden"
                 initial={{ opacity: 0 }}
@@ -703,306 +749,266 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
               >
                 <motion.div
                   className="h-full bg-white/60 rounded-full"
-                  animate={{ width: ["0%", "100%"] }}
+                  animate={{ x: ["-100%", "200%"] }}
                   transition={{
-                    duration: 15,
+                    duration: 2,
+                    repeat: Infinity,
                     ease: "linear"
                   }}
+                  style={{ width: "50%" }}
                 />
               </motion.div>
             </motion.div>
           </div>
         )}
 
-        {/* Header - matching BaselineWelcome style */}
-        <div style={{ 
-          paddingTop: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
-          paddingBottom: '1.5rem',
-          paddingLeft: '1rem',
-          paddingRight: '1rem',
-          backgroundColor: 'transparent',
-          position: 'relative'
-        }}>
-          {/* Back Button - Top Left */}
-          {onBack && (
-            <button
-              onClick={onBack}
-              style={{
-                position: 'absolute',
-                left: '1rem',
-                top: 'max(3.5rem, env(safe-area-inset-top, 3.5rem))',
-                background: 'rgba(255, 255, 255, 0.9)',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                padding: '0.5rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '2.5rem',
-                height: '2.5rem',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.2s',
-                zIndex: 10
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f3f4f6';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-              }}
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                style={{ color: '#6b7280' }}
-              >
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-          )}
-          
-          <div style={{ textAlign: 'center' }}>
-            {/* Logo */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <img
-                src={mindMeasureLogo}
-                alt="Mind Measure"
-                style={{
-                  width: '6rem',
-                  height: '6rem',
-                  margin: '0 auto',
-                  objectFit: 'contain'
-                }}
-              />
-            </div>
-            {/* Title */}
-            <h1 style={{ 
-              fontSize: '1.875rem', 
-              fontWeight: '400',
-              marginBottom: '0.75rem',
-              color: '#111827'
-            }}>
-              Baseline Assessment
-            </h1>
-            {/* Subtitle */}
-            <p style={{ 
-              fontSize: '1rem',
-              color: '#6b7280',
-              margin: 0
-            }}>
-              Start your wellness journey
-            </p>
-          </div>
-        </div>
-
-        {/* Control Bar */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          padding: '0.75rem 1rem',
-          backgroundColor: 'transparent'
-        }}>
-          {/* Finish button - left */}
-          <Button
-            onClick={handleFinish}
-            style={{
-              background: 'linear-gradient(to right, #a855f7, #ec4899)',
-              color: 'white',
-              fontWeight: '600',
-              fontSize: '1rem',
-              padding: '0.625rem 1.5rem',
-              borderRadius: '0.75rem',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              transform: 'scale(1)',
-            }}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            Finish
-          </Button>
-
-          {/* Camera indicator - right */}
-          {conversation.status === 'connected' && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              backgroundColor: '#f0fdf4',
-              borderRadius: '9999px',
-              padding: '0.25rem 0.75rem'
-            }}>
-              <div style={{ 
-                width: '0.5rem', 
-                height: '0.5rem', 
-                backgroundColor: '#22c55e', 
-                borderRadius: '50%',
-                animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-              }}></div>
-              <span style={{ fontSize: '0.875rem', color: '#15803d', fontWeight: '500' }}>
-                Camera Active
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Messages - increased bottom padding */}
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto',
-          padding: '1rem',
-          paddingBottom: 'max(8rem, calc(env(safe-area-inset-bottom, 0px) + 8rem))'
-        }}>
-          <div style={{ maxWidth: '48rem', margin: '0 auto' }}>
-            {messages.map((msg, idx) => (
-              <div 
-                key={idx} 
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: msg.role === 'agent' ? 'flex-start' : 'flex-end',
-                  marginBottom: '1rem'
-                }}
-              >
-                {/* Jodie's messages - White card on LEFT */}
-                {msg.role === 'agent' && (
-                  <div 
-                    style={{ 
-                      backgroundColor: '#ffffff', 
-                      borderColor: '#e5e7eb', 
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderRadius: '1.5rem', 
-                      borderTopLeftRadius: '0.25rem', 
-                      padding: '1rem 1.25rem', 
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', 
-                      maxWidth: '75%', 
-                      lineHeight: '1.6' 
-                    }}
-                  >
-                    <p style={{ color: '#1f2937', fontSize: '15px', margin: 0 }}>{msg.content}</p>
-                  </div>
-                )}
-                
-                {/* User's messages - Light blue card on RIGHT */}
-                {msg.role === 'user' && (
-                  <div 
-                    style={{ 
-                      backgroundColor: '#eff6ff', 
-                      borderColor: '#e0f2fe',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderRadius: '1.5rem', 
-                      borderTopRightRadius: '0.25rem', 
-                      padding: '1rem 1.25rem', 
-                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)', 
-                      maxWidth: '75%', 
-                      lineHeight: '1.6' 
-                    }}
-                  >
-                    <p style={{ color: '#1f2937', fontSize: '15px', margin: 0 }}>{msg.content}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-      </div>
+        {/* New ConversationScreen Component */}
+        <ConversationScreen
+          type="baseline"
+          messages={messages}
+          isListening={conversation.status === 'connected'}
+          onFinish={handleFinish}
+          onBack={onBack}
+        />
+      </>
     );
   }
 
   // Show welcome screen
   return (
-    <div className="relative min-h-screen bg-gray-50">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50"></div>
-      
-      <div className="relative z-10 min-h-screen flex flex-col">
-        <header className="backdrop-blur-sm bg-white/90 border-0 px-4 sm:px-6 py-6 sm:py-8 shadow-sm">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mt-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2">
-                <span 
-                  className="bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent"
-                  style={{ 
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                  }}
-                >
-                  Mind Measure
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#F5F5F5'
+    }}>
+      <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '20px',
+          paddingTop: '80px',
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
+          {/* Logo */}
+          <img 
+            src={mindMeasureLogo} 
+            alt="Mind Measure" 
+            style={{
+              width: '80px',
+              height: '80px',
+              marginBottom: '20px'
+            }}
+          />
+          
+          <h1 style={{
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 32px 0',
+            textAlign: 'center'
+          }}>
+            Start your wellness journey
+          </h1>
+
+          {/* What to Expect Card */}
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px 24px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+            marginBottom: '24px',
+            width: '100%'
+          }}>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 24px 0',
+              textAlign: 'center'
+            }}>
+              What to expect
+            </h2>
+
+            {/* Bullet Points */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              {/* Point 1 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  Five questions
                 </span>
-              </h1>
-              <p className="text-lg text-gray-600">Start your wellness journey</p>
+              </div>
+
+              {/* Point 2 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  3-5 minutes max
+                </span>
+              </div>
+
+              {/* Point 3 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We use your camera so make sure you are looking at the screen
+                </span>
+              </div>
+
+              {/* Point 4 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We analyse your voice to understand your mood
+                </span>
+              </div>
+
+              {/* Point 5 */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#1a1a1a',
+                  marginTop: '8px',
+                  flexShrink: 0
+                }} />
+                <span style={{
+                  fontSize: '15px',
+                  color: '#1a1a1a',
+                  lineHeight: '1.6'
+                }}>
+                  We delete any voice and images we collect as soon as we have analysed them
+                </span>
+              </div>
             </div>
           </div>
-        </header>
 
-        <div className="flex-1 flex items-start justify-center px-4 sm:px-6 py-8 sm:py-12 pt-16">
-          <div className="w-full max-w-2xl space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg p-8 border">
-              <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                <img src={mindMeasureLogo} alt="Mind Measure" className="w-full h-full object-contain" />
-              </div>
-              
-              <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">What to expect</h3>
-              
-              <div className="bg-blue-50 rounded-lg p-6">
-                <ul className="text-blue-800 space-y-3 text-left">
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>Five questions from Jodie</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>3-5 minutes max</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We use your camera so make sure you are looking at the screen</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We analyse your voice to understand your mood</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-blue-600 mr-3 mt-0.5">•</span>
-                    <span>We delete any voice and images we collect as soon as we have analysed them</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleStartAssessment}
-              disabled={requestingPermissions}
-              className="w-full h-12 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg font-medium rounded-xl disabled:opacity-50 shadow-lg"
-            >
-              {requestingPermissions ? (
-                <div className="flex items-center gap-2 justify-center">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Requesting Permissions...
-                </div>
-              ) : (
-                'Start Your Baseline Assessment'
-              )}
-            </Button>
-          </div>
+          {/* Start Assessment Button */}
+          <button
+            onClick={handleStartAssessment}
+            disabled={requestingPermissions}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: requestingPermissions ? '#cccccc' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: requestingPermissions ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+              opacity: requestingPermissions ? 0.5 : 1
+            }}
+            onMouseOver={(e) => {
+              if (!requestingPermissions) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!requestingPermissions) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }
+            }}
+          >
+            {requestingPermissions ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid white',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Requesting Permissions...
+              </>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Let's Get Started
+              </>
+            )}
+          </button>
         </div>
-      </div>
 
       {/* Error Modal */}
       {showErrorModal && (

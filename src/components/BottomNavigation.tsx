@@ -1,58 +1,113 @@
-import { Home, Heart, Users, TrendingUp, HelpCircle, User } from 'lucide-react';
-
-interface BottomNavigationProps {
-  activeScreen: 'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile';
-  onScreenChange: (screen: 'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile') => void;
+interface BottomNavProps {
+  activeView: 'home' | 'content' | 'buddies' | 'profile';
+  onViewChange: (view: 'home' | 'content' | 'buddies' | 'profile') => void;
 }
 
-export function BottomNavigation({ activeScreen, onScreenChange }: BottomNavigationProps) {
+export function BottomNav({ activeView, onViewChange }: BottomNavProps) {
   const navItems = [
-    { id: 'dashboard', icon: Home, label: 'Home', screen: 'dashboard' as const },
-    { id: 'checkin', icon: Heart, label: 'Check-in', screen: 'checkin' as const },
-    { id: 'buddy', icon: Users, label: 'Buddy', screen: 'buddy' as const },
-    { id: 'profile', icon: User, label: 'Profile', screen: 'profile' as const },
-    { id: 'help', icon: HelpCircle, label: 'Help', screen: 'help' as const },
+    {
+      id: 'home' as const,
+      label: 'Home',
+      icon: (isActive: boolean) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      )
+    },
+    {
+      id: 'content' as const,
+      label: 'Content',
+      icon: (isActive: boolean) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      )
+    },
+    {
+      id: 'buddies' as const,
+      label: 'Buddies',
+      icon: (isActive: boolean) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      )
+    },
+    {
+      id: 'profile' as const,
+      label: 'Profile',
+      icon: (isActive: boolean) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      )
+    }
   ];
 
   return (
-    <div className="relative">
-      {/* Glass background */}
-      <div className="absolute inset-0 bg-white/70 backdrop-blur-2xl border-t border-white/20" />
-      
-      {/* Navigation content */}
-      <div className="relative z-10 px-6 py-4">
-        <div className="flex justify-around items-center">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.screen === activeScreen;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => item.screen && onScreenChange(item.screen)}
-                className={`flex flex-col items-center space-y-1 p-2 rounded-xl transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-xl scale-105' 
-                    : 'hover:bg-white/30 hover:backdrop-blur-xl'
-                }`}
-              >
-                <Icon 
-                  className={`w-6 h-6 transition-colors duration-200 ${
-                    isActive ? 'text-purple-600' : 'text-gray-500'
-                  }`} 
-                />
-                <span 
-                  className={`text-xs transition-colors duration-200 ${
-                    isActive ? 'text-purple-600' : 'text-gray-500'
-                  }`}
-                >
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <nav style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background: 'white',
+      borderTop: '1px solid #F0F0F0',
+      padding: '8px 0 8px 0',
+      paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+      display: 'flex',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      zIndex: 100,
+      boxShadow: '0 -1px 3px rgba(0, 0, 0, 0.05)'
+    }}>
+      {navItems.map((item) => {
+        const isActive = activeView === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => onViewChange(item.id)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '8px 16px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: isActive ? '#EC4899' : '#999999',
+              transition: 'all 0.2s',
+              flex: 1,
+              maxWidth: '100px'
+            }}
+          >
+            <div style={{
+              width: '48px',
+              height: '32px',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isActive ? '#FCE7F3' : 'transparent',
+              transition: 'all 0.2s'
+            }}>
+              {item.icon(isActive)}
+            </div>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: isActive ? '600' : '500',
+              transition: 'all 0.2s'
+            }}>
+              {item.label}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }

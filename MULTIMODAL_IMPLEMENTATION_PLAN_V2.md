@@ -713,3 +713,11 @@ CREATE INDEX idx_text_analysis_fusion ON check_in_text_analysis(fusion_output_id
 
 ---
 
+
+
+
+
+
+
+
+

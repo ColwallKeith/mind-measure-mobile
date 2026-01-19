@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { Preferences } from '@capacitor/preferences';
-import { BottomNavigation } from '@/components/BottomNav';
+import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileCheckin } from './MobileCheckin';
 import { MobileBuddies } from './MobileBuddies';
@@ -89,7 +89,7 @@ export function MobileAppWrapper() {
     BackendServiceFactory.getEnvironmentConfig()
   );
   console.log('🚀 MobileAppWrapper rendering');
-  const [activeScreen, setActiveScreen] = useState<'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile'>('dashboard');
+  const [activeScreen, setActiveScreen] = useState<'dashboard' | 'content' | 'buddies' | 'profile'>('dashboard');
   const [hasCheckedUserStatus, setHasCheckedUserStatus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,34 +138,29 @@ export function MobileAppWrapper() {
     const path = location.pathname;
     if (path === '/dashboard') {
       setActiveScreen('dashboard');
-    } else if (path === '/checkin-welcome') {
-      setActiveScreen('checkin');
+    } else if (path === '/content') {
+      setActiveScreen('content');
     } else if (path === '/buddies') {
-      setActiveScreen('buddy');
+      setActiveScreen('buddies');
     } else if (path === '/profile') {
       setActiveScreen('profile');
-    } else if (path === '/help') {
-      setActiveScreen('help');
     }
   }, [location.pathname]);
-  const handleScreenChange = (screen: 'dashboard' | 'checkin' | 'buddy' | 'help' | 'profile') => {
+  const handleScreenChange = (screen: 'dashboard' | 'content' | 'buddies' | 'profile') => {
     setActiveScreen(screen);
     // Navigate to the appropriate route
     switch (screen) {
       case 'dashboard':
         window.location.href = '/dashboard';
         break;
-      case 'checkin':
-        window.location.href = '/checkin-welcome';
+      case 'content':
+        window.location.href = '/content';
         break;
-      case 'buddy':
+      case 'buddies':
         window.location.href = '/buddies';
         break;
       case 'profile':
         window.location.href = '/profile';
-        break;
-      case 'help':
-        window.location.href = '/help';
         break;
     }
   };
@@ -224,7 +219,7 @@ export function MobileAppWrapper() {
         <Route path="/checkin-welcome" element={<MobileCheckin onNavigateToJodie={() => navigate('/checkin')} />} />
         <Route path="/buddies" element={<MobileBuddies />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} />} />
+        <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
         <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -234,9 +229,9 @@ export function MobileAppWrapper() {
         return !hideNav;
       })() && (
         <div className="fixed bottom-0 left-0 right-0 z-50">
-          <BottomNavigation
-            activeScreen={activeScreen}
-            onScreenChange={handleScreenChange}
+          <BottomNav
+            activeView={activeScreen === 'dashboard' ? 'home' : activeScreen}
+            onViewChange={(view) => handleScreenChange(view === 'home' ? 'dashboard' : view)}
           />
         </div>
       )}

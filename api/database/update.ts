@@ -1,101 +1,101 @@
-// API endpoint for database UPDATE operations
-// Vercel serverless function
+/**
+ * SECURED Generic Database UPDATE Endpoint
+ * 
+ * Security measures:
+ * - JWT authentication required
+ * - Table allowlist
+ * - User scoping (can only update own records)
+ */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-// @ts-ignore - pg types not available in Vercel environment
+import { requireAuth } from '../_lib/auth-middleware';
+import { setCorsHeaders, handleCorsPreflightIfNeeded } from '../_lib/cors-config';
 import { Client } from 'pg';
 
-// Aurora Serverless v2 configuration
-const dbConfig = {
-  host: process.env.AWS_AURORA_HOST || process.env.AWS_RDS_HOST || 'mindmeasure-aurora.cluster-cz8c8wq4k3ak.eu-west-2.rds.amazonaws.com',
-  port: parseInt(process.env.AWS_AURORA_PORT || process.env.AWS_RDS_PORT || '5432'),
-  database: process.env.AWS_AURORA_DATABASE || process.env.AWS_RDS_DATABASE || 'mindmeasure',
-  user: process.env.AWS_AURORA_USERNAME || process.env.AWS_RDS_USERNAME || 'mindmeasure_admin',
-  password: process.env.AWS_AURORA_PASSWORD || process.env.AWS_RDS_PASSWORD || 'K31th50941964!',
-  ssl: { rejectUnauthorized: false }
-};
+const ALLOWED_TABLES = new Set([
+  'profiles',
+  'assessment_sessions',
+  'weekly_summary'
+]);
+
+interface UpdateRequest {
+  table: string;
+  filters: Record<string, any>;
+  data: Record<string, any>;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Add CORS headers for Capacitor
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCorsHeaders(req, res);
+  if (handleCorsPreflightIfNeeded(req, res)) return;
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { table, data, filters, options } = req.body;
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
 
-  if (!table || !data || !filters) {
-    return res.status(400).json({ error: 'Table name, data, and filters are required' });
-  }
-
-  const client = new Client(dbConfig);
+  const { userId } = auth;
 
   try {
-    await client.connect();
+    const { table, filters = {}, data }: UpdateRequest = req.body;
 
-    // Build UPDATE query
-    const updateColumns = Object.keys(data);
-    const updateValues = Object.values(data);
-    
-    const setClause = updateColumns.map((col, index) => `${col} = $${index + 1}`).join(', ');
-    
-    let paramIndex = updateValues.length + 1;
-    const whereConditions: string[] = [];
-    const allParams = [...updateValues];
-
-    // Build WHERE clause
-    Object.entries(filters).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        const placeholders = value.map(() => `$${paramIndex++}`).join(',');
-        whereConditions.push(`${key} IN (${placeholders})`);
-        allParams.push(...value);
-      } else {
-        whereConditions.push(`${key} = $${paramIndex++}`);
-        allParams.push(value);
-      }
-    });
-
-    let sql = `UPDATE ${table} SET ${setClause} WHERE ${whereConditions.join(' AND ')}`;
-    
-    // NOTE: RETURNING clause disabled by default for Aurora MySQL compatibility
-    // Aurora MySQL does not support RETURNING (PostgreSQL-only feature)
-    // If you need RETURNING, set AWS_ENABLE_RETURNING=true environment variable
-    const enableReturning = process.env.AWS_ENABLE_RETURNING === 'true';
-    
-    if (enableReturning) {
-      // Add RETURNING clause for PostgreSQL-compatible mode
-      if (options?.returning) {
-        sql += ` RETURNING ${options.returning}`;
-      } else {
-        sql += ` RETURNING *`;
-      }
+    if (!table || !ALLOWED_TABLES.has(table)) {
+      console.warn(`[SECURITY] User ${userId} attempted to update non-allowed table: ${table}`);
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `Cannot update table '${table}'`,
+        code: 'TABLE_NOT_ALLOWED'
+      });
     }
 
-    console.log('Executing SQL:', sql, 'with params:', allParams);
+    // Force user_id in WHERE clause
+    filters.user_id = userId;
 
-    const result = await client.query(sql, allParams);
+    const client = new Client({
+      host: process.env.AWS_AURORA_HOST,
+      port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
+      database: process.env.AWS_AURORA_DATABASE,
+      user: process.env.AWS_AURORA_USERNAME,
+      password: process.env.AWS_AURORA_PASSWORD,
+      ssl: { rejectUnauthorized: false }
+    });
 
-    res.status(200).json({
-      data: enableReturning ? (result.rows[0] || null) : null,
+    await client.connect();
+
+    const setClauses: string[] = [];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    Object.entries(data).forEach(([key, value]) => {
+      setClauses.push(`${key} = $${paramIndex++}`);
+      params.push(value);
+    });
+
+    const whereClauses: string[] = [];
+    Object.entries(filters).forEach(([key, value]) => {
+      whereClauses.push(`${key} = $${paramIndex++}`);
+      params.push(value);
+    });
+
+    const sql = `UPDATE ${table} SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')} RETURNING *`;
+    
+    console.log(`[DB UPDATE] User ${userId} updating ${table}`);
+
+    const result = await client.query(sql, params);
+    await client.end();
+
+    return res.status(200).json({
+      data: result.rows,
       error: null
     });
 
   } catch (error: any) {
-    console.error('Database update error:', error);
-    res.status(500).json({
-      data: null,
-      error: error.message
+    console.error(`[DB UPDATE] Error for user ${userId}:`, error);
+    return res.status(500).json({
+      error: 'Database update failed',
+      message: error.message,
+      data: null
     });
-  } finally {
-    await client.end();
   }
 }

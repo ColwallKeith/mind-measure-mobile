@@ -381,3 +381,11 @@ After completing a rollback, document what happened:
 - [docs/adr/](./docs/adr/) - Architecture decisions that might be affected by rollbacks
 
 
+
+
+
+
+
+
+
+
