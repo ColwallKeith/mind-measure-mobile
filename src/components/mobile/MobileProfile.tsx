@@ -133,9 +133,9 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
       if (profileResponse.data && profileResponse.data.length > 0) {
         const profile = profileResponse.data[0];
         
-        // Fetch university data (default to Worcester for now)
+        // Fetch university data using the user's actual university_id
         const universityResponse = await backendService.database.select('universities', {
-          filters: { name: 'University of Worcester' }
+          filters: { id: profile.university_id }
         });
 
         let uniData: UniversityData | null = null;

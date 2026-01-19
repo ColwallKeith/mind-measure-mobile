@@ -158,9 +158,14 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
             setLocalSupport(defaultLocal);
           }
 
-          // Map national resources from CMS
+          // Map national resources from CMS (only show enabled ones)
           if (university.national_resources && Array.isArray(university.national_resources)) {
-            const nationalMapped = university.national_resources.map((resource: any) => ({
+            // Filter for enabled resources only
+            const enabledResources = university.national_resources.filter((resource: any) => 
+              resource.isEnabled !== false  // Show if isEnabled is true or undefined (backwards compatibility)
+            );
+            
+            const nationalMapped = enabledResources.map((resource: any) => ({
               name: resource.name || '',
               description: resource.description || '',
               phone: resource.phones?.[0] || resource.phone || '',
