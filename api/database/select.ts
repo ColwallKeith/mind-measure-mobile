@@ -27,7 +27,8 @@ const ALLOWED_TABLES = new Set([
   'universities',
   'help_resources',
   'content_blocks',
-  'wellbeing_reports'
+  'wellbeing_reports',
+  'buddy_contacts'  // User's emergency support contacts
 ]);
 
 // Tables that require user_id scoping (everything except public data)

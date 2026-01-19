@@ -20,7 +20,8 @@ const ALLOWED_TABLES = new Set([
   'assessment_sessions',
   'assessment_transcripts',
   'assessment_items',
-  'weekly_summary'
+  'weekly_summary',
+  'buddy_contacts'  // User's emergency support contacts
 ]);
 
 interface InsertRequest {
