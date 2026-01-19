@@ -34,11 +34,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Create database connection
   const pool = new Pool({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    host: process.env.AWS_AURORA_HOST,
+    port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
+    database: process.env.AWS_AURORA_DATABASE,
+    user: process.env.AWS_AURORA_USERNAME,
+    password: process.env.AWS_AURORA_PASSWORD,
     ssl: {
       rejectUnauthorized: false
     }
