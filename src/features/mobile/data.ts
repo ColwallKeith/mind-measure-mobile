@@ -30,54 +30,45 @@ export async function getUserUniversityProfile(): Promise<MobileUniversityProfil
     BackendServiceFactory.getEnvironmentConfig()
   );
   try {
-    const { data: { user } } = await backendService.auth.getCurrentUser();
-    if (!user) return null;
+    const { data: user, error: userError } = await backendService.auth.getCurrentUser();
+    if (userError || !user) {
+      console.log('No authenticated user:', userError);
+      return null;
+    }
+    
     // Get user's profile to find their university
-    const { data: profile, error: profileError } = await backendService.database.select('profiles')
-      .select('university_id')
-      .eq('user_id', user.id)
-      .single();
-    if (profileError || !profile?.university_id) {
+    const profileResponse = await backendService.database.select('profiles', {
+      filters: { user_id: user.sub || user.Username },
+      limit: 1
+    });
+    
+    const profile = profileResponse.data?.[0];
+    if (!profile?.university_id) {
       console.log('No university associated with user');
       return null;
     }
     // Get university data with emergency contacts and help articles
-    const { data: university, error: universityError } = await backendService.database.select('universities')
-      .select(`
-        id,
-        name,
-        short_name,
-        logo,
-        logo_dark,
-        primary_color,
-        secondary_color,
-        emergency_contacts,
-        contact_email,
-        contact_phone
-      `)
-      .eq('id', profile.university_id)
-      .single();
-    if (universityError || !university) {
-      console.error('Error fetching university:', universityError);
+    const universityResponse = await backendService.database.select('universities', {
+      filters: { id: profile.university_id },
+      limit: 1
+    });
+    
+    const university = universityResponse.data?.[0];
+    if (!university) {
+      console.error('Error fetching university - not found');
       return null;
     }
+    
     // Get published help articles for this university
-    const { data: articles, error: articlesError } = await backendService.database.select('content_articles')
-      .select(`
-        id,
-        title,
-        excerpt,
-        content,
-        featured_image,
-        is_featured,
-        view_count,
-        published_at,
-        category:content_categories(name, color, icon)
-      `)
-      .eq('university_id', profile.university_id)
-      .eq('status', 'published')
-      .order('is_featured', { ascending: false })
-      .order('published_at', { ascending: false });
+    const articlesResponse = await backendService.database.select('content_articles', {
+      filters: { 
+        university_id: profile.university_id,
+        status: 'published'
+      }
+    });
+    
+    const articles = articlesResponse.data || [];
+    
     return {
       id: university.id,
       name: university.name,
