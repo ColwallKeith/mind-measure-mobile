@@ -66,14 +66,13 @@ export async function getUserUniversityProfile(): Promise<MobileUniversityProfil
       .select(`
         id,
         title,
-        slug,
         excerpt,
         content,
         featured_image,
         is_featured,
         view_count,
         published_at,
-        category:content_categories(name, slug, color, icon)
+        category:content_categories(name, color, icon)
       `)
       .eq('university_id', profile.university_id)
       .eq('status', 'published')
