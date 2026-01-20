@@ -167,11 +167,14 @@ export async function getHelpArticle(slug: string): Promise<ContentArticle | nul
       console.error('Error fetching article:', error);
       return null;
     }
-    // Increment view count (fire and forget) backendService.database.select('content_articles')
+    
+    // Increment view count (fire and forget)
+    backendService.database.select('content_articles')
       .update({ view_count: article.view_count + 1 })
       .eq('id', article.id)
       .then(() => {})
       .catch(() => {});
+    
     return article;
   } catch (error) {
     console.error('Error fetching help article:', error);
