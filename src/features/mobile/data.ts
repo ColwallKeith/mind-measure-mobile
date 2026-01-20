@@ -30,7 +30,7 @@ export async function getUserUniversityProfile(): Promise<MobileUniversityProfil
     BackendServiceFactory.getEnvironmentConfig()
   );
   try {
-    const { data: { user } } = await /* TODO: Replace with backendService - was: backendService */ backendService.databasegetUser();
+    const { data: { user } } = await backendService.auth.getCurrentUser();
     if (!user) return null;
     // Get user's profile to find their university
     const { data: profile, error: profileError } = await backendService.database.select('profiles')
@@ -136,7 +136,7 @@ export async function getHelpArticles(category?: string, featured?: boolean): Pr
 // Get a specific help article and increment view count
 export async function getHelpArticle(slug: string): Promise<ContentArticle | null> {
   try {
-    const { data: { user } } = await /* TODO: Replace with backendService - was: backendService */ backendService.databasegetUser();
+    const { data: { user } } = await backendService.auth.getCurrentUser();
     if (!user) return null;
     // Get user's university
     const { data: profile } = await backendService.database.select('profiles')
@@ -183,7 +183,7 @@ export async function getHelpArticle(slug: string): Promise<ContentArticle | nul
 // Associate user with a university (for onboarding)
 export async function setUserUniversity(universityId: string): Promise<boolean> {
   try {
-    const { data: { user } } = await /* TODO: Replace with backendService - was: backendService */ backendService.databasegetUser();
+    const { data: { user } } = await backendService.auth.getCurrentUser();
     if (!user) return false;
     const { error } = await backendService.database.select('profiles')
       .update({ university_id: universityId })
