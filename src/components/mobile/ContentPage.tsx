@@ -29,11 +29,43 @@ export function ContentPage({
   const [selectedArticle, setSelectedArticle] = useState<ContentArticle | null>(null);
   const [articles, setArticles] = useState<ContentArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [wellbeingSupportUrl, setWellbeingSupportUrl] = useState<string>('');
 
-  // Load articles from CMS on mount
+  // Load articles and university data on mount
   useEffect(() => {
     loadArticles();
+    loadUniversityData();
   }, []);
+
+  const loadUniversityData = async () => {
+    try {
+      const { getBackendService } = await import('../../services/database/BackendServiceFactory');
+      const backendService = getBackendService();
+      
+      // Get user's university
+      const profileResponse = await backendService.database.select('profiles', {
+        filters: { user_id: (await backendService.auth.getCurrentUser())?.id },
+        limit: 1
+      });
+      
+      if (profileResponse.data && profileResponse.data.length > 0) {
+        const profile = profileResponse.data[0];
+        
+        // Get university wellbeing URL
+        const universityResponse = await backendService.database.select('universities', {
+          filters: { id: profile.university_id },
+          limit: 1
+        });
+        
+        if (universityResponse.data && universityResponse.data.length > 0) {
+          const university = universityResponse.data[0];
+          setWellbeingSupportUrl(university.wellbeing_support_url || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading university data:', error);
+    }
+  };
 
   const loadArticles = async () => {
     setLoading(true);
@@ -177,6 +209,7 @@ export function ContentPage({
         onBack={() => setSelectedArticle(null)}
         universityName={universityName}
         universityLogo={universityLogo}
+        wellbeingSupportUrl={wellbeingSupportUrl}
       />
     );
   }

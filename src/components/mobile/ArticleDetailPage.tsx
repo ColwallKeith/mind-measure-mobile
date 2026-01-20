@@ -13,13 +13,15 @@ interface ArticleDetailPageProps {
   onBack: () => void;
   universityName?: string;
   universityLogo?: string;
+  wellbeingSupportUrl?: string; // NEW: Link to university wellbeing services
 }
 
 export function ArticleDetailPage({ 
   article, 
   onBack,
   universityName = 'University Wellbeing Team',
-  universityLogo
+  universityLogo,
+  wellbeingSupportUrl
 }: ArticleDetailPageProps) {
   const getCategoryColor = (category: string) => {
     const colors: Record<string, { bg: string; text: string }> = {
@@ -249,19 +251,51 @@ export function ArticleDetailPage({
           }}>
             Our wellbeing team is here to help
           </p>
-          <button style={{
-            padding: '12px 24px',
-            background: 'white',
-            color: '#5B8FED',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '15px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}>
-            Contact Wellbeing Team
-          </button>
+          {wellbeingSupportUrl ? (
+            <a
+              href={wellbeingSupportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                padding: '12px 24px',
+                background: 'white',
+                color: '#5B8FED',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                textDecoration: 'none',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+              }}
+            >
+              Contact Wellbeing Team
+            </a>
+          ) : (
+            <button style={{
+              padding: '12px 24px',
+              background: 'white',
+              color: '#5B8FED',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+            }}>
+              Contact Wellbeing Team
+            </button>
+          )}
         </div>
       </div>
     </div>
