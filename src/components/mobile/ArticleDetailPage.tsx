@@ -1,7 +1,7 @@
 interface ArticleDetailPageProps {
   article: {
     id: string;
-    category: 'Anxiety' | 'Sleep' | 'Stress' | 'Relationships' | 'Exercise' | 'Study';
+    category: 'Anxiety' | 'Sleep' | 'Stress' | 'Relationships' | 'Exercise' | 'Study' | 'Wellbeing';
     title: string;
     description: string;
     readTime: number;
@@ -30,7 +30,8 @@ export function ArticleDetailPage({
       'Stress': { bg: '#FED7E2', text: '#BE185D' },
       'Relationships': { bg: '#D1FAE5', text: '#065F46' },
       'Exercise': { bg: '#FFE4E6', text: '#BE123C' },
-      'Study': { bg: '#DBEAFE', text: '#1E40AF' }
+      'Study': { bg: '#DBEAFE', text: '#1E40AF' },
+      'Wellbeing': { bg: '#FCE7F3', text: '#BE185D' }
     };
     return colors[category] || { bg: '#F3F4F6', text: '#4B5563' };
   };

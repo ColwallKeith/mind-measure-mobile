@@ -5,7 +5,7 @@ import type { ContentArticle as CMSArticle } from '../../features/cms/data';
 
 interface ContentArticle {
   id: string;
-  category: 'Anxiety' | 'Sleep' | 'Stress' | 'Relationships' | 'Exercise' | 'Study';
+  category: 'Anxiety' | 'Sleep' | 'Stress' | 'Relationships' | 'Exercise' | 'Study' | 'Wellbeing';
   title: string;
   description: string;
   readTime: number;
@@ -104,6 +104,7 @@ export function ContentPage({
       'relationships': 'Relationships',
       'exercise': 'Exercise',
       'study': 'Study',
+      'wellbeing': 'Wellbeing',
     };
     return mapping[slug?.toLowerCase() || ''] || 'Study';
   };
@@ -117,7 +118,7 @@ export function ContentPage({
     return daysDiff <= 7;
   };
 
-  const filters = ['All', 'Stress', 'Sleep', 'Study', 'Relationships', 'Exercise', 'Anxiety'];
+  const filters = ['All', 'Wellbeing', 'Anxiety', 'Sleep', 'Stress', 'Relationships', 'Exercise', 'Study'];
 
   const filteredArticles = activeFilter === 'All' 
     ? articles 
@@ -158,7 +159,8 @@ export function ContentPage({
       'Stress': { bg: '#FED7E2', text: '#BE185D', icon: '#EC4899' },
       'Relationships': { bg: '#D1FAE5', text: '#065F46', icon: '#10B981' },
       'Exercise': { bg: '#FFE4E6', text: '#BE123C', icon: '#F43F5E' },
-      'Study': { bg: '#DBEAFE', text: '#1E40AF', icon: '#3B82F6' }
+      'Study': { bg: '#DBEAFE', text: '#1E40AF', icon: '#3B82F6' },
+      'Wellbeing': { bg: '#FCE7F3', text: '#BE185D', icon: '#F472B6' }
     };
     return colors[category] || { bg: '#F3F4F6', text: '#4B5563', icon: '#6B7280' };
   };
@@ -195,6 +197,11 @@ export function ContentPage({
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      ),
+      'Wellbeing': (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
       )
     };
