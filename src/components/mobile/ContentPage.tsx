@@ -62,7 +62,7 @@ export function ContentPage({
           category: mapCategory(article.category?.slug || article.category?.name),
           title: article.title,
           description: article.excerpt || '',
-          readTime: calculateReadTime(article.content),
+          readTime: article.read_time || calculateReadTime(article.content),
           isNew: isRecent(article.published_at),
           thumbnail: article.featured_image || 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?w=1080',
           fullContent: article.content,

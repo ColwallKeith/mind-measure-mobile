@@ -70,20 +70,33 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
       return null;
     }
     
-    // Get published help articles for this university (with category names via custom API)
-    let articles = [];
-    try {
-      const articlesResponse = await fetch(
-        `${window.location.origin}/api/mobile/get-articles?universityId=${encodeURIComponent(profile.university_id)}`
-      );
-      if (articlesResponse.ok) {
-        const data = await articlesResponse.json();
-        articles = data.articles || [];
-      } else {
-        console.error('Failed to fetch articles:', articlesResponse.status);
+    // Get published help articles for this university
+    const articlesResponse = await backendService.database.select('content_articles', {
+      filters: { 
+        university_id: profile.university_id,
+        status: 'published',
+        source: 'imported' // Only show articles from Marketing CMS
       }
-    } catch (error) {
-      console.error('Error fetching articles:', error);
+    });
+    
+    const articles = articlesResponse.data || [];
+    
+    // Fetch category names for each article
+    if (articles.length > 0) {
+      const categoryIds = [...new Set(articles.map((a: any) => a.category_id).filter(Boolean))];
+      const categoriesResponse = await backendService.database.select('content_categories', {
+        filters: { id: categoryIds }
+      });
+      const categories = categoriesResponse.data || [];
+      const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
+      
+      // Attach category info to each article
+      articles.forEach((article: any) => {
+        if (article.category_id) {
+          const cat = categoryMap.get(article.category_id);
+          article.category = cat ? { name: cat.name, slug: cat.slug } : null;
+        }
+      });
     }
     
     return {
