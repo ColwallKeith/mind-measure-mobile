@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArticleDetailPage } from './ArticleDetailPage';
-import { getHelpArticles } from '../../features/mobile/data';
+import { getHelpArticles, getUserUniversityProfile } from '../../features/mobile/data';
+import { useAuth } from '@/contexts/AuthContext';
 import type { ContentArticle as CMSArticle } from '../../features/cms/data';
 
 interface ContentArticle {
@@ -22,74 +23,57 @@ interface ContentPageProps {
 }
 
 export function ContentPage({
-  universityName = 'University of Worcester',
-  universityLogo
+  universityName: propUniversityName = 'University of Worcester',
+  universityLogo: propUniversityLogo
 }: ContentPageProps) {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<string>('All');
   const [selectedArticle, setSelectedArticle] = useState<ContentArticle | null>(null);
   const [articles, setArticles] = useState<ContentArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [wellbeingSupportUrl, setWellbeingSupportUrl] = useState<string>('');
+  const [universityName, setUniversityName] = useState<string>(propUniversityName);
 
-  // Load articles and university data on mount
+  // Load articles and university data when user is available
   useEffect(() => {
-    loadArticles();
-    loadUniversityData();
-  }, []);
-
-  const loadUniversityData = async () => {
-    try {
-      const { getBackendService } = await import('../../services/database/BackendServiceFactory');
-      const backendService = getBackendService();
-      
-      // Get user's university
-      const profileResponse = await backendService.database.select('profiles', {
-        filters: { user_id: (await backendService.auth.getCurrentUser())?.id },
-        limit: 1
-      });
-      
-      if (profileResponse.data && profileResponse.data.length > 0) {
-        const profile = profileResponse.data[0];
-        
-        // Get university wellbeing URL
-        const universityResponse = await backendService.database.select('universities', {
-          filters: { id: profile.university_id },
-          limit: 1
-        });
-        
-        if (universityResponse.data && universityResponse.data.length > 0) {
-          const university = universityResponse.data[0];
-          setWellbeingSupportUrl(university.wellbeing_support_url || '');
-        }
-      }
-    } catch (error) {
-      console.error('Error loading university data:', error);
+    if (user) {
+      loadArticlesAndUniversity();
     }
-  };
+  }, [user, activeFilter]);
 
-  const loadArticles = async () => {
+  const loadArticlesAndUniversity = async () => {
+    if (!user?.id) return;
+    
     setLoading(true);
     try {
-      const cmsArticles = await getHelpArticles();
+      // Get university profile which includes wellbeing URL
+      const profile = await getUserUniversityProfile(user.id);
+      if (profile) {
+        setWellbeingSupportUrl(profile.wellbeing_support_url || '');
+        setUniversityName(profile.name);
+        
+        // Get articles
+        const cmsArticles = profile.help_articles;
       
-      // Map CMS articles to ContentPage format
-      const mappedArticles: ContentArticle[] = cmsArticles.map((article: CMSArticle) => ({
-        id: article.id,
-        category: mapCategory(article.category?.slug),
-        title: article.title,
-        description: article.excerpt || '',
-        readTime: 5, // TODO: Calculate from content
-        isNew: isRecent(article.published_at),
-        thumbnail: article.featured_image || 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?w=1080',
-        fullContent: article.content,
-        author: 'Student Wellbeing Team',
-        publishDate: article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-      }));
+        // Map CMS articles to ContentPage format
+        const mappedArticles: ContentArticle[] = cmsArticles.map((article: CMSArticle) => ({
+          id: article.id,
+          category: mapCategory(article.category?.slug),
+          title: article.title,
+          description: article.excerpt || '',
+          readTime: 5, // TODO: Calculate from content
+          isNew: isRecent(article.published_at),
+          thumbnail: article.featured_image || 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?w=1080',
+          fullContent: article.content,
+          author: 'Student Wellbeing Team',
+          publishDate: article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+        }));
 
-      setArticles(mappedArticles);
+        setArticles(mappedArticles);
+      }
     } catch (error) {
       console.error('Error loading articles:', error);
-      setArticles([]); // Show empty state on error
+      setArticles([]);
     } finally {
       setLoading(false);
     }

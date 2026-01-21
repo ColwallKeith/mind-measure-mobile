@@ -13,6 +13,7 @@ export interface MobileUniversityProfile {
   help_articles: ContentArticle[];
   contact_email: string;
   contact_phone?: string;
+  wellbeing_support_url?: string;
 }
 export interface UserProfile {
   id: string;
@@ -24,21 +25,31 @@ export interface UserProfile {
   updated_at: string;
 }
 // Get user's university profile with all mobile-relevant data
-export async function getUserUniversityProfile(): Promise<MobileUniversityProfile | null> {
+export async function getUserUniversityProfile(userId?: string): Promise<MobileUniversityProfile | null> {
   // AWS Backend Service
   const backendService = BackendServiceFactory.createService(
     BackendServiceFactory.getEnvironmentConfig()
   );
   try {
-    const { data: user, error: userError } = await backendService.auth.getCurrentUser();
-    if (userError || !user) {
-      console.log('No authenticated user:', userError);
+    // If no userId provided, try to get from current session
+    let userIdToUse = userId;
+    if (!userIdToUse) {
+      const { data: user, error: userError } = await backendService.auth.getCurrentUser();
+      if (userError || !user) {
+        console.log('No authenticated user:', userError);
+        return null;
+      }
+      userIdToUse = user.sub || user.Username;
+    }
+    
+    if (!userIdToUse) {
+      console.log('No user ID available');
       return null;
     }
     
     // Get user's profile to find their university
     const profileResponse = await backendService.database.select('profiles', {
-      filters: { user_id: user.sub || user.Username },
+      filters: { user_id: userIdToUse },
       limit: 1
     });
     
@@ -80,7 +91,8 @@ export async function getUserUniversityProfile(): Promise<MobileUniversityProfil
       emergency_contacts: university.emergency_contacts || [],
       help_articles: articles || [],
       contact_email: university.contact_email,
-      contact_phone: university.contact_phone
+      contact_phone: university.contact_phone,
+      wellbeing_support_url: university.wellbeing_support_url
     };
   } catch (error) {
     console.error('Error fetching user university profile:', error);
