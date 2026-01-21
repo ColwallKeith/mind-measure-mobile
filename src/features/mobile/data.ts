@@ -70,15 +70,21 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
       return null;
     }
     
-    // Get published help articles for this university
-    const articlesResponse = await backendService.database.select('content_articles', {
-      filters: { 
-        university_id: profile.university_id,
-        status: 'published'
+    // Get published help articles for this university (with category names via custom API)
+    let articles = [];
+    try {
+      const articlesResponse = await fetch(
+        `${window.location.origin}/api/mobile/get-articles?universityId=${encodeURIComponent(profile.university_id)}`
+      );
+      if (articlesResponse.ok) {
+        const data = await articlesResponse.json();
+        articles = data.articles || [];
+      } else {
+        console.error('Failed to fetch articles:', articlesResponse.status);
       }
-    });
-    
-    const articles = articlesResponse.data || [];
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+    }
     
     return {
       id: university.id,
