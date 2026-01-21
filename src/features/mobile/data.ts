@@ -71,22 +71,27 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
     }
     
     // Get published help articles for this university
+    console.log('Fetching articles for university:', profile.university_id);
     const articlesResponse = await backendService.database.select('content_articles', {
       filters: { 
         university_id: profile.university_id,
-        status: 'published',
-        source: 'imported' // Only show articles from Marketing CMS
+        status: 'published'
+        // Removed source filter to see all articles
       }
     });
     
+    console.log('Articles response:', articlesResponse);
     const articles = articlesResponse.data || [];
+    console.log('Found articles:', articles.length);
     
     // Fetch category names for each article
     if (articles.length > 0) {
       const categoryIds = [...new Set(articles.map((a: any) => a.category_id).filter(Boolean))];
+      console.log('Fetching categories for IDs:', categoryIds);
       const categoriesResponse = await backendService.database.select('content_categories', {
         filters: { id: categoryIds }
       });
+      console.log('Categories response:', categoriesResponse);
       const categories = categoriesResponse.data || [];
       const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
       
