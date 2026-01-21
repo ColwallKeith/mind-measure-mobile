@@ -28,14 +28,18 @@ const ALLOWED_TABLES = new Set([
   'help_resources',
   'content_blocks',
   'wellbeing_reports',
-  'buddy_contacts'  // User's emergency support contacts
+  'buddy_contacts',  // User's emergency support contacts
+  'content_articles',  // Published content for students
+  'content_categories'  // Content categories
 ]);
 
 // Tables that require user_id scoping (everything except public data)
 const PUBLIC_TABLES = new Set([
   'universities',
   'help_resources',
-  'content_blocks'
+  'content_blocks',
+  'content_articles',
+  'content_categories'
 ]);
 
 interface SelectRequest {

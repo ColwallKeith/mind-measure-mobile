@@ -33,6 +33,7 @@ export function ContentPage({
   const [loading, setLoading] = useState(true);
   const [wellbeingSupportUrl, setWellbeingSupportUrl] = useState<string>('');
   const [universityName, setUniversityName] = useState<string>(propUniversityName);
+  const [universityLogo, setUniversityLogo] = useState<string | undefined>(propUniversityLogo);
 
   // Load articles and university data when user is available
   useEffect(() => {
