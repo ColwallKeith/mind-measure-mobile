@@ -71,27 +71,18 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
     }
     
     // Get published help articles for this university
-    console.log('Fetching articles for university:', profile.university_id);
     const articlesResponse = await backendService.database.select('content_articles', {
       filters: { 
         university_id: profile.university_id,
         status: 'published'
-        // Removed source filter to see all articles
       }
     });
     
-    console.log('Articles response:', articlesResponse);
     const articles = articlesResponse.data || [];
-    console.log('Found articles:', articles.length);
     
-    // Fetch category names for each article
+    // Fetch ALL category names (small table, just fetch all)
     if (articles.length > 0) {
-      const categoryIds = [...new Set(articles.map((a: any) => a.category_id).filter(Boolean))];
-      console.log('Fetching categories for IDs:', categoryIds);
-      const categoriesResponse = await backendService.database.select('content_categories', {
-        filters: { id: categoryIds }
-      });
-      console.log('Categories response:', categoriesResponse);
+      const categoriesResponse = await backendService.database.select('content_categories', {});
       const categories = categoriesResponse.data || [];
       const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
       
@@ -99,7 +90,9 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
       articles.forEach((article: any) => {
         if (article.category_id) {
           const cat = categoryMap.get(article.category_id);
-          article.category = cat ? { name: cat.name, slug: cat.slug } : null;
+          if (cat) {
+            article.category = { name: cat.name, slug: cat.slug };
+          }
         }
       });
     }
