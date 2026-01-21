@@ -220,14 +220,14 @@ export function ArticleDetailPage({
         </div>
 
         {/* Full Content */}
-        <div style={{
-          fontSize: '15px',
-          color: '#333333',
-          lineHeight: '1.8',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {article.fullContent}
-        </div>
+        <div 
+          style={{
+            fontSize: '15px',
+            color: '#333333',
+            lineHeight: '1.8'
+          }}
+          dangerouslySetInnerHTML={{ __html: article.fullContent }}
+        />
 
         {/* Bottom CTA */}
         <div style={{

@@ -59,14 +59,14 @@ export function ContentPage({
         // Map CMS articles to ContentPage format
         const mappedArticles: ContentArticle[] = cmsArticles.map((article: CMSArticle) => ({
           id: article.id,
-          category: mapCategory(article.category?.slug),
+          category: mapCategory(article.category?.slug || article.category?.name),
           title: article.title,
           description: article.excerpt || '',
-          readTime: 5, // TODO: Calculate from content
+          readTime: calculateReadTime(article.content),
           isNew: isRecent(article.published_at),
           thumbnail: article.featured_image || 'https://images.unsplash.com/photo-1516534775068-ba3e7458af70?w=1080',
           fullContent: article.content,
-          author: 'Student Wellbeing Team',
+          author: article.author || 'Student Wellbeing Team',
           publishDate: article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
         }));
 
@@ -101,6 +101,14 @@ export function ContentPage({
     const now = new Date();
     const daysDiff = (now.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24);
     return daysDiff <= 7;
+  };
+
+  // Helper: Calculate read time from content (200 words per minute)
+  const calculateReadTime = (content?: string): number => {
+    if (!content) return 1;
+    const text = content.replace(/<[^>]*>/g, ''); // Strip HTML tags
+    const words = text.split(/\s+/).filter(w => w.length > 0);
+    return Math.max(1, Math.ceil(words.length / 200));
   };
 
   const filters = ['All', 'Wellbeing', 'Anxiety', 'Sleep', 'Stress', 'Relationships', 'Exercise', 'Study'];
