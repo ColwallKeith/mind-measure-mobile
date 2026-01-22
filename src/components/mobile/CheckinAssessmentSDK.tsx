@@ -34,14 +34,34 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // Tech-focused processing messages for check-ins (9 seconds total, 1.5s each)
+  // Processing messages for check-ins - covers ~60 seconds with pauses
+  // Format: { message: string, duration: number } where duration is in milliseconds
+  // Total duration: ~60 seconds (with pauses at key moments)
   const processingMessages = [
-    'Analysing vocal pitch patterns',
-    'Processing facial expressions',
-    'Measuring speech rate dynamics',
-    'Assessing emotional valence',
-    'Computing multimodal fusion score',
-    'Finalising your check-in'
+    { message: 'Analysing vocal pitch patterns', duration: 2500 },
+    { message: 'Extracting audio features', duration: 2500 },
+    { message: 'Processing speech characteristics', duration: 2500 },
+    { message: 'Analysing vocal pitch patterns', duration: 3500 }, // Pause 1 - longer duration
+    { message: 'Processing facial expressions', duration: 2500 },
+    { message: 'Detecting emotional indicators', duration: 2500 },
+    { message: 'Analysing visual features', duration: 2500 },
+    { message: 'Processing facial expressions', duration: 3500 }, // Pause 2 - longer duration
+    { message: 'Measuring speech rate dynamics', duration: 2500 },
+    { message: 'Calculating pause patterns', duration: 2500 },
+    { message: 'Analysing vocal stress markers', duration: 2500 },
+    { message: 'Processing conversation flow', duration: 2500 },
+    { message: 'Assessing emotional valence', duration: 2500 },
+    { message: 'Evaluating wellbeing indicators', duration: 2500 },
+    { message: 'Assessing emotional valence', duration: 3500 }, // Pause 3 - longer duration
+    { message: 'Computing multimodal fusion score', duration: 2500 },
+    { message: 'Integrating audio and visual data', duration: 2500 },
+    { message: 'Calculating final assessment', duration: 2500 },
+    { message: 'Computing multimodal fusion score', duration: 3500 }, // Pause 4 - longer duration
+    { message: 'Validating results', duration: 2500 },
+    { message: 'Preparing your insights', duration: 2500 },
+    { message: 'Finalising your check-in', duration: 2500 },
+    { message: 'Almost there...', duration: 2500 },
+    { message: 'Finalising your check-in', duration: 3500 } // Final pause
   ];
   
   // Multimodal capture
@@ -304,24 +324,37 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       console.log('[CheckinSDK] 📊 Processing check-in data...');
       console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
 
-      // Start smooth 9-second message roll (1.5s per message)
+      // Start message rotation - covers ~60 seconds with variable durations
       setProcessingPhase('extracting');
       let messageIndex = 0;
-      setProcessingMessage(processingMessages[0]);
+      let totalElapsed = 0;
       
-      const messageInterval = setInterval(() => {
+      // Set first message
+      setProcessingMessage(processingMessages[0].message);
+      
+      // Calculate total duration for phase transitions
+      const totalDuration = processingMessages.reduce((sum, msg) => sum + msg.duration, 0);
+      const extractingDuration = totalDuration * 0.4; // First 40% is extracting
+      const analyzingDuration = totalDuration * 0.5; // Next 50% is analyzing
+      
+      // Visual phase transitions
+      setTimeout(() => setProcessingPhase('analyzing'), extractingDuration);
+      setTimeout(() => setProcessingPhase('saving'), extractingDuration + analyzingDuration);
+      
+      // Function to show next message
+      const showNextMessage = () => {
         messageIndex++;
         if (messageIndex < processingMessages.length) {
-          setProcessingMessage(processingMessages[messageIndex]);
+          const currentMsg = processingMessages[messageIndex];
+          setProcessingMessage(currentMsg.message);
+          
+          // Schedule next message after current duration
+          setTimeout(showNextMessage, currentMsg.duration);
         }
-      }, 1500); // 1.5 seconds per message
+      };
       
-      // Visual phase transitions (for title changes only)
-      setTimeout(() => setProcessingPhase('analyzing'), 3000);
-      setTimeout(() => setProcessingPhase('saving'), 6000);
-      
-      // Stop message rotation after all messages shown
-      setTimeout(() => clearInterval(messageInterval), 9000);
+      // Start message rotation after first message duration
+      setTimeout(showNextMessage, processingMessages[0].duration);
 
       // Stop media capture
       let capturedMedia: any = null;
