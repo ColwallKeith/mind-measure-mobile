@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from 'pg';
 
-const getAuroraConfig = () => {
-  if (!process.env.AWS_AURORA_PASSWORD) {
-    throw new Error('AWS_AURORA_PASSWORD not configured');
-  }
-  
-  return {
-    host: process.env.AWS_AURORA_HOST || 'mindmeasure-aurora.cluster-cz8c8wq4k3ak.eu-west-2.rds.amazonaws.com',
-    port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
-    database: process.env.AWS_AURORA_DATABASE || 'mindmeasure',
-    user: process.env.AWS_AURORA_USERNAME || 'mindmeasure_admin',
-    password: process.env.AWS_AURORA_PASSWORD,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 5000,
-    query_timeout: 10000,
-  };
-};
-
 export async function GET(request: NextRequest) {
   let auroraClient: Client | null = null;
 
@@ -25,8 +8,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const universityId = searchParams.get('universityId') || 'worcester';
 
-    // Connect to Aurora
-    auroraClient = new Client(getAuroraConfig());
+    // Connect to Aurora using same pattern as working endpoints
+    auroraClient = new Client({
+      host: process.env.AWS_AURORA_HOST,
+      port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
+      database: process.env.AWS_AURORA_DATABASE,
+      user: process.env.AWS_AURORA_USERNAME,
+      password: process.env.AWS_AURORA_PASSWORD,
+      ssl: { rejectUnauthorized: false }
+    });
+    
     await auroraClient.connect();
 
     // Fetch university nudges
