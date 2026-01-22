@@ -10,6 +10,8 @@ import { getDemoUniversity } from '@/config/demo';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
+import { NudgesDisplay } from './NudgesDisplay';
+import { useActiveNudges } from '@/hooks/useActiveNudges';
 interface DashboardScreenProps {
   onNeedHelp?: () => void;
   onCheckIn?: () => void;
@@ -27,6 +29,9 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
     loading,
     error
   } = useDashboardData();
+  
+  // Fetch active nudges
+  const { pinned, rotated, loading: nudgesLoading } = useActiveNudges(profile?.university_id);
   
   // Developer hack: Click logo 5 times to reset baseline
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -276,6 +281,30 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </motion.div>
         )}
       </div>
+
+      {/* Nudges - What's Happening */}
+      {!nudgesLoading && (pinned || rotated) && (
+        <motion.div 
+          variants={itemVariants} 
+          style={{ 
+            padding: '0 20px 24px 20px',
+            width: '100%'
+          }}
+        >
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 12px 0'
+          }}>
+            What's Happening
+          </h3>
+          <NudgesDisplay
+            pinned={pinned}
+            rotated={rotated}
+          />
+        </motion.div>
+      )}
 
       {/* Quick Actions */}
       <div style={{ padding: '0 20px 24px 20px' }}>
