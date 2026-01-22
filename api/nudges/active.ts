@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client } from 'pg';
 
-export async function GET(request: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auroraClient: Client | null = null;
 
   try {
-    const { searchParams } = new URL(request.url);
-    const universityId = searchParams.get('universityId');
+    const { universityId } = req.query;
 
-    if (!universityId) {
-      return NextResponse.json({ error: 'universityId is required' }, { status: 400 });
+    if (!universityId || typeof universityId !== 'string') {
+      return res.status(400).json({ error: 'universityId is required' });
     }
 
     // Connect to Aurora using same pattern as working endpoints
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ nudges: [] });
+      return res.status(200).json({ nudges: [] });
     }
 
     const allNudges = result.rows[0].nudges || [];
@@ -59,14 +58,14 @@ export async function GET(request: NextRequest) {
       ? weightedRotation[Math.floor(Math.random() * weightedRotation.length)]
       : null;
 
-    return NextResponse.json({
+    return res.status(200).json({
       success: true,
       pinned,
       rotated,
     });
   } catch (error: any) {
     console.error('Error fetching active nudges:', error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch nudges' }, { status: 500 });
+    return res.status(500).json({ error: error.message || 'Failed to fetch nudges' });
   } finally {
     if (auroraClient) {
       await auroraClient.end();

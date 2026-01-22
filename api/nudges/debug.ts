@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client } from 'pg';
 
-export async function GET(request: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   let auroraClient: Client | null = null;
 
   try {
-    const { searchParams } = new URL(request.url);
-    const universityId = searchParams.get('universityId') || 'worcester';
+    const { universityId = 'worcester' } = req.query;
 
     // Connect to Aurora using same pattern as working endpoints
     auroraClient = new Client({
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ 
+      return res.status(404).json({ 
         error: 'University not found',
         universityId 
       });
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
     const university = result.rows[0];
     const nudges = university.nudges || [];
 
-    return NextResponse.json({
+    return res.status(200).json({
       success: true,
       universityId: university.id,
       universityName: university.name,
@@ -47,10 +46,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error in nudges debug:', error);
-    return NextResponse.json({ 
+    return res.status(500).json({ 
       error: error.message || 'Failed to fetch nudges',
       stack: error.stack 
-    }, { status: 500 });
+    });
   } finally {
     if (auroraClient) {
       await auroraClient.end();
