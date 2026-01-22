@@ -11,6 +11,7 @@ interface DashboardData {
     streakCount: number;
     baselineEstablished: boolean;
     createdAt?: string; // Account creation date for determining available views
+    university_id?: string; // University ID for content/nudges
   };
   latestScore: {
     score: number;
@@ -101,7 +102,7 @@ export function useDashboardData(): DashboardData {
       // Fetch user profile
       const { data: profiles, error: profileError } = await backendService.database.select('profiles', {
         filters: { user_id: user.id },
-        columns: 'first_name, last_name, display_name, streak_count, baseline_established, created_at'
+        columns: 'first_name, last_name, display_name, streak_count, baseline_established, created_at, university_id'
       });
       
       const profile = profiles && profiles.length > 0 ? profiles[0] : null;
@@ -303,6 +304,7 @@ export function useDashboardData(): DashboardData {
           streakCount: profileData.streak_count || 0,
           baselineEstablished: profileData.baseline_established || (sessions && sessions.length > 0),
           createdAt: profileData.created_at, // Account creation date
+          university_id: profileData.university_id, // University ID for nudges/content
         },
         latestScore,
         latestSession,
