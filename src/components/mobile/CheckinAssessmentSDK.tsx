@@ -608,76 +608,44 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         {/* Processing Overlay - EXACT COPY FROM BASELINE */}
         {isSaving && (
           <div className="fixed inset-0 z-[9999] min-h-screen relative overflow-hidden flex items-center justify-center">
-            {/* Animated gradient background */}
-            <motion.div
-              className="absolute inset-0"
-              animate={{
-                background: [
-                  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                  "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-                  "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                ]
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "linear"
-              }}
+            {/* Animated gradient background - CSS animation (runs on compositor, won't freeze) */}
+            <div
+              className="absolute inset-0 processing-gradient-bg"
               style={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                animation: "gradientShift 6s ease-in-out infinite"
               }}
             />
 
             {/* Subtle overlay */}
             <div className="absolute inset-0 bg-black/5" />
 
-            {/* Floating orbs */}
-            <motion.div
-              className="absolute top-1/4 left-1/4 w-32 h-32 bg-white/10 rounded-full blur-2xl"
-              animate={{
-                y: [0, -15, 0],
-                x: [0, 10, 0],
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-                ease: "easeInOut"
+            {/* Floating orbs - CSS animations (won't freeze during heavy computation) */}
+            <div
+              className="absolute top-1/4 left-1/4 w-32 h-32 bg-white/10 rounded-full blur-2xl processing-orb-1"
+              style={{
+                animation: "floatOrb1 4s ease-in-out infinite"
               }}
             />
-            <motion.div
-              className="absolute bottom-1/4 right-1/4 w-24 h-24 bg-white/8 rounded-full blur-xl"
-              animate={{
-                y: [0, 10, 0],
-                x: [0, -8, 0],
-                scale: [1, 0.9, 1],
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 1
+            <div
+              className="absolute bottom-1/4 right-1/4 w-24 h-24 bg-white/8 rounded-full blur-xl processing-orb-2"
+              style={{
+                animation: "floatOrb2 3s ease-in-out infinite 1s"
               }}
             />
 
             {/* Content */}
-            <motion.div
-              className="relative z-10 flex flex-col items-center text-center px-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8 }}
+            <div
+              className="relative z-10 flex flex-col items-center text-center px-8 processing-content"
+              style={{
+                animation: "fadeIn 0.8s ease-out"
+              }}
             >
-              {/* Logo */}
-              <motion.div
-                className="mb-6"
-                animate={{
-                  scale: [1, 1.05, 1]
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
+              {/* Logo - CSS animation (continuous pulse) */}
+              <div
+                className="mb-6 processing-logo"
+                style={{
+                  animation: "pulseLogo 2.5s ease-in-out infinite"
                 }}
               >
                 <div className="w-32 h-32 p-4 bg-white/20 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
@@ -687,53 +655,86 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
                     className="w-full h-full object-contain"
                   />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Processing messages with phase transitions */}
-              <motion.div
-                key={processingPhase}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.6 }}
-              >
+              <div className="processing-title">
                 <h1 className="text-4xl font-semibold text-white mb-3">
                   {processingPhase === 'extracting' && 'Processing Your Check-in'}
                   {processingPhase === 'analyzing' && 'Analysing Multimodal Data'}
                   {processingPhase === 'saving' && 'Finalising Your Check-in'}
                 </h1>
-              </motion.div>
+              </div>
 
-              <motion.div
-                key={processingMessage}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-              >
+              <div className="processing-message">
                 <p className="text-white/90 text-lg font-medium mb-8">
                   {processingMessage}
                 </p>
-              </motion.div>
+              </div>
 
-              {/* Progress bar - infinite loop */}
-              <motion.div
+              {/* Progress bar - CSS animation (continuous, won't freeze) */}
+              <div
                 className="mt-8 w-48 h-1 bg-white/30 rounded-full overflow-hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
+                style={{
+                  animation: "fadeIn 0.6s ease-out 0.4s both"
+                }}
               >
-                <motion.div
-                  className="h-full bg-white/60 rounded-full"
-                  animate={{ x: ["-100%", "200%"] }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "linear"
+                <div
+                  className="h-full bg-white/60 rounded-full processing-progress-bar"
+                  style={{
+                    width: "50%",
+                    animation: "progressBar 2s linear infinite"
                   }}
-                  style={{ width: "50%" }}
                 />
-              </motion.div>
-            </motion.div>
+              </div>
+
+              {/* Additional spinning indicator - always visible and moving */}
+              <div
+                className="mt-6 w-12 h-12 border-4 border-white/30 border-t-white/80 rounded-full processing-spinner"
+                style={{
+                  animation: "spin 1s linear infinite"
+                }}
+              />
+            </div>
+
+            {/* CSS Animations - defined inline to ensure they're always active */}
+            <style>{`
+              @keyframes gradientShift {
+                0%, 100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+                33% { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+                66% { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+              }
+              
+              @keyframes floatOrb1 {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                50% { transform: translate(10px, -15px) scale(1.1); }
+              }
+              
+              @keyframes floatOrb2 {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                50% { transform: translate(-8px, 10px) scale(0.9); }
+              }
+              
+              @keyframes pulseLogo {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+              }
+              
+              @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              
+              @keyframes progressBar {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(400%); }
+              }
+              
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
           </div>
         )}
 
