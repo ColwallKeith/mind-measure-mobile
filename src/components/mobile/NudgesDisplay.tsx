@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from "@/components/ui/button";
 import { Calendar, Lightbulb, BookOpen, ExternalLink, MapPin, Clock } from 'lucide-react';
 
 interface EventNudge {
@@ -70,30 +69,39 @@ function renderNudgeCard(
   onNudgeClick?: (nudge: Nudge) => void,
   isPinned: boolean = false
 ) {
-  const baseClasses = `glass-surface rounded-2xl border p-6 shadow-lg transition-all ${
-    isPinned ? 'border-orange-500/30 bg-orange-50/50' : ''
-  }`;
+  const baseStyles: React.CSSProperties = {
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.3s',
+    border: isPinned ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid',
+    ...(isPinned && { backgroundColor: 'rgba(255, 247, 237, 0.5)' })
+  };
 
   if (nudge.template === 'event') {
     return (
-      <div className={`${baseClasses} border-blue-200 bg-blue-50`}>
-        <div className="flex items-start gap-3 mb-4">
-          <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-          <div className="flex-1">
-            <h3 className="font-bold text-lg text-gray-900 mb-2">{nudge.eventTitle}</h3>
+      <div style={{
+        ...baseStyles,
+        borderColor: '#BFDBFE',
+        backgroundColor: '#EFF6FF'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+          <Calendar style={{ width: '24px', height: '24px', color: '#2563EB', flexShrink: 0, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontWeight: '700', fontSize: '18px', color: '#111827', marginBottom: '8px' }}>{nudge.eventTitle}</h3>
             {nudge.eventDescription && (
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed">{nudge.eventDescription}</p>
+              <p style={{ fontSize: '14px', color: '#374151', marginBottom: '12px', lineHeight: '1.6' }}>{nudge.eventDescription}</p>
             )}
-            <div className="space-y-1">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {nudge.eventLocation && (
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <MapPin className="w-4 h-4" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#4B5563' }}>
+                  <MapPin style={{ width: '16px', height: '16px' }} />
                   <span><strong>Where:</strong> {nudge.eventLocation}</span>
                 </div>
               )}
               {nudge.eventDateTime && (
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Clock className="w-4 h-4" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#4B5563' }}>
+                  <Clock style={{ width: '16px', height: '16px' }} />
                   <span><strong>When:</strong> {nudge.eventDateTime}</span>
                 </div>
               )}
@@ -101,12 +109,22 @@ function renderNudgeCard(
           </div>
         </div>
         {nudge.eventButtonText && (
-          <Button
+          <button
             onClick={() => handleButtonClick(nudge.eventButtonLink)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11 rounded-xl font-medium"
+            style={{
+              width: '100%',
+              background: '#2563EB',
+              color: 'white',
+              padding: '12px',
+              borderRadius: '12px',
+              fontWeight: '600',
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer'
+            }}
           >
             {nudge.eventButtonText}
-          </Button>
+          </button>
         )}
       </div>
     );
@@ -114,30 +132,47 @@ function renderNudgeCard(
 
   if (nudge.template === 'service') {
     return (
-      <div className={`${baseClasses} border-purple-200 bg-purple-50`}>
-        <div className="flex items-start gap-3 mb-4">
-          <Lightbulb className="w-6 h-6 text-purple-600 flex-shrink-0 mt-1" />
-          <div className="flex-1">
-            <h3 className="font-bold text-lg text-gray-900 mb-2">{nudge.serviceTitle}</h3>
+      <div style={{
+        ...baseStyles,
+        borderColor: '#E9D5FF',
+        backgroundColor: '#FAF5FF'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
+          <Lightbulb style={{ width: '24px', height: '24px', color: '#9333EA', flexShrink: 0, marginTop: '4px' }} />
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontWeight: '700', fontSize: '18px', color: '#111827', marginBottom: '8px' }}>{nudge.serviceTitle}</h3>
             {nudge.serviceDescription && (
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed">{nudge.serviceDescription}</p>
+              <p style={{ fontSize: '14px', color: '#374151', marginBottom: '12px', lineHeight: '1.6' }}>{nudge.serviceDescription}</p>
             )}
             {nudge.serviceAccess && (
-              <div className="text-xs text-gray-600 mb-3 bg-white/50 p-3 rounded-lg">
+              <div style={{ fontSize: '12px', color: '#4B5563', marginBottom: '12px', backgroundColor: 'rgba(255, 255, 255, 0.5)', padding: '12px', borderRadius: '8px' }}>
                 <strong>How to access:</strong> {nudge.serviceAccess}
               </div>
             )}
           </div>
         </div>
         {nudge.serviceLink && (
-          <Button
+          <button
             onClick={() => handleButtonClick(nudge.serviceLink)}
-            variant="outline"
-            className="w-full h-11 rounded-xl font-medium border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
+            style={{
+              width: '100%',
+              background: 'transparent',
+              color: '#9333EA',
+              padding: '12px',
+              borderRadius: '12px',
+              fontWeight: '600',
+              fontSize: '14px',
+              border: '2px solid #9333EA',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
+            <ExternalLink style={{ width: '16px', height: '16px' }} />
             More Info
-          </Button>
+          </button>
         )}
       </div>
     );
@@ -145,19 +180,34 @@ function renderNudgeCard(
 
   if (nudge.template === 'tip') {
     return (
-      <div className={`${baseClasses} border-green-200 bg-green-50 p-4`}>
-        <div className="flex items-start gap-3">
-          <BookOpen className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-gray-700 leading-relaxed mb-2">{nudge.tipText}</p>
+      <div style={{
+        ...baseStyles,
+        borderColor: '#BBF7D0',
+        backgroundColor: '#F0FDF4',
+        padding: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <BookOpen style={{ width: '20px', height: '20px', color: '#16A34A', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6', marginBottom: '8px' }}>{nudge.tipText}</p>
             {nudge.tipArticleLink && (
-              <Button
+              <button
                 onClick={() => handleButtonClick(nudge.tipArticleLink)}
-                variant="link"
-                className="px-0 h-auto text-green-600 hover:text-green-700 font-medium"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: '#16A34A',
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  textDecoration: 'none'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#15803D'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#16A34A'}
               >
                 Read more →
-              </Button>
+              </button>
             )}
           </div>
         </div>
