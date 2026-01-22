@@ -35,6 +35,16 @@ interface RekognitionFrame {
 }
 
 export class BaselineVisualExtractor {
+  /**
+   * Maximum number of frames to analyze with Rekognition
+   * 
+   * Rationale:
+   * - Facial expressions don't change rapidly (0.5fps is sufficient)
+   * - Longer conversations are richer in voice/text patterns
+   * - GPT analysis adds additional visual context
+   * - Processing 20-30 frames provides good coverage without excessive latency
+   */
+  private static readonly MAX_FRAMES_TO_ANALYZE = 25;
   
   /**
    * Extract visual features from captured video frames using AWS Rekognition
@@ -48,12 +58,19 @@ export class BaselineVisualExtractor {
       );
     }
 
-    console.log('[VisualExtractor] Extracting features from', media.videoFrames.length, 'frames using AWS Rekognition');
-
     try {
+      // Cap and sample frames evenly across the conversation
+      const framesToAnalyze = this.sampleFramesEvenly(
+        media.videoFrames,
+        BaselineVisualExtractor.MAX_FRAMES_TO_ANALYZE
+      );
+      
+      console.log('[VisualExtractor] Sampling', framesToAnalyze.length, 'frames from', media.videoFrames.length, 'total (max:', BaselineVisualExtractor.MAX_FRAMES_TO_ANALYZE + ')');
+      console.log('[VisualExtractor] Extracting features from', framesToAnalyze.length, 'frames using AWS Rekognition');
+
       // Convert video frames to base64 for API transmission
       const framesBase64 = await Promise.all(
-        media.videoFrames.map(blob => this.blobToBase64(blob))
+        framesToAnalyze.map(blob => this.blobToBase64(blob))
       );
 
       // Calculate payload size for debugging
@@ -104,7 +121,7 @@ export class BaselineVisualExtractor {
 
       const analyses: RekognitionFrame[] = result.analyses;
 
-      console.log('[VisualExtractor] ✅ Rekognition analyzed', analyses.length, '/', media.videoFrames.length, 'frames');
+      console.log('[VisualExtractor] ✅ Rekognition analyzed', analyses.length, '/', framesToAnalyze.length, 'frames');
 
       if (analyses.length === 0) {
         throw new MultimodalError(
@@ -331,6 +348,41 @@ export class BaselineVisualExtractor {
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
+  
+  /**
+   * Sample frames evenly across the conversation
+   * 
+   * If we have fewer frames than the max, use all.
+   * If we have more, sample evenly to get a representative distribution.
+   * 
+   * @param frames - All captured frames
+   * @param maxFrames - Maximum number of frames to return
+   * @returns Sampled frames array
+   */
+  private sampleFramesEvenly(frames: Blob[], maxFrames: number): Blob[] {
+    if (frames.length <= maxFrames) {
+      return frames; // Use all frames if we're under the limit
+    }
+    
+    // Sample evenly across the conversation
+    const sampled: Blob[] = [];
+    const step = frames.length / maxFrames;
+    
+    for (let i = 0; i < maxFrames; i++) {
+      const index = Math.floor(i * step);
+      sampled.push(frames[index]);
+    }
+    
+    // Always include the first and last frames for context
+    if (sampled[0] !== frames[0]) {
+      sampled[0] = frames[0];
+    }
+    if (sampled[sampled.length - 1] !== frames[frames.length - 1]) {
+      sampled[sampled.length - 1] = frames[frames.length - 1];
+    }
+    
+    return sampled;
+  }
 
   private mean(values: number[]): number {
     if (values.length === 0) return 0;

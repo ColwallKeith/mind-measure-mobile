@@ -16,6 +16,16 @@ import type { CheckinAudioFeatures } from '../types';
 import { CheckinMultimodalError } from '../types';
 
 export class CheckinAudioExtractor {
+  /**
+   * Maximum duration of audio to process (in seconds)
+   * 
+   * Rationale:
+   * - Voice patterns are consistent across a conversation
+   * - Processing full 2+ minute conversations is computationally expensive
+   * - Sampling 30-60 seconds provides representative voice features
+   * - Similar to video frame capping - we don't need every millisecond
+   */
+  private static readonly MAX_AUDIO_DURATION_SECONDS = 60;
   
   /**
    * Extract all 23 audio features from conversational speech
@@ -43,20 +53,37 @@ export class CheckinAudioExtractor {
       console.log(`[CheckinAudioExtractor] Audio decoded: ${audioBuffer.duration.toFixed(2)}s, ${audioBuffer.sampleRate}Hz`);
       
       // Extract raw audio data
-      const channelData = audioBuffer.getChannelData(0);
+      const fullChannelData = audioBuffer.getChannelData(0);
       const sampleRate = audioBuffer.sampleRate;
-      const duration = audioBuffer.duration;
+      const fullDuration = audioBuffer.duration;
+      
+      // Sample audio chunks if duration exceeds max
+      const channelData = this.sampleAudioChunks(
+        fullChannelData,
+        sampleRate,
+        fullDuration,
+        CheckinAudioExtractor.MAX_AUDIO_DURATION_SECONDS
+      );
+      const duration = channelData.length / sampleRate;
+      
+      console.log(`[CheckinAudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${CheckinAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
       
       // Extract fundamental frequency (F0) for pitch analysis
+      console.log(`[CheckinAudioExtractor] Extracting pitch features (F0 series)...`);
+      const f0StartTime = Date.now();
       const f0Series = this.extractF0Series(channelData, sampleRate);
+      console.log(`[CheckinAudioExtractor] Pitch extraction complete in ${Date.now() - f0StartTime}ms`);
       
       // Extract energy/amplitude series
+      console.log(`[CheckinAudioExtractor] Extracting energy features...`);
       const energySeries = this.extractEnergySeries(channelData, sampleRate);
       
       // Detect speech/pause segments
+      console.log(`[CheckinAudioExtractor] Detecting speech segments...`);
       const segments = this.detectSpeechSegments(energySeries, sampleRate);
       
       // Extract all feature groups
+      console.log(`[CheckinAudioExtractor] Computing feature groups...`);
       const pitchFeatures = this.extractPitchFeatures(f0Series, sampleRate);
       const timingFeatures = this.extractTimingFeatures(segments, duration, channelData, sampleRate);
       const energyFeatures = this.extractEnergyFeatures(energySeries, segments);
@@ -278,6 +305,59 @@ export class CheckinAudioExtractor {
   // ==========================================================================
   // HELPER FUNCTIONS
   // ==========================================================================
+  
+  /**
+   * Sample audio chunks evenly across the conversation
+   * 
+   * If audio is longer than max duration, samples evenly distributed chunks
+   * to get representative voice patterns without processing the entire file.
+   * 
+   * @param fullChannelData - Complete audio channel data
+   * @param sampleRate - Audio sample rate
+   * @param duration - Full audio duration in seconds
+   * @param maxDurationSeconds - Maximum duration to process
+   * @returns Sampled audio channel data
+   */
+  private sampleAudioChunks(
+    fullChannelData: Float32Array,
+    sampleRate: number,
+    duration: number,
+    maxDurationSeconds: number
+  ): Float32Array {
+    if (duration <= maxDurationSeconds) {
+      return fullChannelData; // Use all audio if under limit
+    }
+    
+    // Calculate chunk size and spacing
+    const chunkDuration = 2; // 2-second chunks
+    const numChunks = Math.floor(maxDurationSeconds / chunkDuration);
+    const chunkSamples = Math.floor(chunkDuration * sampleRate);
+    const totalSamples = fullChannelData.length;
+    const step = totalSamples / numChunks;
+    
+    // Sample evenly distributed chunks
+    const sampledSamples: number[] = [];
+    
+    for (let i = 0; i < numChunks; i++) {
+      const startIndex = Math.floor(i * step);
+      const endIndex = Math.min(startIndex + chunkSamples, totalSamples);
+      const chunk = fullChannelData.slice(startIndex, endIndex);
+      sampledSamples.push(...Array.from(chunk));
+    }
+    
+    // Always include first and last 2 seconds for context
+    const firstChunk = fullChannelData.slice(0, chunkSamples);
+    const lastChunk = fullChannelData.slice(totalSamples - chunkSamples, totalSamples);
+    
+    // Combine: first chunk + sampled chunks + last chunk (avoid duplicates)
+    const result = new Float32Array([
+      ...Array.from(firstChunk),
+      ...sampledSamples.slice(chunkSamples), // Skip first chunk if already included
+      ...Array.from(lastChunk)
+    ]);
+    
+    return result;
+  }
   
   /**
    * Extract fundamental frequency (F0) series using autocorrelation

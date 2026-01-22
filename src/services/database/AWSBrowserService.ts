@@ -512,7 +512,12 @@ export class AWSBrowserFunctionsService {
 
   async invoke(functionName: string, data: any): Promise<any> {
     console.log(`🚀 Invoking Lambda function: ${functionName}`);
-    const endpoint = `${this.lambdaBaseUrl}/${functionName}`;
+    
+    // Use proxy endpoint for finalize-session to avoid CORS issues
+    const useProxy = functionName === 'finalize-session';
+    const endpoint = useProxy 
+      ? `/api/lambda/${functionName}`  // Use mobile app proxy
+      : `${this.lambdaBaseUrl}/${functionName}`;  // Direct Lambda call
     
     try {
       const accessToken = await this.getAccessToken();
@@ -522,6 +527,7 @@ export class AWSBrowserFunctionsService {
         endpoint,
         method: 'POST',
         hasAuth: !!accessToken,
+        useProxy,
         payloadSize: JSON.stringify(data).length
       });
       
