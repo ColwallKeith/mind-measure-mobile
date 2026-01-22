@@ -47,6 +47,16 @@ interface RekognitionResponse {
 }
 
 export class CheckinVisualExtractor {
+  /**
+   * Maximum number of frames to analyze with Rekognition
+   * 
+   * Rationale:
+   * - Facial expressions don't change rapidly (0.5fps is sufficient)
+   * - Longer conversations are richer in voice/text patterns
+   * - GPT analysis adds additional visual context
+   * - Processing 20-30 frames provides good coverage without excessive latency
+   */
+  private static readonly MAX_FRAMES_TO_ANALYZE = 25;
   
   /**
    * Extract all 18 visual features from video frames
@@ -66,8 +76,16 @@ export class CheckinVisualExtractor {
     const startTime = Date.now();
     
     try {
-      // Call Rekognition API
-      const rekognitionData = await this.analyzeFramesWithRekognition(media.videoFrames);
+      // Cap and sample frames evenly across the conversation
+      const framesToAnalyze = this.sampleFramesEvenly(
+        media.videoFrames,
+        CheckinVisualExtractor.MAX_FRAMES_TO_ANALYZE
+      );
+      
+      console.log(`[CheckinVisualExtractor] Sampling ${framesToAnalyze.length} frames from ${media.videoFrames.length} total (max: ${CheckinVisualExtractor.MAX_FRAMES_TO_ANALYZE})`);
+      
+      // Call Rekognition API with sampled frames
+      const rekognitionData = await this.analyzeFramesWithRekognition(framesToAnalyze);
       
       console.log(`[CheckinVisualExtractor] Rekognition analyzed ${rekognitionData.analyzedFrames}/${rekognitionData.totalFrames} frames`);
       
@@ -117,6 +135,45 @@ export class CheckinVisualExtractor {
         'visual'
       );
     }
+  }
+  
+  // ==========================================================================
+  // FRAME SAMPLING
+  // ==========================================================================
+  
+  /**
+   * Sample frames evenly across the conversation
+   * 
+   * If we have fewer frames than the max, use all.
+   * If we have more, sample evenly to get a representative distribution.
+   * 
+   * @param frames - All captured frames
+   * @param maxFrames - Maximum number of frames to return
+   * @returns Sampled frames array
+   */
+  private sampleFramesEvenly(frames: Blob[], maxFrames: number): Blob[] {
+    if (frames.length <= maxFrames) {
+      return frames; // Use all frames if we're under the limit
+    }
+    
+    // Sample evenly across the conversation
+    const sampled: Blob[] = [];
+    const step = frames.length / maxFrames;
+    
+    for (let i = 0; i < maxFrames; i++) {
+      const index = Math.floor(i * step);
+      sampled.push(frames[index]);
+    }
+    
+    // Always include the first and last frames for context
+    if (sampled[0] !== frames[0]) {
+      sampled[0] = frames[0];
+    }
+    if (sampled[sampled.length - 1] !== frames[frames.length - 1]) {
+      sampled[sampled.length - 1] = frames[frames.length - 1];
+    }
+    
+    return sampled;
   }
   
   // ==========================================================================
