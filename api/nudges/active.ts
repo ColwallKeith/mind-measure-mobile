@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from 'pg';
-
-// Aurora Serverless v2 configuration
-const getAuroraConfig = () => ({
-  host: process.env.AWS_AURORA_HOST || 'mindmeasure-aurora.cluster-cz8c8wq4k3ak.eu-west-2.rds.amazonaws.com',
-  port: parseInt(process.env.AWS_AURORA_PORT || '5432'),
-  database: process.env.AWS_AURORA_DATABASE || 'mindmeasure',
-  user: process.env.AWS_AURORA_USERNAME || 'mindmeasure_admin',
-  password: process.env.AWS_AURORA_PASSWORD,
-  ssl: { rejectUnauthorized: false },
-});
+import { getSecureDbConfig } from '../_lib/db-config';
 
 export async function GET(request: NextRequest) {
   let auroraClient: Client | null = null;
@@ -23,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Connect to Aurora
-    auroraClient = new Client(getAuroraConfig());
+    auroraClient = new Client(getSecureDbConfig());
     await auroraClient.connect();
 
     // Fetch university nudges
