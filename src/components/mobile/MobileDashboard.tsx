@@ -290,30 +290,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
         )}
       </div>
 
-      {/* Nudges - What's Happening */}
-      {!nudgesLoading && (pinned || rotated) && (
-        <motion.div 
-          variants={itemVariants} 
-          style={{ 
-            padding: '0 20px 24px 20px',
-            width: '100%'
-          }}
-        >
-          <h3 style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#1a1a1a',
-            margin: '0 0 12px 0'
-          }}>
-            What's Happening
-          </h3>
-          <NudgesDisplay
-            pinned={pinned}
-            rotated={rotated}
-          />
-        </motion.div>
-      )}
-
       {/* Quick Actions */}
       <div style={{ padding: '0 20px 24px 20px' }}>
         <h3 style={{
@@ -697,6 +673,30 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
           </div>
         );
       })()}
+
+      {/* Nudges - What's Happening */}
+      {!nudgesLoading && (pinned || rotated) && (
+        <motion.div 
+          variants={itemVariants} 
+          style={{ 
+            padding: '0 20px 24px 20px',
+            width: '100%'
+          }}
+        >
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1a1a1a',
+            margin: '0 0 12px 0'
+          }}>
+            What's Happening
+          </h3>
+          <NudgesDisplay
+            pinned={pinned}
+            rotated={rotated}
+          />
+        </motion.div>
+      )}
 
       {/* Bottom padding for navigation */}
       <div className="h-24" />
