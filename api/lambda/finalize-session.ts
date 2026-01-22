@@ -34,8 +34,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'sessionId is required' });
     }
 
+    // Extract token for diagnostics (without exposing full token)
+    const tokenPart = normalizedAuthHeader.replace('Bearer ', '');
+    const tokenPreview = tokenPart.substring(0, 20) + '...' + tokenPart.substring(tokenPart.length - 10);
+    const tokenParts = tokenPart.split('.');
+    const isJWT = tokenParts.length === 3;
+    
     console.log('[Lambda Proxy] Calling finalize-session Lambda for session:', sessionId);
-    console.log('[Lambda Proxy] Auth header format:', normalizedAuthHeader.substring(0, 20) + '...');
+    console.log('[Lambda Proxy] Auth header preview:', normalizedAuthHeader.substring(0, 30) + '...');
+    console.log('[Lambda Proxy] Token format check:', {
+      hasBearer: normalizedAuthHeader.startsWith('Bearer '),
+      isJWT: isJWT,
+      tokenLength: tokenPart.length,
+      tokenPreview: tokenPreview
+    });
 
     // Call Lambda function via API Gateway
     const lambdaResponse = await fetch(`${LAMBDA_BASE_URL}/finalize-session`, {
