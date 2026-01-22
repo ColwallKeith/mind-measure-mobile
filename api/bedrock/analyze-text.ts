@@ -268,11 +268,17 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
     const responseBody = JSON.parse(decoded);
 
     console.log('[Bedrock API] ✅ Bedrock response received');
+    console.log('[Bedrock API] Full response body structure:', JSON.stringify({
+      hasContent: !!responseBody?.content,
+      contentLength: responseBody?.content?.length,
+      firstContentType: responseBody?.content?.[0]?.type,
+      hasText: !!responseBody?.content?.[0]?.text
+    }));
 
     // Extract text from Claude response (defensive)
     const responseText: string | undefined = responseBody?.content?.[0]?.text;
     if (!responseText) {
-      console.error('[Bedrock API] ❌ No text content in Bedrock response', responseBody);
+      console.error('[Bedrock API] ❌ No text content in Bedrock response', JSON.stringify(responseBody, null, 2));
       return res.status(200).json({
         success: true,
         data: getEmptyResult("Text analysis did not return usable content for this check in."),
@@ -281,13 +287,19 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
     }
 
     console.log('[Bedrock API] Response preview:', responseText.substring(0, 200));
+    console.log('[Bedrock API] Full response text length:', responseText.length);
 
     // Parse JSON from response (defensive)
     let parsed: any;
     try {
       parsed = JSON.parse(responseText);
+      console.log('[Bedrock API] ✅ JSON parsed successfully');
+      console.log('[Bedrock API] Parsed text_score:', parsed.text_score);
+      console.log('[Bedrock API] Parsed mood_score:', parsed.mood_score);
+      console.log('[Bedrock API] Parsed themes:', parsed.themes);
     } catch (parseError) {
       console.error('[Bedrock API] ❌ Failed to parse JSON from model response', parseError);
+      console.error('[Bedrock API] Response text that failed to parse:', responseText.substring(0, 500));
       return res.status(200).json({
         success: true,
         data: getEmptyResult("Text analysis output was not valid JSON for this check in."),
@@ -296,7 +308,9 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
     }
 
     // Validate and sanitize
+    console.log('[Bedrock API] Before validation - text_score:', parsed.text_score);
     const result = validateAndSanitize(parsed);
+    console.log('[Bedrock API] After validation - text_score:', result.text_score);
 
     console.log('[Bedrock API] ✅ Analysis complete:', {
       score: result.text_score,
@@ -313,6 +327,14 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
   } catch (error: any) {
     console.error('[Bedrock API] ❌ Error:', error);
     console.error('[Bedrock API] Error message:', error?.message);
+    console.error('[Bedrock API] Error stack:', error?.stack);
+    console.error('[Bedrock API] Error name:', error?.name);
+    console.error('[Bedrock API] Error code:', error?.code);
+    
+    // Check if it's an AWS credentials error
+    if (error?.message?.includes('credentials') || error?.code === 'CredentialsError') {
+      console.error('[Bedrock API] ⚠️ AWS credentials issue detected!');
+    }
 
     // Return graceful fallback even on error
     return res.status(200).json({
