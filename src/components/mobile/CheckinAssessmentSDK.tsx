@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
-import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
