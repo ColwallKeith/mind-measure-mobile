@@ -496,20 +496,21 @@ export class AWSBrowserFunctionsService {
   private async getAccessToken(): Promise<string> {
     try {
       // Get access token from Capacitor Preferences storage
+      // NOTE: simple-auth.ts stores it as 'mindmeasure_access_token', not 'cognito_access_token'
       const { Preferences } = await import('@capacitor/preferences');
-      const { value: accessToken } = await Preferences.get({ key: 'cognito_access_token' });
       
-      // If access token not found, try ID token as fallback (some Cognito authorizers accept ID tokens)
+      // Try the correct key first (what simple-auth.ts uses)
+      let { value: accessToken } = await Preferences.get({ key: 'mindmeasure_access_token' });
+      
+      // Fallback to old key for backwards compatibility
       if (!accessToken) {
-        console.warn('⚠️ Access token not found, trying ID token...');
-        const { value: idToken } = await Preferences.get({ key: 'cognito_id_token' });
-        
-        if (!idToken) {
-          throw new Error('No access token or ID token available - user not authenticated');
-        }
-        
-        console.log('✅ Using ID token as fallback for Lambda authentication');
-        return idToken;
+        console.warn('⚠️ Token not found at mindmeasure_access_token, trying cognito_access_token...');
+        const result = await Preferences.get({ key: 'cognito_access_token' });
+        accessToken = result.value;
+      }
+      
+      if (!accessToken) {
+        throw new Error('No access token available - user not authenticated. Please sign in again.');
       }
       
       // Validate token format (basic JWT check - should have 3 parts separated by dots)
@@ -518,6 +519,7 @@ export class AWSBrowserFunctionsService {
         throw new Error('Invalid token format');
       }
       
+      console.log('✅ Access token retrieved successfully (length:', accessToken.length, ')');
       return accessToken;
     } catch (error) {
       console.error('❌ Failed to get access token:', error);
