@@ -15,6 +15,7 @@ interface ContentArticle {
   fullContent: string;
   author?: string;
   publishDate?: string;
+  published_at?: string; // For sorting
 }
 
 interface ContentPageProps {
@@ -68,7 +69,15 @@ export function ContentPage({
           fullContent: article.content,
           author: article.author || 'Student Wellbeing Team',
           publishDate: article.published_at ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+          published_at: article.published_at, // Keep original for sorting
         }));
+
+        // Sort by published_at DESC (most recent first)
+        mappedArticles.sort((a, b) => {
+          const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
+          return dateB - dateA;
+        });
 
         setArticles(mappedArticles);
       }
