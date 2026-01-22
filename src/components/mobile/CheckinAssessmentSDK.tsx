@@ -488,10 +488,95 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         console.warn('[CheckinSDK] ⚠️ Skipping transcript save - no ID or empty transcript');
       }
 
+      // Step 9: Trigger GPT analysis via finalize-session Lambda (non-blocking)
+      // This runs in the background and doesn't delay the user experience
+      console.log('[CheckinSDK] Step 9: 🧠 Triggering GPT analysis (non-blocking)...');
+      const gptAnalysisStartTime = Date.now();
+      
+      // Create assessment_sessions record for Lambda pipeline
+      // The Lambda expects an assessment_sessions record to exist
+      try {
+        // Generate a unique session ID for assessment_sessions (different from fusion_outputs ID)
+        const assessmentSessionId = crypto.randomUUID();
+        
+        // Format conversation data for Lambda
+        const conversationDataArray = transcript.split('\n')
+          .filter(line => line.trim().length > 0)
+          .map(line => {
+            const colonIndex = line.indexOf(':');
+            if (colonIndex === -1) return null;
+            const speaker = line.substring(0, colonIndex).trim();
+            const text = line.substring(colonIndex + 1).trim();
+            return {
+              role: speaker.toLowerCase() === 'user' ? 'user' : 'ai',
+              text: text
+            };
+          })
+          .filter((item): item is { role: string; text: string } => item !== null);
+
+        // Create assessment_sessions record with data format expected by Lambda
+        const sessionData = {
+          id: assessmentSessionId,
+          user_id: user!.id,
+          status: 'processing', // Will be updated to 'completed' by Lambda
+          assessment_type: 'checkin',
+          text_data: {
+            transcripts: [transcript],
+            textInputs: [transcript],
+            fullConversation: transcript,
+            conversationData: conversationDataArray
+          },
+          audio_data: capturedMedia?.audio ? {
+            size: capturedMedia.audio.size,
+            duration: duration,
+            format: 'webm/opus',
+            audioBlob: null // Can't store Blob in DB, Lambda will need to fetch from storage if needed
+          } : null,
+          visual_data: capturedMedia?.videoFrames ? {
+            frameCount: capturedMedia.videoFrames.length,
+            captured: true,
+            // Note: Actual frame data would need to be stored separately (S3) for Lambda to access
+          } : null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Insert assessment_sessions record
+        const { error: sessionError } = await backendService.database.insert('assessment_sessions', sessionData);
+        if (sessionError) {
+          console.warn('[CheckinSDK] ⚠️ Could not create assessment_sessions record:', sessionError);
+          console.warn('[CheckinSDK] ⚠️ GPT analysis will be skipped (non-critical)');
+        } else {
+          console.log('[CheckinSDK] ✅ Assessment session record created for Lambda pipeline:', assessmentSessionId);
+
+          // Call finalize-session Lambda (non-blocking - fire and forget)
+          // This will trigger GPT analysis in the background without blocking user
+          backendService.functions.invoke('finalize-session', {
+            body: { sessionId: assessmentSessionId }
+          }).then((result: any) => {
+            const gptAnalysisDuration = Date.now() - gptAnalysisStartTime;
+            console.log(`[CheckinSDK] ✅ GPT analysis completed in ${gptAnalysisDuration}ms`);
+            console.log('[CheckinSDK] GPT analysis result:', result);
+            if (result?.error) {
+              console.warn('[CheckinSDK] ⚠️ GPT analysis had errors (non-critical):', result.error);
+            }
+          }).catch((error: any) => {
+            const gptAnalysisDuration = Date.now() - gptAnalysisStartTime;
+            console.warn(`[CheckinSDK] ⚠️ GPT analysis failed after ${gptAnalysisDuration}ms (non-critical):`, error?.message || error);
+            // Don't throw - this is background processing, user experience shouldn't be affected
+          });
+
+          console.log('[CheckinSDK] ✅ GPT analysis triggered (running in background, user can proceed)');
+        }
+      } catch (gptError: any) {
+        console.warn('[CheckinSDK] ⚠️ Failed to trigger GPT analysis (non-critical):', gptError?.message || gptError);
+        // Don't block user experience - GPT analysis is enhancement, not required
+      }
+
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Complete
+      // Complete (user can proceed immediately, GPT analysis runs in background)
       setIsSaving(false);
       if (onComplete) {
         onComplete();
