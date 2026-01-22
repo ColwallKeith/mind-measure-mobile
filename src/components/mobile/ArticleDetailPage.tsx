@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+
 interface ArticleDetailPageProps {
   article: {
     id: string;
@@ -23,6 +26,30 @@ export function ArticleDetailPage({
   universityLogo,
   wellbeingSupportUrl
 }: ArticleDetailPageProps) {
+  const { user } = useAuth();
+
+  // Track article view when component mounts
+  useEffect(() => {
+    const trackView = async () => {
+      try {
+        await fetch('/api/content/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            articleId: article.id,
+            userId: user?.id,
+            universityId: user?.university_id
+          })
+        });
+        console.log(`📊 Tracked view for article: ${article.title}`);
+      } catch (error) {
+        console.error('Failed to track article view:', error);
+      }
+    };
+
+    trackView();
+  }, [article.id, user?.id, user?.university_id, article.title]);
+
   const getCategoryColor = (category: string) => {
     const colors: Record<string, { bg: string; text: string }> = {
       'Anxiety': { bg: '#FEE2E2', text: '#DC2626' },
