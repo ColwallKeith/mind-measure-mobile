@@ -58,7 +58,15 @@ export async function verifyToken(token: string): Promise<any> {
       },
       (err, decoded) => {
         if (err) {
-          console.error('[AUTH] JWT verification failed:', err.message);
+          console.error('[AUTH] JWT verification failed:', {
+            errorName: err.name,
+            errorMessage: err.message,
+            errorCode: err.code,
+            // Log token preview for debugging (first 20 chars + last 10)
+            tokenPreview: token.substring(0, 20) + '...' + token.substring(token.length - 10),
+            tokenLength: token.length,
+            tokenParts: token.split('.').length
+          });
           reject(err);
           return;
         }
@@ -67,7 +75,12 @@ export async function verifyToken(token: string): Promise<any> {
         if (decoded && typeof decoded === 'object' && 'exp' in decoded) {
           const now = Math.floor(Date.now() / 1000);
           if (decoded.exp < now) {
-            console.error('[AUTH] Token expired:', { exp: decoded.exp, now });
+            console.error('[AUTH] Token expired:', { 
+              exp: decoded.exp, 
+              now,
+              expiredBy: now - decoded.exp,
+              tokenPreview: token.substring(0, 20) + '...'
+            });
             reject(new Error('Token expired'));
             return;
           }
@@ -119,6 +132,7 @@ export async function requireAuth(
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log(`[AUTH] Missing auth header - route: ${req.url}`);
     res.status(401).json({
       error: 'Unauthorized',
       message: 'No authentication token provided',
@@ -129,6 +143,10 @@ export async function requireAuth(
 
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   
+  // Log token info for debugging (without exposing full token)
+  const tokenParts = token.split('.');
+  console.log(`[AUTH] Validating token - route: ${req.url}, tokenParts: ${tokenParts.length}, tokenLength: ${token.length}, preview: ${token.substring(0, 20)}...`);
+  
   try {
     // Verify token signature and claims
     const payload = await verifyToken(token);
@@ -137,13 +155,19 @@ export async function requireAuth(
     const userId = extractUserId(payload);
     
     // Log security event (minimal, no sensitive data)
-    console.log(`[AUTH] User authenticated - userId: ${userId}, route: ${req.url}`);
+    console.log(`[AUTH] ✅ User authenticated - userId: ${userId}, route: ${req.url}`);
     
     return { userId, payload };
     
   } catch (error: any) {
-    // Log auth failure
-    console.log(`[AUTH] Authentication failed - route: ${req.url}, error: ${error.message}`);
+    // Log auth failure with detailed error info
+    console.error(`[AUTH] ❌ Authentication failed - route: ${req.url}`, {
+      errorName: error?.name,
+      errorMessage: error?.message,
+      errorCode: error?.code,
+      tokenPreview: token.substring(0, 20) + '...',
+      tokenLength: token.length
+    });
     
     res.status(401).json({
       error: 'Unauthorized',

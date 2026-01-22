@@ -24,10 +24,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Step 1: Authenticate user (same validation as /api/database/* routes)
+    // Step 1: Log incoming request for debugging
+    const authHeader = req.headers.authorization;
+    console.log('[Lambda Proxy] Incoming request:', {
+      hasAuthHeader: !!authHeader,
+      authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
+      method: req.method,
+      url: req.url
+    });
+
+    // Step 2: Authenticate user (same validation as /api/database/* routes)
     const auth = await requireAuth(req, res);
     if (!auth) {
       // requireAuth already sent 401 response with proper error format
+      // Log additional context for debugging
+      console.error('[Lambda Proxy] ❌ Authentication failed:', {
+        hasAuthHeader: !!authHeader,
+        authHeaderType: authHeader ? (authHeader.startsWith('Bearer ') ? 'Bearer' : 'Other') : 'Missing'
+      });
       return;
     }
 
