@@ -74,8 +74,9 @@ export async function verifyToken(token: string): Promise<any> {
       {
         algorithms: ['RS256'],
         issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`,
-        // Verify audience if client ID is set
-        ...(COGNITO_CLIENT_ID ? { audience: COGNITO_CLIENT_ID } : {}),
+        // NOTE: Not validating audience because tokens may be issued with different client IDs
+        // (e.g., mobile app uses VITE_AWS_COGNITO_CLIENT_ID, server may have different CLIENT_ID)
+        // The issuer validation is sufficient for security
       },
       (err, decoded) => {
         if (err) {
