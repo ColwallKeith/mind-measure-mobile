@@ -112,8 +112,10 @@ export class BaselineEnrichmentService {
       if (input.audioBlob) {
         try {
           console.log('[EnrichmentService] 🎤 Extracting audio features...');
+          const audioStartTime = Date.now();
           audioFeatures = await this.audioExtractor.extract(capturedMedia);
-          console.log('[EnrichmentService] ✅ Audio features extracted');
+          const audioTime = Date.now() - audioStartTime;
+          console.log(`[EnrichmentService] ✅ Audio features extracted in ${audioTime}ms`);
         } catch (error) {
           console.warn('[EnrichmentService] ⚠️ Audio extraction failed:', error);
           warnings.push('Audio feature extraction failed - using clinical score only');
@@ -126,8 +128,10 @@ export class BaselineEnrichmentService {
       if (input.videoFrames && input.videoFrames.length > 0) {
         try {
           console.log('[EnrichmentService] 📹 Extracting visual features...');
+          const visualStartTime = Date.now();
           visualFeatures = await this.visualExtractor.extract(capturedMedia);
-          console.log('[EnrichmentService] ✅ Visual features extracted');
+          const visualTime = Date.now() - visualStartTime;
+          console.log(`[EnrichmentService] ✅ Visual features extracted in ${visualTime}ms`);
         } catch (error) {
           console.warn('[EnrichmentService] ⚠️ Visual extraction failed:', error);
           warnings.push('Visual feature extraction failed - using clinical score only');

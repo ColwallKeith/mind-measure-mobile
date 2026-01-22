@@ -62,7 +62,8 @@ export class BaselineAudioExtractor {
       
       console.log(`[AudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${BaselineAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
 
-      // Extract features
+      // Extract features with timing
+      const extractionStartTime = Date.now();
       const features: BaselineAudioFeatures = {
         meanPitch: await this.extractMeanPitch(channelData, sampleRate),
         pitchVariability: await this.extractPitchVariability(channelData, sampleRate),
@@ -75,8 +76,10 @@ export class BaselineAudioExtractor {
         harmonicRatio: this.extractHarmonicRatio(channelData, sampleRate),
         quality: this.assessQuality(channelData, duration)
       };
+      const extractionTime = Date.now() - extractionStartTime;
 
       console.log('[AudioExtractor] ✅ Features extracted:', features);
+      console.log(`[AudioExtractor] ⏱️ Audio extraction time: ${extractionTime}ms (processed ${duration.toFixed(1)}s from ${fullDuration.toFixed(1)}s total)`);
       await audioContext.close();
 
       return features;
