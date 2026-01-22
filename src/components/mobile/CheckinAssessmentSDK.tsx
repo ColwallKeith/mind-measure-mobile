@@ -551,8 +551,9 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
           // Call finalize-session Lambda (non-blocking - fire and forget)
           // This will trigger GPT analysis in the background without blocking user
+          // Pass sessionId directly (proxy endpoint expects { sessionId }, not { body: { sessionId } })
           backendService.functions.invoke('finalize-session', {
-            body: { sessionId: assessmentSessionId }
+            sessionId: assessmentSessionId
           }).then((result: any) => {
             const gptAnalysisDuration = Date.now() - gptAnalysisStartTime;
             console.log(`[CheckinSDK] ✅ GPT analysis completed in ${gptAnalysisDuration}ms`);

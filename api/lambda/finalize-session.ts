@@ -22,9 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Authorization header required' });
     }
 
-    // Extract sessionId from request body
-    const { sessionId } = req.body;
+    // Extract sessionId from request body (handle both { sessionId } and { body: { sessionId } } formats)
+    const sessionId = req.body?.sessionId || req.body?.body?.sessionId;
     if (!sessionId) {
+      console.error('[Lambda Proxy] Request body:', JSON.stringify(req.body));
       return res.status(400).json({ error: 'sessionId is required' });
     }
 

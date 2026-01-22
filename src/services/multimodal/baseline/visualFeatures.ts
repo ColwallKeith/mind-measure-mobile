@@ -141,7 +141,7 @@ export class BaselineVisualExtractor {
         blinkRate: this.extractBlinkRate(analyses, media.duration),
         headMovement: this.extractHeadMovement(analyses),
         affect: this.extractAffect(analyses),
-        facePresenceQuality: analyses.length / media.videoFrames.length,
+        facePresenceQuality: analyses.length / framesToAnalyze.length, // Use sampled frames, not all frames
         overallQuality: this.extractOverallQuality(analyses)
       };
 
@@ -368,20 +368,26 @@ export class BaselineVisualExtractor {
     const sampled: Blob[] = [];
     const step = frames.length / maxFrames;
     
-    for (let i = 0; i < maxFrames; i++) {
+    // Always include first frame
+    sampled.push(frames[0]);
+    
+    // Sample middle frames (skip first and last since we'll add last separately)
+    for (let i = 1; i < maxFrames - 1; i++) {
       const index = Math.floor(i * step);
-      sampled.push(frames[index]);
+      // Avoid duplicate first frame
+      if (index > 0) {
+        sampled.push(frames[index]);
+      }
     }
     
-    // Always include the first and last frames for context
-    if (sampled[0] !== frames[0]) {
-      sampled[0] = frames[0];
-    }
-    if (sampled[sampled.length - 1] !== frames[frames.length - 1]) {
-      sampled[sampled.length - 1] = frames[frames.length - 1];
+    // Always include last frame (if different from first)
+    const lastFrame = frames[frames.length - 1];
+    if (lastFrame !== frames[0] && sampled.length < maxFrames) {
+      sampled.push(lastFrame);
     }
     
-    return sampled;
+    // Ensure we don't exceed maxFrames
+    return sampled.slice(0, maxFrames);
   }
 
   private mean(values: number[]): number {

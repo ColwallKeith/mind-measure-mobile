@@ -12,6 +12,16 @@ import type { BaselineAudioFeatures, CapturedMedia } from '../types';
 import { MultimodalError, MultimodalErrorCode } from '../types';
 
 export class BaselineAudioExtractor {
+  /**
+   * Maximum duration of audio to process (in seconds)
+   * 
+   * Rationale:
+   * - Voice patterns are consistent across a conversation
+   * - Processing full 2+ minute conversations is computationally expensive
+   * - Sampling 30-60 seconds provides representative voice features
+   * - Similar to video frame capping - we don't need every millisecond
+   */
+  private static readonly MAX_AUDIO_DURATION_SECONDS = 60;
   
   /**
    * Extract audio features from captured media
@@ -34,12 +44,23 @@ export class BaselineAudioExtractor {
       const arrayBuffer = await media.audio.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-      // Get audio channel data
-      const channelData = audioBuffer.getChannelData(0); // Mono or first channel
+      // Get full audio channel data
+      const fullChannelData = audioBuffer.getChannelData(0); // Mono or first channel
       const sampleRate = audioBuffer.sampleRate;
-      const duration = audioBuffer.duration;
+      const fullDuration = audioBuffer.duration;
 
-      console.log('[AudioExtractor] Audio decoded:', duration.toFixed(2), 's,', sampleRate, 'Hz');
+      console.log('[AudioExtractor] Audio decoded:', fullDuration.toFixed(2), 's,', sampleRate, 'Hz');
+
+      // Sample audio chunks if duration exceeds max
+      const channelData = this.sampleAudioChunks(
+        fullChannelData,
+        sampleRate,
+        fullDuration,
+        BaselineAudioExtractor.MAX_AUDIO_DURATION_SECONDS
+      );
+      const duration = channelData.length / sampleRate;
+      
+      console.log(`[AudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${BaselineAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
 
       // Extract features
       const features: BaselineAudioFeatures = {
@@ -374,6 +395,59 @@ export class BaselineAudioExtractor {
     }
     
     return clipped / data.length;
+  }
+
+  /**
+   * Sample audio chunks evenly across the conversation
+   * 
+   * If audio is longer than max duration, samples evenly distributed chunks
+   * to get representative voice patterns without processing the entire file.
+   * 
+   * @param fullChannelData - Complete audio channel data
+   * @param sampleRate - Audio sample rate
+   * @param fullDuration - Full audio duration in seconds
+   * @param maxDurationSeconds - Maximum duration to process
+   * @returns Sampled audio channel data
+   */
+  private sampleAudioChunks(
+    fullChannelData: Float32Array,
+    sampleRate: number,
+    fullDuration: number,
+    maxDurationSeconds: number
+  ): Float32Array {
+    if (fullDuration <= maxDurationSeconds) {
+      return fullChannelData; // Use all audio if under limit
+    }
+    
+    // Calculate chunk size and spacing
+    const chunkDuration = 2; // 2-second chunks
+    const numChunks = Math.floor(maxDurationSeconds / chunkDuration);
+    const chunkSamples = Math.floor(chunkDuration * sampleRate);
+    const totalSamples = fullChannelData.length;
+    const step = totalSamples / numChunks;
+    
+    // Sample evenly distributed chunks
+    const sampledSamples: number[] = [];
+    
+    for (let i = 0; i < numChunks; i++) {
+      const startIndex = Math.floor(i * step);
+      const endIndex = Math.min(startIndex + chunkSamples, totalSamples);
+      const chunk = fullChannelData.slice(startIndex, endIndex);
+      sampledSamples.push(...Array.from(chunk));
+    }
+    
+    // Always include first and last 2 seconds for context
+    const firstChunk = fullChannelData.slice(0, chunkSamples);
+    const lastChunk = fullChannelData.slice(totalSamples - chunkSamples, totalSamples);
+    
+    // Combine: first chunk + sampled chunks + last chunk (avoid duplicates)
+    const result = new Float32Array([
+      ...Array.from(firstChunk),
+      ...sampledSamples.slice(chunkSamples), // Skip first chunk if already included
+      ...Array.from(lastChunk)
+    ]);
+    
+    return result;
   }
 }
 
