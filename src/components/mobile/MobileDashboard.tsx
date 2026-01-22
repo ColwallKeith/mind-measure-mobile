@@ -31,6 +31,14 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   } = useDashboardData();
   
   // Fetch active nudges
+  useEffect(() => {
+    console.log('[Dashboard] Profile for nudges:', {
+      hasProfile: !!profile,
+      universityId: profile?.university_id,
+      profileData: profile
+    });
+  }, [profile]);
+  
   const { pinned, rotated, loading: nudgesLoading } = useActiveNudges(profile?.university_id);
   
   // Developer hack: Click logo 5 times to reset baseline
