@@ -501,12 +501,14 @@ export class AWSBrowserFunctionsService {
       
       // Try the correct key first (what simple-auth.ts uses)
       let { value: accessToken } = await Preferences.get({ key: 'mindmeasure_access_token' });
+      let tokenSource = 'mindmeasure_access_token';
       
       // Fallback to old key for backwards compatibility
       if (!accessToken) {
         console.warn('⚠️ Token not found at mindmeasure_access_token, trying cognito_access_token...');
         const result = await Preferences.get({ key: 'cognito_access_token' });
         accessToken = result.value;
+        tokenSource = 'cognito_access_token';
       }
       
       if (!accessToken) {
@@ -519,7 +521,36 @@ export class AWSBrowserFunctionsService {
         throw new Error('Invalid token format');
       }
       
-      console.log('✅ Access token retrieved successfully (length:', accessToken.length, ')');
+      // Check if token is a legacy Supabase token (before migration)
+      try {
+        const tokenParts = accessToken.split('.');
+        if (tokenParts.length === 3) {
+          // Decode base64url payload (browser-compatible)
+          const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
+          const payloadJson = atob(base64);
+          const payload = JSON.parse(payloadJson);
+          const issuer = payload.iss || '';
+          
+          // Supabase tokens have a different issuer format
+          if (issuer.includes('supabase.co') || issuer.includes('supabase')) {
+            console.error('❌ Legacy Supabase token detected at', tokenSource);
+            console.error('❌ This token is from before the AWS migration and is no longer valid');
+            console.error('❌ Please sign out and sign in again to get a fresh Cognito token');
+            
+            // Clear the old token
+            await Preferences.remove({ key: 'cognito_access_token' });
+            await Preferences.remove({ key: 'mindmeasure_access_token' });
+            
+            throw new Error('Legacy Supabase token detected. Please sign out and sign in again to get a fresh Cognito token.');
+          }
+        }
+      } catch (decodeError) {
+        // If we can't decode, continue (will fail with proper error during validation)
+        console.warn('⚠️ Could not pre-decode token for issuer check:', decodeError);
+      }
+      
+      console.log('✅ Access token retrieved successfully from', tokenSource, '(length:', accessToken.length, ')');
       return accessToken;
     } catch (error) {
       console.error('❌ Failed to get access token:', error);

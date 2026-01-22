@@ -46,6 +46,27 @@ export async function verifyToken(token: string): Promise<any> {
     issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`
   });
 
+  // Check if token is a Supabase token (legacy) by decoding without verification
+  try {
+    const tokenParts = token.split('.');
+    if (tokenParts.length === 3) {
+      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64url').toString());
+      const issuer = payload.iss || '';
+      
+      // Supabase tokens have a different issuer format
+      if (issuer.includes('supabase.co') || issuer.includes('supabase')) {
+        console.error('[AUTH] ❌ Detected Supabase token (legacy) - user needs to sign in again');
+        throw new Error('Legacy Supabase token detected. Please sign out and sign in again to get a fresh Cognito token.');
+      }
+      
+      // Log token type for debugging
+      console.log('[AUTH] Token issuer:', issuer, 'token_use:', payload.token_use);
+    }
+  } catch (decodeError) {
+    // If we can't decode, continue with normal verification (will fail with proper error)
+    console.warn('[AUTH] Could not pre-decode token for issuer check:', decodeError);
+  }
+
   return new Promise((resolve, reject) => {
     jwt.verify(
       token,
