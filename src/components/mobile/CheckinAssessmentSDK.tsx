@@ -719,14 +719,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
                   }}
                 />
               </div>
-
-              {/* Additional spinning indicator - always visible and moving */}
-              <div
-                className="mt-6 w-12 h-12 border-4 border-white/30 border-t-white/80 rounded-full processing-spinner"
-                style={{
-                  animation: "spin 1s linear infinite"
-                }}
-              />
             </div>
 
             {/* CSS Animations - defined inline to ensure they're always active */}

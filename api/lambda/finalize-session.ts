@@ -48,17 +48,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { userId, payload } = auth;
     console.log('[Lambda Proxy] ✅ User authenticated:', userId);
 
-    // Step 2: Extract sessionId from request body
+    // Step 3: Extract sessionId from request body
     const sessionId = req.body?.sessionId || req.body?.body?.sessionId;
     if (!sessionId) {
       console.error('[Lambda Proxy] Request body:', JSON.stringify(req.body));
       return res.status(400).json({ error: 'sessionId is required' });
     }
 
-    // Step 3: Get the validated token from the request (already validated by requireAuth)
-    const authHeader = req.headers.authorization;
+    // Step 4: Verify auth header is still present (should be after requireAuth)
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // This should never happen if requireAuth passed, but defensive check
+      console.error('[Lambda Proxy] ❌ Auth header missing after validation');
       return res.status(401).json({ error: 'Authorization header missing' });
     }
 
