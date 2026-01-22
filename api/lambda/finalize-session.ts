@@ -22,6 +22,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Authorization header required' });
     }
 
+    // Ensure Authorization header has Bearer prefix (API Gateway Cognito authorizer requires this)
+    const normalizedAuthHeader = authHeader.startsWith('Bearer ') 
+      ? authHeader 
+      : `Bearer ${authHeader}`;
+
     // Extract sessionId from request body (handle both { sessionId } and { body: { sessionId } } formats)
     const sessionId = req.body?.sessionId || req.body?.body?.sessionId;
     if (!sessionId) {
@@ -30,13 +35,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log('[Lambda Proxy] Calling finalize-session Lambda for session:', sessionId);
+    console.log('[Lambda Proxy] Auth header format:', normalizedAuthHeader.substring(0, 20) + '...');
 
     // Call Lambda function via API Gateway
     const lambdaResponse = await fetch(`${LAMBDA_BASE_URL}/finalize-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader
+        'Authorization': normalizedAuthHeader
       },
       body: JSON.stringify({ sessionId })
     });

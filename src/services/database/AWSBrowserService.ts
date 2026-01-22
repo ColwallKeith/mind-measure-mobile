@@ -497,13 +497,28 @@ export class AWSBrowserFunctionsService {
     try {
       // Get access token from Capacitor Preferences storage
       const { Preferences } = await import('@capacitor/preferences');
-      const { value } = await Preferences.get({ key: 'cognito_access_token' });
+      const { value: accessToken } = await Preferences.get({ key: 'cognito_access_token' });
       
-      if (!value) {
-        throw new Error('No access token available - user not authenticated');
+      // If access token not found, try ID token as fallback (some Cognito authorizers accept ID tokens)
+      if (!accessToken) {
+        console.warn('⚠️ Access token not found, trying ID token...');
+        const { value: idToken } = await Preferences.get({ key: 'cognito_id_token' });
+        
+        if (!idToken) {
+          throw new Error('No access token or ID token available - user not authenticated');
+        }
+        
+        console.log('✅ Using ID token as fallback for Lambda authentication');
+        return idToken;
       }
       
-      return value;
+      // Validate token format (basic JWT check - should have 3 parts separated by dots)
+      if (!accessToken.includes('.')) {
+        console.error('❌ Invalid token format - not a JWT');
+        throw new Error('Invalid token format');
+      }
+      
+      return accessToken;
     } catch (error) {
       console.error('❌ Failed to get access token:', error);
       throw new Error('Authentication required for Lambda functions');
