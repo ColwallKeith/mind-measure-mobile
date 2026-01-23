@@ -115,6 +115,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ sessionId })
     });
 
+    // Extract diagnostic headers from API Gateway response
+    const errorType = lambdaResponse.headers.get('x-amzn-ErrorType') || 
+                      lambdaResponse.headers.get('x-amzn-errortype') ||
+                      lambdaResponse.headers.get('X-Amzn-Errortype') ||
+                      'not-provided';
+    const requestId = lambdaResponse.headers.get('x-amzn-RequestId') ||
+                     lambdaResponse.headers.get('x-amzn-requestid') ||
+                     lambdaResponse.headers.get('X-Amzn-Requestid') ||
+                     'not-provided';
+    const apiGatewayId = lambdaResponse.headers.get('x-amz-apigw-id') ||
+                         lambdaResponse.headers.get('x-amz-apigw-request-id') ||
+                         lambdaResponse.headers.get('X-Amz-Apigw-Id') ||
+                         'not-provided';
+
+    // Log all response headers for debugging
+    const allHeaders: Record<string, string> = {};
+    lambdaResponse.headers.forEach((value, key) => {
+      allHeaders[key] = value;
+    });
+
     const responseText = await lambdaResponse.text();
     let responseData: any;
     
@@ -125,15 +145,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       responseData = { raw: responseText };
     }
 
+    // Comprehensive upstream response logging
+    console.log('[Lambda Proxy] 📊 Upstream finalize-session response details:', {
+      status: lambdaResponse.status,
+      statusText: lambdaResponse.statusText,
+      headers: {
+        'x-amzn-ErrorType': errorType,
+        'x-amzn-RequestId': requestId,
+        'x-amz-apigw-id': apiGatewayId,
+        'content-type': lambdaResponse.headers.get('content-type'),
+        'all-headers': allHeaders
+      },
+      body: responseData,
+      bodyRaw: responseText.substring(0, 500) // First 500 chars of raw body
+    });
+
+    // Determine error source based on headers
     if (!lambdaResponse.ok) {
-      console.error('[Lambda Proxy] Lambda returned error:', {
+      const isApiGatewayError = errorType !== 'not-provided' && 
+                                 (errorType.toLowerCase().includes('unauthorized') ||
+                                  errorType.toLowerCase().includes('forbidden') ||
+                                  errorType.toLowerCase().includes('token') ||
+                                  errorType.toLowerCase().includes('authorizer'));
+      
+      const isLambdaError = !isApiGatewayError && lambdaResponse.status === 401;
+      
+      console.error('[Lambda Proxy] ❌ Lambda returned error:', {
         status: lambdaResponse.status,
         statusText: lambdaResponse.statusText,
-        body: responseData
+        errorSource: isApiGatewayError ? 'API_GATEWAY_AUTHORIZER' : 
+                     isLambdaError ? 'LAMBDA_FUNCTION' : 'UNKNOWN',
+        diagnosticHeaders: {
+          'x-amzn-ErrorType': errorType,
+          'x-amzn-RequestId': requestId,
+          'x-amz-apigw-id': apiGatewayId
+        },
+        body: responseData,
+        interpretation: isApiGatewayError 
+          ? '401 likely from API Gateway authorizer - check authorizer configuration, identity source, or user pool mismatch'
+          : isLambdaError
+          ? '401 from Lambda function - check Lambda internal auth validation (validateCognitoToken)'
+          : 'Unknown error source - check both API Gateway and Lambda logs'
       });
+      
       return res.status(lambdaResponse.status).json({
         error: 'Lambda function failed',
-        details: responseData
+        details: responseData,
+        diagnostic: {
+          errorSource: isApiGatewayError ? 'API_GATEWAY_AUTHORIZER' : 
+                       isLambdaError ? 'LAMBDA_FUNCTION' : 'UNKNOWN',
+          headers: {
+            'x-amzn-ErrorType': errorType,
+            'x-amzn-RequestId': requestId,
+            'x-amz-apigw-id': apiGatewayId
+          }
+        }
       });
     }
 
