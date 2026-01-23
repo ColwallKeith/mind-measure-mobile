@@ -55,6 +55,7 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
   const captureStartTimeRef = useRef<number>(0);
   const [isCapturingMedia, setIsCapturingMedia] = useState(false);
+  const isStoppedRef = useRef<boolean>(false); // Guard against duplicate stop calls
   
   // Message rotation refs
   const messageIndexRef = useRef<number>(0);
@@ -191,8 +192,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       if (conversation.status === 'connected') {
         conversation.endSession();
       }
-      if (mediaCaptureRef.current) {
-        mediaCaptureRef.current.stop();
+      // Only stop if not already stopped (prevent duplicate stop calls)
+      if (mediaCaptureRef.current && !isStoppedRef.current) {
+        isStoppedRef.current = true;
+        mediaCaptureRef.current.stop().catch(err => {
+          console.warn('[CheckinSDK] Error stopping capture in cleanup:', err);
+        });
       }
     };
   }, []);
@@ -317,7 +322,8 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
       // Stop media capture FIRST (before setting up UI)
       let capturedMedia: any = null;
-      if (mediaCaptureRef.current) {
+      if (mediaCaptureRef.current && !isStoppedRef.current) {
+        isStoppedRef.current = true; // Mark as stopped to prevent duplicate calls
         console.log('[CheckinSDK] 📹 Stopping media capture...');
         capturedMedia = await mediaCaptureRef.current.stop();
         setIsCapturingMedia(false);
@@ -325,6 +331,8 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           audioSize: capturedMedia.audio?.size,
           videoFrames: capturedMedia.videoFrames?.length
         });
+      } else if (isStoppedRef.current) {
+        console.log('[CheckinSDK] ⚠️ Media capture already stopped, skipping');
       }
 
       // Show processing overlay BEFORE setting up messages

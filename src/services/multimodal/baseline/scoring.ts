@@ -126,7 +126,7 @@ export class BaselineScoring {
     
     console.log('[BaselineScoring] Both modalities working');
     console.log('[BaselineScoring] Multimodal score:', multimodalScore);
-    console.log('[BaselineScoring] Final score: 70% clinical + 15% audio + 15% visual =', finalScore);
+    console.log('[BaselineScoring] Final score:', finalScore, '(70% clinical + 15% audio + 15% visual)');
     
     // Validate final score
     if (isNaN(finalScore) || !isFinite(finalScore)) {

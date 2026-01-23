@@ -495,15 +495,20 @@ export class AWSBrowserFunctionsService {
 
   private async getAccessToken(): Promise<string> {
     try {
-      // Get access token from Capacitor Preferences storage
-      // NOTE: simple-auth.ts stores it as 'mindmeasure_access_token', not 'cognito_access_token'
+      // Get token from Capacitor Preferences storage
+      // API Gateway Cognito authorizer typically expects ID token, not access token
       const { Preferences } = await import('@capacitor/preferences');
       
-      // Try the correct key first (what simple-auth.ts uses)
+      // Try ID token first (preferred for API Gateway Cognito authorizers)
+      let { value: idToken } = await Preferences.get({ key: 'mindmeasure_id_token' });
+      if (!idToken) {
+        ({ value: idToken } = await Preferences.get({ key: 'cognito_id_token' }));
+      }
+      
+      // Fallback to access token if ID token not available
       let { value: accessToken } = await Preferences.get({ key: 'mindmeasure_access_token' });
       let tokenSource = 'mindmeasure_access_token';
       
-      // Fallback to old key for backwards compatibility
       if (!accessToken) {
         console.warn('⚠️ Token not found at mindmeasure_access_token, trying cognito_access_token...');
         const result = await Preferences.get({ key: 'cognito_access_token' });
@@ -511,9 +516,46 @@ export class AWSBrowserFunctionsService {
         tokenSource = 'cognito_access_token';
       }
       
-      if (!accessToken) {
-        throw new Error('No access token available - user not authenticated. Please sign in again.');
+      // Prefer ID token if available (API Gateway Cognito authorizers expect ID tokens)
+      // If not in storage, try to get from CognitoApiClient
+      if (!idToken && !accessToken) {
+        try {
+          const { CognitoApiClient } = await import('../cognito-api-client');
+          const cognitoClient = CognitoApiClient.getInstance();
+          idToken = await cognitoClient.getIdToken();
+          if (idToken) {
+            console.log('✅ Retrieved ID token from CognitoApiClient');
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not get ID token from CognitoApiClient:', e);
+        }
       }
+      
+      const token = idToken || accessToken;
+      const tokenType = idToken ? 'ID' : 'Access';
+      
+      if (!token) {
+        throw new Error('No token available - user not authenticated. Please sign in again.');
+      }
+      
+      console.log(`✅ ${tokenType} token retrieved (length: ${token.length})`);
+      
+      // Log token type for debugging (decode without verification)
+      try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
+          const payloadJson = atob(base64);
+          const payload = JSON.parse(payloadJson);
+          const actualTokenType = payload.token_use || 'unknown';
+          console.log(`🔍 Token type from payload: ${actualTokenType}, issuer: ${payload.iss?.substring(0, 50) || 'unknown'}`);
+        }
+      } catch (e) {
+        // Ignore decode errors
+      }
+      
+      return token;
       
       // Validate token format (basic JWT check - should have 3 parts separated by dots)
       if (!accessToken.includes('.')) {

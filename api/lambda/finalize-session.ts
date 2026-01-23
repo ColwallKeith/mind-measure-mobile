@@ -24,10 +24,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Step 1: Log incoming request for debugging
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    
+    // Decode token to check type (without verification)
+    let tokenType = 'unknown';
+    let tokenIssuer = 'unknown';
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          // Decode base64url payload (Node.js compatible)
+          const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
+          const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
+          tokenType = payload.token_use || 'unknown';
+          tokenIssuer = payload.iss || 'unknown';
+        }
+      } catch (e) {
+        // Ignore decode errors
+        console.warn('[Lambda Proxy] Could not decode token for type check:', e);
+      }
+    }
+    
     console.log('[Lambda Proxy] Incoming request:', {
       hasAuthHeader: !!authHeader,
       authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
+      tokenType: tokenType,
+      tokenIssuer: tokenIssuer.includes('cognito') ? 'cognito' : tokenIssuer.substring(0, 30),
       method: req.method,
       url: req.url
     });

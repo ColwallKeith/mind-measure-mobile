@@ -21,7 +21,7 @@ export class BaselineAudioExtractor {
    * - Sampling 30-60 seconds provides representative voice features
    * - Similar to video frame capping - we don't need every millisecond
    */
-  private static readonly MAX_AUDIO_DURATION_SECONDS = 60;
+  private static readonly MAX_AUDIO_DURATION_SECONDS = 30; // Reduced from 60s to 30s for faster processing
   
   /**
    * Extract audio features from captured media
@@ -96,15 +96,29 @@ export class BaselineAudioExtractor {
 
   /**
    * Extract mean pitch (F0) using autocorrelation
+   * OPTIMIZED: Downsampled to 8kHz and increased hop size to reduce computation
    */
   private async extractMeanPitch(data: Float32Array, sampleRate: number): Promise<number> {
+    // Downsample to 8kHz for pitch analysis (sufficient for human voice)
+    const targetSampleRate = 8000;
+    const downsampleRatio = sampleRate / targetSampleRate;
+    const downsampledLength = Math.floor(data.length / downsampleRatio);
+    const downsampled = new Float32Array(downsampledLength);
+    
+    for (let i = 0; i < downsampledLength; i++) {
+      const srcIndex = Math.floor(i * downsampleRatio);
+      downsampled[i] = data[srcIndex];
+    }
+    
+    const effectiveSampleRate = targetSampleRate;
     const pitches: number[] = [];
-    const frameSize = Math.floor(sampleRate * 0.03); // 30ms frames
-    const hopSize = Math.floor(frameSize / 2);
+    const frameSize = Math.floor(effectiveSampleRate * 0.04); // 40ms frames (was 30ms)
+    const hopSize = Math.floor(frameSize * 0.75); // 75% overlap (was 50%, now fewer frames)
 
-    for (let i = 0; i < data.length - frameSize; i += hopSize) {
-      const frame = data.slice(i, i + frameSize);
-      const pitch = this.estimatePitchAutocorrelation(frame, sampleRate);
+    // Process every 3rd frame to further reduce computation
+    for (let i = 0; i < downsampled.length - frameSize; i += hopSize * 3) {
+      const frame = downsampled.slice(i, i + frameSize);
+      const pitch = this.estimatePitchAutocorrelation(frame, effectiveSampleRate);
       
       // Filter out unrealistic pitches (human voice typically 85-300 Hz)
       if (pitch >= 85 && pitch <= 300) {
@@ -145,15 +159,29 @@ export class BaselineAudioExtractor {
 
   /**
    * Extract pitch variability (standard deviation)
+   * OPTIMIZED: Uses same downsampling and frame skipping as extractMeanPitch
    */
   private async extractPitchVariability(data: Float32Array, sampleRate: number): Promise<number> {
+    // Downsample to 8kHz (same as extractMeanPitch)
+    const targetSampleRate = 8000;
+    const downsampleRatio = sampleRate / targetSampleRate;
+    const downsampledLength = Math.floor(data.length / downsampleRatio);
+    const downsampled = new Float32Array(downsampledLength);
+    
+    for (let i = 0; i < downsampledLength; i++) {
+      const srcIndex = Math.floor(i * downsampleRatio);
+      downsampled[i] = data[srcIndex];
+    }
+    
+    const effectiveSampleRate = targetSampleRate;
     const pitches: number[] = [];
-    const frameSize = Math.floor(sampleRate * 0.03);
-    const hopSize = Math.floor(frameSize / 2);
+    const frameSize = Math.floor(effectiveSampleRate * 0.04);
+    const hopSize = Math.floor(frameSize * 0.75);
 
-    for (let i = 0; i < data.length - frameSize; i += hopSize) {
-      const frame = data.slice(i, i + frameSize);
-      const pitch = this.estimatePitchAutocorrelation(frame, sampleRate);
+    // Process every 3rd frame (same as extractMeanPitch)
+    for (let i = 0; i < downsampled.length - frameSize; i += hopSize * 3) {
+      const frame = downsampled.slice(i, i + frameSize);
+      const pitch = this.estimatePitchAutocorrelation(frame, effectiveSampleRate);
       if (pitch >= 85 && pitch <= 300) {
         pitches.push(pitch);
       }
