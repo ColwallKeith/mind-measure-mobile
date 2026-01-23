@@ -55,6 +55,10 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const mediaCaptureRef = useRef<MediaCapture | null>(null);
   const captureStartTimeRef = useRef<number>(0);
   const [isCapturingMedia, setIsCapturingMedia] = useState(false);
+  
+  // Message rotation refs
+  const messageIndexRef = useRef<number>(0);
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Transcript state
   const [transcript, setTranscript] = useState('');
@@ -313,7 +317,13 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
       // Start message rotation - messages change every 6 seconds evenly
       setProcessingPhase('extracting');
-      let messageIndex = 0;
+      messageIndexRef.current = 0;
+      
+      // Clear any existing timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
       
       // Set first message
       setProcessingMessage(processingMessages[0].message);
@@ -329,18 +339,18 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       
       // Function to show next message - steady 6 second intervals
       const showNextMessage = () => {
-        messageIndex++;
-        if (messageIndex < processingMessages.length) {
-          const currentMsg = processingMessages[messageIndex];
+        messageIndexRef.current++;
+        if (messageIndexRef.current < processingMessages.length) {
+          const currentMsg = processingMessages[messageIndexRef.current];
           setProcessingMessage(currentMsg.message);
           
           // Schedule next message after consistent duration (6 seconds)
-          setTimeout(showNextMessage, currentMsg.duration);
+          messageTimeoutRef.current = setTimeout(showNextMessage, currentMsg.duration);
         }
       };
       
       // Start message rotation after first message duration (6 seconds)
-      setTimeout(showNextMessage, processingMessages[0].duration);
+      messageTimeoutRef.current = setTimeout(showNextMessage, processingMessages[0].duration);
 
       // Stop media capture
       let capturedMedia: any = null;
@@ -596,6 +606,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Complete (user can proceed immediately, GPT analysis runs in background)
+      // Clear message rotation timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
+      
       setIsSaving(false);
       if (onComplete) {
         onComplete();
@@ -613,6 +629,13 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       } catch (e) {
         console.error('[CheckinSDK] ❌ Could not stringify error');
       }
+      
+      // Clear message rotation timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = null;
+      }
+      
       setIsSaving(false);
       setErrorMessage('Failed to save your check-in. Please try again.');
       setShowErrorModal(true);
