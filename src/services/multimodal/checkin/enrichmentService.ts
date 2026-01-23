@@ -13,8 +13,12 @@
  */
 
 import { analyzeTextWithBedrock } from './analyzers/bedrockTextAnalyzer';
-import { BaselineEnrichmentService } from '../baseline/enrichmentService';
+import { CheckinAudioExtractor } from './extractors/audioFeatures';
+import { CheckinVisualExtractor } from './extractors/visualFeatures';
+import { CheckinFusionEngine } from './fusion/fusionEngine';
 import type { TextAnalysisContext } from './analyzers/bedrockTextAnalyzer';
+import type { CapturedMedia } from '../types';
+import type { CheckinTextAnalysis } from './types';
 
 export interface CheckinEnrichmentInput {
   userId: string;
@@ -80,10 +84,17 @@ export interface CheckinEnrichmentResult {
 }
 
 export class CheckinEnrichmentService {
-  private baselineEnrichment: BaselineEnrichmentService;
+  private audioExtractor: CheckinAudioExtractor;
+  private visualExtractor: CheckinVisualExtractor;
+  private fusionEngine: CheckinFusionEngine;
+  
+  // Timeout budget: 30 seconds total for audio+visual extraction
+  private static readonly EXTRACTION_TIMEOUT_MS = 30000;
   
   constructor() {
-    this.baselineEnrichment = new BaselineEnrichmentService();
+    this.audioExtractor = new CheckinAudioExtractor();
+    this.visualExtractor = new CheckinVisualExtractor();
+    this.fusionEngine = new CheckinFusionEngine();
   }
   
   async enrichCheckIn(input: CheckinEnrichmentInput): Promise<CheckinEnrichmentResult> {
@@ -109,57 +120,128 @@ export class CheckinEnrichmentService {
         themes: textResult.themes
       });
       
-      // 2. Direct Audio/Visual Feature Extraction (no fake clinical score)
-      console.log('[CheckinEnrichment] 🎙️📹 Extracting audio and visual features...');
+      // 2. Audio/Visual Feature Extraction (checkin-23 mode with sampling)
+      console.log('[CheckinEnrichment] 🎙️📹 Extracting audio and visual features (checkin-23 mode)...');
       let audioScore: number | null = null;
       let visualScore: number | null = null;
       let audioConfidence = 0;
       let visualConfidence = 0;
       let audioFeatures: any = null;
       let visualFeatures: any = null;
+      let audioSecondsProcessed = 0;
+      let framesAnalyzed = 0;
+      let extractionMode: 'checkin23' | 'text-only' | 'baseline10' = 'checkin23';
+      
+      // Timeout budget: if extraction exceeds 30s, fall back to text-only
+      const extractionStartTime = Date.now();
+      const extractionTimeout = setTimeout(() => {
+        console.warn('[CheckinEnrichment] ⏱️ Extraction timeout - falling back to text-only');
+        extractionMode = 'text-only';
+      }, CheckinEnrichmentService.EXTRACTION_TIMEOUT_MS);
       
       try {
-        // Use baseline enrichment for feature extraction
-        // We'll compute our own score without relying on its fake clinical placeholder
-        const multimodalResult = await this.baselineEnrichment.enrichBaseline({
-          userId: input.userId,
-          fusionOutputId: input.sessionId || 'checkin-temp', // Not used for check-ins
-          clinicalScore: 50, // Still needed by baseline service, but we use raw scores
-          audioBlob: input.audioBlob,
-          videoFrames: input.videoFrames as any, // Type coercion for now
-          duration: input.duration
-        });
+        // Create captured media object
+        const capturedMedia: CapturedMedia = {
+          audio: input.audioBlob,
+          videoFrames: input.videoFrames as any,
+          duration: input.duration,
+          startTime: Date.now() - (input.duration * 1000),
+          endTime: Date.now()
+        };
         
-        // Extract the REAL audio/visual scores from scoringBreakdown
-        const breakdown = multimodalResult.scoringBreakdown;
-        
-        if (multimodalResult.audioFeatures && breakdown.audioScore !== 50) {
-          audioScore = breakdown.audioScore;
-          audioConfidence = multimodalResult.audioFeatures.quality || 0.6;
-          audioFeatures = multimodalResult.audioFeatures;
-          console.log('[CheckinEnrichment] ✅ Audio features extracted, score:', audioScore);
-        } else {
-          console.log('[CheckinEnrichment] ⚠️ Audio features not available');
-          warnings.push('Audio features not available');
+        // Extract audio features (with timeout protection)
+        if (input.audioBlob && extractionMode !== 'text-only') {
+          try {
+            const audioStartTime = Date.now();
+            audioFeatures = await Promise.race([
+              this.audioExtractor.extract(capturedMedia),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Audio extraction timeout')), 15000)
+              )
+            ]) as any;
+            
+            // Audio features extracted - score will be computed by fusion engine
+            if (audioFeatures) {
+              audioConfidence = audioFeatures.quality || 0.6;
+              audioSecondsProcessed = Math.min(input.duration, 30); // Max 30s processed
+              console.log('[CheckinEnrichment] ✅ Audio features extracted');
+            }
+          } catch (audioError: any) {
+            console.warn('[CheckinEnrichment] ⚠️ Audio extraction failed:', audioError?.message);
+            warnings.push('Audio features not available');
+          }
         }
         
-        if (multimodalResult.visualFeatures && breakdown.visualScore !== 50) {
-          visualScore = breakdown.visualScore;
-          visualConfidence = multimodalResult.visualFeatures.overallQuality || 0.6;
-          visualFeatures = multimodalResult.visualFeatures;
-          console.log('[CheckinEnrichment] ✅ Visual features extracted, score:', visualScore);
-        } else {
-          console.log('[CheckinEnrichment] ⚠️ Visual features not available');
-          warnings.push('Visual features not available');
+        // Extract visual features (with timeout protection)
+        if (input.videoFrames && input.videoFrames.length > 0 && extractionMode !== 'text-only') {
+          try {
+            const visualStartTime = Date.now();
+            visualFeatures = await Promise.race([
+              this.visualExtractor.extract(capturedMedia),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Visual extraction timeout')), 15000)
+              )
+            ]) as any;
+            
+            // Visual features extracted - score will be computed by fusion engine
+            if (visualFeatures) {
+              visualConfidence = visualFeatures.overallQuality || 0.6;
+              framesAnalyzed = Math.min(input.videoFrames.length, 25); // Max 25 frames
+              console.log('[CheckinEnrichment] ✅ Visual features extracted');
+            }
+          } catch (visualError: any) {
+            console.warn('[CheckinEnrichment] ⚠️ Visual extraction failed:', visualError?.message);
+            warnings.push('Visual features not available');
+          }
+        }
+        
+        clearTimeout(extractionTimeout);
+        
+        // Check if we hit timeout - fall back to text-only
+        const extractionTime = Date.now() - extractionStartTime;
+        if (extractionTime > CheckinEnrichmentService.EXTRACTION_TIMEOUT_MS) {
+          extractionMode = 'text-only';
+          warnings.push('Extraction timeout - using text-only mode');
+        } else if (!audioFeatures && !visualFeatures) {
+          extractionMode = 'text-only';
         }
         
       } catch (multimodalError: any) {
+        clearTimeout(extractionTimeout);
         console.warn('[CheckinEnrichment] ⚠️ Multimodal extraction failed:', multimodalError?.message);
+        extractionMode = 'text-only';
         warnings.push('Multimodal features unavailable');
       }
       
-      // 3. Dynamic Fusion: Weight based on what succeeded
-      // V2: Text-heavy weighting (70/15/15) with sanity floor
+      // 3. Compute scores from features using fusion engine normalization
+      console.log('[CheckinEnrichment] 🧠 Computing scores from features (checkin-23 mode)...');
+      
+      // Compute audio score from features using fusion engine normalization
+      if (audioFeatures) {
+        try {
+          audioScore = this.fusionEngine['normalizeAudioFeatures'](audioFeatures, undefined);
+        } catch {
+          // Fallback: simple scoring from features
+          audioScore = 50 + (audioFeatures.meanPitch > 150 ? 10 : -10) + 
+                      (audioFeatures.speakingRate > 100 && audioFeatures.speakingRate < 150 ? 10 : 0);
+          audioScore = Math.max(0, Math.min(100, audioScore));
+        }
+      }
+      
+      // Compute visual score from features using fusion engine normalization
+      if (visualFeatures) {
+        try {
+          visualScore = this.fusionEngine['normalizeVisualFeatures'](visualFeatures, undefined);
+        } catch {
+          // Fallback: simple scoring from features
+          visualScore = 50 + (visualFeatures.smileFrequency * 20) + 
+                       (visualFeatures.eyeContact * 10) + 
+                       (visualFeatures.emotionalValence * 20);
+          visualScore = Math.max(0, Math.min(100, visualScore));
+        }
+      }
+      
+      // 4. Dynamic Fusion: Weight based on what succeeded (V2: 70/15/15)
       console.log('[CheckinEnrichment] 🧠 Fusing scores with V2 weighting...');
       
       let rawScore: number;
@@ -189,13 +271,12 @@ export class CheckinEnrichmentService {
         warnings.push('Using text-only score - no multimodal data available');
       }
       
-      // 4. Sanity Floor: Prevent obviously positive check-ins from scoring too low
-      // If text is high (>= 75), risk is none, and quality is good (>= 0.8), floor at 60
+      // 5. Sanity Floor: Prevent obviously positive check-ins from scoring too low
       const avgQuality = ((hasAudio ? audioConfidence : 0) + (hasVisual ? visualConfidence : 0)) / 
                          ((hasAudio ? 1 : 0) + (hasVisual ? 1 : 0) || 1);
       const shouldApplyFloor = textResult.text_score >= 75 && 
                                textResult.risk_level === 'none' && 
-                               avgQuality >= 0.6; // Lowered from 0.8 since audio quality is typically 0.6
+                               avgQuality >= 0.6;
       
       let finalScore = Math.round(rawScore);
       if (shouldApplyFloor && finalScore < 60) {
@@ -215,8 +296,11 @@ export class CheckinEnrichmentService {
         final: finalScore
       });
       
-      // 4. Assemble result
+      // 4. Log concise enrichment summary
       const processingTime = Date.now() - startTime;
+      console.log(`[CheckinEnrichment] 📊 Enrichment: mode=${extractionMode}, audio=${audioSecondsProcessed.toFixed(1)}s, frames=${framesAnalyzed}, time=${processingTime}ms`);
+      
+      // 5. Assemble result
       
       const result: CheckinEnrichmentResult = {
         mind_measure_score: finalScore,
