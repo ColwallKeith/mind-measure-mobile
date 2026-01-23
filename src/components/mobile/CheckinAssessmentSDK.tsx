@@ -315,13 +315,28 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       console.log('[CheckinSDK] 📊 Processing check-in data...');
       console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
 
-      // Start message rotation - messages change every 6 seconds evenly
+      // Stop media capture FIRST (before setting up UI)
+      let capturedMedia: any = null;
+      if (mediaCaptureRef.current) {
+        console.log('[CheckinSDK] 📹 Stopping media capture...');
+        capturedMedia = await mediaCaptureRef.current.stop();
+        setIsCapturingMedia(false);
+        console.log('[CheckinSDK] ✅ Media captured:', {
+          audioSize: capturedMedia.audio?.size,
+          videoFrames: capturedMedia.videoFrames?.length
+        });
+      }
+
+      // Show processing overlay BEFORE setting up messages
+      setIsSaving(true);
+      
+      // NOW set up message rotation - messages change every 6 seconds evenly
       setProcessingPhase('extracting');
       messageIndexRef.current = 0;
       
-      // Clear any existing timeout
+      // Clear any existing timeout/interval
       if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
+        clearInterval(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
       }
       
@@ -337,35 +352,22 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       setTimeout(() => setProcessingPhase('analyzing'), extractingDuration);
       setTimeout(() => setProcessingPhase('saving'), extractingDuration + analyzingDuration);
       
-      // Function to show next message - steady 6 second intervals
-      const showNextMessage = () => {
+      // Use setInterval for reliable message rotation every 6 seconds
+      messageTimeoutRef.current = setInterval(() => {
         messageIndexRef.current++;
         if (messageIndexRef.current < processingMessages.length) {
           const currentMsg = processingMessages[messageIndexRef.current];
           setProcessingMessage(currentMsg.message);
-          
-          // Schedule next message after consistent duration (6 seconds)
-          messageTimeoutRef.current = setTimeout(showNextMessage, currentMsg.duration);
+          console.log(`[CheckinSDK] 📝 Message rotated to: ${currentMsg.message} (${messageIndexRef.current + 1}/${processingMessages.length})`);
+        } else {
+          // Reached end of messages, stop interval
+          if (messageTimeoutRef.current) {
+            clearInterval(messageTimeoutRef.current);
+            messageTimeoutRef.current = null;
+          }
         }
-      };
-      
-      // Start message rotation after first message duration (6 seconds)
-      messageTimeoutRef.current = setTimeout(showNextMessage, processingMessages[0].duration);
+      }, 6000); // 6 seconds
 
-      // Stop media capture
-      let capturedMedia: any = null;
-      if (mediaCaptureRef.current) {
-        console.log('[CheckinSDK] 📹 Stopping media capture...');
-        capturedMedia = await mediaCaptureRef.current.stop();
-        setIsCapturingMedia(false);
-        console.log('[CheckinSDK] ✅ Media captured:', {
-          audioSize: capturedMedia.audio?.size,  // Fixed: was audioBlob, MediaCapture returns 'audio'
-          videoFrames: capturedMedia.videoFrames?.length
-        });
-      }
-
-      // Show processing overlay
-      setIsSaving(true);
 
       // Stop media capture
       let enrichmentResult = null;
@@ -606,9 +608,9 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Complete (user can proceed immediately, GPT analysis runs in background)
-      // Clear message rotation timeout
+      // Clear message rotation interval
       if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
+        clearInterval(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
       }
       
@@ -630,9 +632,9 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         console.error('[CheckinSDK] ❌ Could not stringify error');
       }
       
-      // Clear message rotation timeout
+      // Clear message rotation interval
       if (messageTimeoutRef.current) {
-        clearTimeout(messageTimeoutRef.current);
+        clearInterval(messageTimeoutRef.current);
         messageTimeoutRef.current = null;
       }
       
