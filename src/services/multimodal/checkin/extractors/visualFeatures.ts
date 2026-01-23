@@ -49,14 +49,9 @@ interface RekognitionResponse {
 export class CheckinVisualExtractor {
   /**
    * Maximum number of frames to analyze with Rekognition
-   * 
-   * Rationale:
-   * - Facial expressions don't change rapidly (0.5fps is sufficient)
-   * - Longer conversations are richer in voice/text patterns
-   * - GPT analysis adds additional visual context
-   * - Processing 20-30 frames provides good coverage without excessive latency
+   * checkin23_bounded mode: max 20 frames, evenly spaced
    */
-  private static readonly MAX_FRAMES_TO_ANALYZE = 25;
+  private static readonly MAX_FRAMES_TO_ANALYZE = 20;
   
   /**
    * Extract all 18 visual features from video frames

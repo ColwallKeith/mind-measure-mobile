@@ -18,14 +18,14 @@ import { CheckinMultimodalError } from '../types';
 export class CheckinAudioExtractor {
   /**
    * Maximum duration of audio to process (in seconds)
-   * 
-   * Rationale:
-   * - Voice patterns are consistent across a conversation
-   * - Processing full 2+ minute conversations is computationally expensive
-   * - Sampling 30-60 seconds provides representative voice features
-   * - Similar to video frame capping - we don't need every millisecond
+   * checkin23_bounded mode: 3 × 10s windows (start, middle, end) = 30s total
    */
-  private static readonly MAX_AUDIO_DURATION_SECONDS = 60;
+  private static readonly MAX_AUDIO_DURATION_SECONDS = 30;
+  
+  /**
+   * Window duration for checkin23_bounded mode
+   */
+  private static readonly WINDOW_DURATION_SECONDS = 10;
   
   /**
    * Extract all 23 audio features from conversational speech
@@ -307,16 +307,13 @@ export class CheckinAudioExtractor {
   // ==========================================================================
   
   /**
-   * Sample audio chunks evenly across the conversation
-   * 
-   * If audio is longer than max duration, samples evenly distributed chunks
-   * to get representative voice patterns without processing the entire file.
+   * Sample audio in 3 × 10s windows (start, middle, end) - checkin23_bounded mode
    * 
    * @param fullChannelData - Complete audio channel data
    * @param sampleRate - Audio sample rate
    * @param duration - Full audio duration in seconds
-   * @param maxDurationSeconds - Maximum duration to process
-   * @returns Sampled audio channel data
+   * @param maxDurationSeconds - Maximum duration to process (30s)
+   * @returns Sampled audio channel data (3 × 10s windows)
    */
   private sampleAudioChunks(
     fullChannelData: Float32Array,
@@ -328,32 +325,20 @@ export class CheckinAudioExtractor {
       return fullChannelData; // Use all audio if under limit
     }
     
-    // Calculate chunk size and spacing
-    const chunkDuration = 2; // 2-second chunks
-    const numChunks = Math.floor(maxDurationSeconds / chunkDuration);
-    const chunkSamples = Math.floor(chunkDuration * sampleRate);
+    const windowSamples = Math.floor(CheckinAudioExtractor.WINDOW_DURATION_SECONDS * sampleRate);
     const totalSamples = fullChannelData.length;
-    const step = totalSamples / numChunks;
     
-    // Sample evenly distributed chunks
-    const sampledSamples: number[] = [];
+    // 3 windows: start (0-10s), middle (center-5s to center+5s), end (last 10s)
+    const startWindow = fullChannelData.slice(0, windowSamples);
+    const middleStart = Math.floor((totalSamples - windowSamples) / 2);
+    const middleWindow = fullChannelData.slice(middleStart, middleStart + windowSamples);
+    const endWindow = fullChannelData.slice(totalSamples - windowSamples, totalSamples);
     
-    for (let i = 0; i < numChunks; i++) {
-      const startIndex = Math.floor(i * step);
-      const endIndex = Math.min(startIndex + chunkSamples, totalSamples);
-      const chunk = fullChannelData.slice(startIndex, endIndex);
-      sampledSamples.push(...Array.from(chunk));
-    }
-    
-    // Always include first and last 2 seconds for context
-    const firstChunk = fullChannelData.slice(0, chunkSamples);
-    const lastChunk = fullChannelData.slice(totalSamples - chunkSamples, totalSamples);
-    
-    // Combine: first chunk + sampled chunks + last chunk (avoid duplicates)
+    // Combine: start + middle + end (30s total)
     const result = new Float32Array([
-      ...Array.from(firstChunk),
-      ...sampledSamples.slice(chunkSamples), // Skip first chunk if already included
-      ...Array.from(lastChunk)
+      ...Array.from(startWindow),
+      ...Array.from(middleWindow),
+      ...Array.from(endWindow)
     ]);
     
     return result;
