@@ -23,13 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Step 1: Log incoming request for debugging
+    // Step 1: Log incoming request with detailed JWT claims
     const authHeader = req.headers.authorization || req.headers.Authorization;
     
-    // Decode token to check type (without verification)
-    let tokenType = 'unknown';
-    let tokenIssuer = 'unknown';
+    // Decode and log JWT claims for debugging
+    let tokenClaims: any = null;
+    let authHeaderFormat = 'none';
+    
     if (authHeader?.startsWith('Bearer ')) {
+      authHeaderFormat = `Bearer ${authHeader.substring(7, 27)}...${authHeader.substring(authHeader.length - 10)} (length: ${authHeader.length})`;
+      
       try {
         const token = authHeader.substring(7);
         const parts = token.split('.');
@@ -38,22 +41,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const base64Url = parts[1].replace(/-/g, '+').replace(/_/g, '/');
           const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
           const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-          tokenType = payload.token_use || 'unknown';
-          tokenIssuer = payload.iss || 'unknown';
+          
+          // Extract key claims
+          tokenClaims = {
+            token_use: payload.token_use || 'unknown',
+            iss: payload.iss || 'unknown',
+            aud: payload.aud || payload.client_id || 'unknown',
+            client_id: payload.client_id || payload.aud || 'unknown',
+            exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
+            exp_timestamp: payload.exp || 'unknown',
+            sub: payload.sub ? payload.sub.substring(0, 20) + '...' : 'unknown',
+            iat: payload.iat ? new Date(payload.iat * 1000).toISOString() : 'unknown'
+          };
+          
+          // Check if token is expired
+          if (payload.exp) {
+            const now = Math.floor(Date.now() / 1000);
+            tokenClaims.isExpired = payload.exp < now;
+            tokenClaims.expiresInSeconds = payload.exp - now;
+          }
         }
       } catch (e) {
-        // Ignore decode errors
-        console.warn('[Lambda Proxy] Could not decode token for type check:', e);
+        console.warn('[Lambda Proxy] Could not decode token for claims:', e);
       }
     }
     
-    console.log('[Lambda Proxy] Incoming request:', {
+    console.log('[Lambda Proxy] 📋 Incoming request details:', {
       hasAuthHeader: !!authHeader,
-      authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : 'none',
-      tokenType: tokenType,
-      tokenIssuer: tokenIssuer.includes('cognito') ? 'cognito' : tokenIssuer.substring(0, 30),
+      authHeaderFormat: authHeaderFormat,
       method: req.method,
-      url: req.url
+      url: req.url,
+      jwtClaims: tokenClaims
     });
 
     // Step 2: Extract sessionId from request body
@@ -71,7 +89,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Log that we're forwarding (but not validating here)
-    console.log('[Lambda Proxy] Forwarding request to Lambda (auth validation by Lambda)');
+    console.log('[Lambda Proxy] 🔄 Forwarding request to Lambda (auth validation by Lambda)');
+    console.log('[Lambda Proxy] 📤 Forwarding Authorization header format:', authHeaderFormat);
+    if (tokenClaims) {
+      console.log('[Lambda Proxy] 📤 Forwarding JWT claims:', {
+        token_use: tokenClaims.token_use,
+        issuer: tokenClaims.iss,
+        audience: tokenClaims.aud,
+        client_id: tokenClaims.client_id,
+        expires: tokenClaims.exp,
+        isExpired: tokenClaims.isExpired,
+        expiresInSeconds: tokenClaims.expiresInSeconds
+      });
+    }
 
     console.log('[Lambda Proxy] Calling Lambda via API Gateway for session:', sessionId);
 

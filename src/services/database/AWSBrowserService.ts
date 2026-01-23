@@ -493,30 +493,27 @@ export class AWSBrowserFunctionsService {
     console.log('🔧 Lambda Functions Base URL:', this.lambdaBaseUrl);
   }
 
-  private async getAccessToken(): Promise<string> {
+  /**
+   * Get both ID token and access token for fallback auth
+   * Returns { idToken, accessToken } with detailed logging
+   */
+  private async getTokens(): Promise<{ idToken: string | null; accessToken: string | null }> {
     try {
-      // Get token from Capacitor Preferences storage
-      // API Gateway Cognito authorizer typically expects ID token, not access token
       const { Preferences } = await import('@capacitor/preferences');
       
-      // Try ID token first (preferred for API Gateway Cognito authorizers)
+      // Try ID token first
       let { value: idToken } = await Preferences.get({ key: 'mindmeasure_id_token' });
       if (!idToken) {
         ({ value: idToken } = await Preferences.get({ key: 'cognito_id_token' }));
       }
       
-      // Fallback to access token if ID token not available
+      // Get access token
       let { value: accessToken } = await Preferences.get({ key: 'mindmeasure_access_token' });
-      let tokenSource = 'mindmeasure_access_token';
-      
       if (!accessToken) {
-        console.warn('⚠️ Token not found at mindmeasure_access_token, trying cognito_access_token...');
         const result = await Preferences.get({ key: 'cognito_access_token' });
         accessToken = result.value;
-        tokenSource = 'cognito_access_token';
       }
       
-      // Prefer ID token if available (API Gateway Cognito authorizers expect ID tokens)
       // If not in storage, try to get from CognitoApiClient
       if (!idToken && !accessToken) {
         try {
@@ -531,73 +528,62 @@ export class AWSBrowserFunctionsService {
         }
       }
       
-      const token = idToken || accessToken;
-      const tokenType = idToken ? 'ID' : 'Access';
-      
-      if (!token) {
-        throw new Error('No token available - user not authenticated. Please sign in again.');
+      // Log token details
+      if (idToken) {
+        this.logTokenDetails(idToken, 'ID');
+      }
+      if (accessToken) {
+        this.logTokenDetails(accessToken, 'Access');
       }
       
-      console.log(`✅ ${tokenType} token retrieved (length: ${token.length})`);
-      
-      // Log token type for debugging (decode without verification)
-      try {
-        const tokenParts = token.split('.');
-        if (tokenParts.length === 3) {
-          const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
-          const payloadJson = atob(base64);
-          const payload = JSON.parse(payloadJson);
-          const actualTokenType = payload.token_use || 'unknown';
-          console.log(`🔍 Token type from payload: ${actualTokenType}, issuer: ${payload.iss?.substring(0, 50) || 'unknown'}`);
-        }
-      } catch (e) {
-        // Ignore decode errors
+      if (!idToken && !accessToken) {
+        throw new Error('No tokens available - user not authenticated. Please sign in again.');
       }
       
-      return token;
-      
-      // Validate token format (basic JWT check - should have 3 parts separated by dots)
-      if (!accessToken.includes('.')) {
-        console.error('❌ Invalid token format - not a JWT');
-        throw new Error('Invalid token format');
-      }
-      
-      // Check if token is a legacy Supabase token (before migration)
-      try {
-        const tokenParts = accessToken.split('.');
-        if (tokenParts.length === 3) {
-          // Decode base64url payload (browser-compatible)
-          const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
-          const payloadJson = atob(base64);
-          const payload = JSON.parse(payloadJson);
-          const issuer = payload.iss || '';
-          
-          // Supabase tokens have a different issuer format
-          if (issuer.includes('supabase.co') || issuer.includes('supabase')) {
-            console.error('❌ Legacy Supabase token detected at', tokenSource);
-            console.error('❌ This token is from before the AWS migration and is no longer valid');
-            console.error('❌ Please sign out and sign in again to get a fresh Cognito token');
-            
-            // Clear the old token
-            await Preferences.remove({ key: 'cognito_access_token' });
-            await Preferences.remove({ key: 'mindmeasure_access_token' });
-            
-            throw new Error('Legacy Supabase token detected. Please sign out and sign in again to get a fresh Cognito token.');
-          }
-        }
-      } catch (decodeError) {
-        // If we can't decode, continue (will fail with proper error during validation)
-        console.warn('⚠️ Could not pre-decode token for issuer check:', decodeError);
-      }
-      
-      console.log('✅ Access token retrieved successfully from', tokenSource, '(length:', accessToken.length, ')');
-      return accessToken;
+      return { idToken: idToken || null, accessToken: accessToken || null };
     } catch (error) {
-      console.error('❌ Failed to get access token:', error);
+      console.error('❌ Failed to get tokens:', error);
       throw new Error('Authentication required for Lambda functions');
     }
+  }
+  
+  /**
+   * Log JWT token details (claims) for debugging
+   */
+  private logTokenDetails(token: string, tokenType: string): void {
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        const base64Url = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const base64 = base64Url + '='.repeat((4 - base64Url.length % 4) % 4);
+        const payloadJson = atob(base64);
+        const payload = JSON.parse(payloadJson);
+        
+        const now = Math.floor(Date.now() / 1000);
+        const isExpired = payload.exp ? payload.exp < now : false;
+        const expiresInSeconds = payload.exp ? payload.exp - now : null;
+        
+        console.log(`🔍 ${tokenType} Token Details:`, {
+          token_use: payload.token_use || 'unknown',
+          iss: payload.iss || 'unknown',
+          aud: payload.aud || payload.client_id || 'unknown',
+          client_id: payload.client_id || payload.aud || 'unknown',
+          exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
+          exp_timestamp: payload.exp || 'unknown',
+          isExpired: isExpired,
+          expiresInSeconds: expiresInSeconds,
+          sub: payload.sub ? payload.sub.substring(0, 20) + '...' : 'unknown',
+          tokenLength: token.length
+        });
+      }
+    } catch (e) {
+      console.warn(`⚠️ Could not decode ${tokenType} token for details:`, e);
+    }
+  }
+  
+  private async getAccessToken(): Promise<string> {
+    const { idToken, accessToken } = await this.getTokens();
+    return idToken || accessToken || '';
   }
 
   async invoke(functionName: string, data: any): Promise<any> {
@@ -610,58 +596,124 @@ export class AWSBrowserFunctionsService {
       : `${this.lambdaBaseUrl}/${functionName}`;  // Direct Lambda call
     
     try {
-      const accessToken = await this.getAccessToken();
-      
-      console.log(`📡 Lambda request details:`, {
-        functionName,
-        endpoint,
-        method: 'POST',
-        hasAuth: !!accessToken,
-        useProxy,
-        payloadSize: JSON.stringify(data).length
-      });
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(data)
-      });
-
-      // Try to get response body as text first
-      const rawText = await response.text();
-      let parsedBody: any = null;
-      
-      try {
-        parsedBody = rawText ? JSON.parse(rawText) : null;
-      } catch (parseError) {
-        console.warn(`⚠️ Lambda response not valid JSON:`, rawText);
-      }
-
-      if (!response.ok) {
-        console.error(`❌ Lambda HTTP error:`, {
+      // For finalize-session, try ID token first, then fallback to access token on 401
+      if (useProxy && functionName === 'finalize-session') {
+        const { idToken, accessToken } = await this.getTokens();
+        
+        if (!idToken && !accessToken) {
+          throw new Error('No tokens available for Lambda invocation');
+        }
+        
+        // Try ID token first
+        let token = idToken;
+        let tokenType = 'ID';
+        let attempt = 1;
+        
+        while (attempt <= 2) {
+          if (!token) {
+            // If no ID token on first attempt, skip to access token
+            if (attempt === 1 && accessToken) {
+              token = accessToken;
+              tokenType = 'Access';
+              attempt = 2;
+            } else {
+              throw new Error('No token available for Lambda invocation');
+            }
+          }
+          
+          console.log(`📡 Lambda request attempt ${attempt} with ${tokenType} token:`, {
+            functionName,
+            endpoint,
+            method: 'POST',
+            tokenType: tokenType,
+            tokenLength: token.length,
+            payloadSize: JSON.stringify(data).length
+          });
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ Lambda function ${functionName} completed successfully with ${tokenType} token`);
+            return result;
+          }
+          
+          // If 401 and we have another token to try, retry
+          if (response.status === 401 && attempt === 1 && accessToken && token === idToken) {
+            console.warn(`⚠️ Lambda returned 401 with ${tokenType} token, retrying with Access token...`);
+            token = accessToken;
+            tokenType = 'Access';
+            attempt = 2;
+            continue;
+          }
+          
+          // Otherwise, throw error
+          const errorText = await response.text();
+          let errorData: any;
+          try {
+            errorData = errorText ? JSON.parse(errorText) : null;
+          } catch (e) {
+            errorData = { raw: errorText };
+          }
+          
+          throw new Error(`Lambda function ${functionName} failed with status ${response.status}: ${errorText}`);
+        }
+      } else {
+        // For other functions, use standard token retrieval
+        const token = await this.getAccessToken();
+        
+        console.log(`📡 Lambda request details:`, {
           functionName,
           endpoint,
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
-          bodyParsed: parsedBody,
-          bodyRaw: rawText,
+          method: 'POST',
+          hasAuth: !!token,
+          useProxy,
+          payloadSize: JSON.stringify(data).length
         });
         
-        throw new Error(
-          `Lambda function ${functionName} failed with status ${response.status} ${response.statusText}. Body: ${rawText || '(empty)'}`
-        );
-      }
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
 
-      console.log(`✅ Lambda function ${functionName} completed successfully:`, {
-        status: response.status,
-        bodyParsed: parsedBody,
-      });
-      
-      return parsedBody;
+        // Try to get response body as text first
+        const rawText = await response.text();
+        let parsedBody: any = null;
+        
+        try {
+          parsedBody = rawText ? JSON.parse(rawText) : null;
+        } catch (parseError) {
+          console.warn(`⚠️ Lambda response not valid JSON:`, rawText);
+        }
+
+        if (!response.ok) {
+          console.error(`❌ Lambda HTTP error:`, {
+            functionName,
+            endpoint,
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            bodyParsed: parsedBody,
+            bodyRaw: rawText,
+          });
+          
+          throw new Error(`Lambda function ${functionName} failed with status ${response.status} . Body: ${rawText}`);
+        }
+
+        console.log(`✅ Lambda function ${functionName} completed successfully`);
+        return parsedBody;
+      }
       
     } catch (error) {
       // Enhanced error logging for network/fetch failures
