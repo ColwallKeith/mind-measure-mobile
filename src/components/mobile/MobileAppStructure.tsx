@@ -95,6 +95,7 @@ export const MobileAppStructure: React.FC = () => {
   const [pendingFirstName, setPendingFirstName] = useState<string>('');
   const [pendingLastName, setPendingLastName] = useState<string>('');
   const [deviceUserData, setDeviceUserData] = useState<any>(null);
+  const [signInEmail, setSignInEmail] = useState<string | null>(null);
   
   // Keep ref in sync with state
   useEffect(() => {
@@ -190,6 +191,7 @@ export const MobileAppStructure: React.FC = () => {
     console.log('⬅️ Back from verification - going to registration');
     setPendingEmail(null);
     setPendingPassword(null);
+    setSignInEmail(null);
     setOnboardingScreen('registration');
   }, []);
 
@@ -268,7 +270,17 @@ export const MobileAppStructure: React.FC = () => {
           return <SplashScreen onGetStarted={handleSplashComplete} />;
         case 'registration':
           console.log('🎨 Rendering RegistrationScreen');
-          return <RegistrationScreen onBack={handleSplashComplete} onComplete={handleRegistrationComplete} />;
+          return <RegistrationScreen 
+            onBack={handleSplashComplete} 
+            onComplete={handleRegistrationComplete}
+            onUserExists={(email, firstName, lastName) => {
+              console.log('✅ User exists - routing to sign-in with email:', email);
+              setSignInEmail(email);
+              setPendingFirstName(firstName);
+              setPendingLastName(lastName);
+              setOnboardingScreen('sign_in');
+            }}
+          />;
         case 'email_verification':
           console.log('🎨 Rendering EmailVerificationScreen');
           if (!pendingEmail) {
@@ -278,7 +290,27 @@ export const MobileAppStructure: React.FC = () => {
           return <EmailVerificationScreen email={pendingEmail} onVerified={handleEmailVerified} onBack={handleVerificationBack} />;
         case 'sign_in':
           console.log('🎨 Rendering SignInScreen');
-          return <SignInScreen onSignInComplete={handleSignInComplete} onBack={handleVerificationBack} />;
+          return <SignInScreen 
+            onSignInComplete={handleSignInComplete} 
+            onBack={handleVerificationBack}
+            preFilledEmail={signInEmail || undefined}
+            onForgotPassword={() => {
+              console.log('🔐 Navigating to forgot password');
+              setOnboardingScreen('forgot_password');
+            }}
+          />;
+        case 'forgot_password':
+          console.log('🎨 Rendering ForgotPasswordScreen');
+          return <ForgotPasswordScreen 
+            onBack={() => {
+              console.log('⬅️ Back from forgot password - returning to sign-in');
+              setOnboardingScreen('sign_in');
+            }}
+            onComplete={() => {
+              console.log('✅ Password reset complete - returning to sign-in');
+              setOnboardingScreen('sign_in');
+            }}
+          />;
         case 'baseline_welcome':
           console.log('🎨 Rendering BaselineAssessmentScreen');
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;

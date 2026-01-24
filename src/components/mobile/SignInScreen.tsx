@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,16 +7,25 @@ import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b
 interface SignInScreenProps {
   onSignInComplete: () => void;
   onBack: () => void;
+  onForgotPassword?: () => void;
+  preFilledEmail?: string;
 }
 
-export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
-  const [email, setEmail] = useState('');
+export function SignInScreen({ onSignInComplete, onBack, onForgotPassword, preFilledEmail }: SignInScreenProps) {
+  const [email, setEmail] = useState(preFilledEmail || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const { signIn } = useAuth();
+
+  // Sync preFilledEmail when it changes
+  useEffect(() => {
+    if (preFilledEmail) {
+      setEmail(preFilledEmail);
+    }
+  }, [preFilledEmail]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,17 +134,31 @@ export function SignInScreen({ onSignInComplete, onBack }: SignInScreenProps) {
                   placeholder="your.email@university.ac.uk"
                   className="w-full h-14 px-4 text-base border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all"
                   style={{ paddingLeft: '2rem' }}
-                  disabled={isLoading}
+                  disabled={isLoading || !!preFilledEmail}
                   autoComplete="email"
+                  readOnly={!!preFilledEmail}
                 />
+                <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               </div>
             </motion.div>
 
             {/* Password Input */}
             <motion.div variants={itemVariants}>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                {onForgotPassword && (
+                  <button
+                    type="button"
+                    onClick={onForgotPassword}
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors"
+                    disabled={isLoading}
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <input
                   id="password"

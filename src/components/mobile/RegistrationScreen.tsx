@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import {
   User,
   Mail,
@@ -23,6 +24,7 @@ import {
 interface RegistrationScreenProps {
   onBack: () => void;
   onComplete: (email: string, password: string) => void;
+  onUserExists?: (email: string, firstName: string, lastName: string) => void;
 }
 interface FormData {
   firstName: string;
@@ -31,7 +33,7 @@ interface FormData {
   password: string;
   confirmPassword: string;
 }
-export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenProps) {
+export function RegistrationScreen({ onBack, onComplete, onUserExists }: RegistrationScreenProps) {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -115,7 +117,64 @@ export function RegistrationScreen({ onBack, onComplete }: RegistrationScreenPro
   };
   const handleNext = async () => {
     if (validateStep()) {
-      // Steps 1-2: Just move to next step
+      // Step 2: After email entry, check if user exists
+      if (step === 2) {
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+          console.log('🔍 Checking if user exists:', { email: formData.email, firstName: formData.firstName, lastName: formData.lastName });
+          
+          // Check profiles table for matching name and email
+          const backendService = BackendServiceFactory.createService(
+            BackendServiceFactory.getEnvironmentConfig()
+          );
+          
+          const { data: profiles, error: profileError } = await backendService.database.select('profiles', {
+            filters: {
+              email: formData.email.toLowerCase().trim(),
+              first_name: formData.firstName.trim(),
+              last_name: formData.lastName.trim()
+            },
+            columns: 'user_id, email, first_name, last_name'
+          });
+          
+          if (profileError) {
+            console.error('❌ Error checking user:', profileError);
+            // Continue to password creation on error (safer for new users)
+            setStep(3);
+            setIsLoading(false);
+            return;
+          }
+          
+          // If user found with matching name and email, route to sign-in
+          if (profiles && profiles.length > 0) {
+            console.log('✅ User found in database - routing to sign-in');
+            setIsLoading(false);
+            if (onUserExists) {
+              onUserExists(formData.email, formData.firstName, formData.lastName);
+            } else {
+              // Fallback: continue to password if callback not provided
+              setStep(3);
+            }
+            return;
+          }
+          
+          // No matching user found - continue to password creation
+          console.log('🆕 No matching user found - continuing to password creation');
+          setStep(3);
+          setIsLoading(false);
+          return;
+        } catch (error) {
+          console.error('❌ Error checking user existence:', error);
+          // On error, continue to password creation (safer for new users)
+          setStep(3);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Step 1: Just move to next step
       if (step < totalSteps) {
         setStep(step + 1);
         setError(null);
