@@ -136,7 +136,7 @@ export function SupportCircle({ onNavigateToHelp }: SupportCircleProps) {
       const { data: updateData, error: updateError } = await backendService.database.update('buddy_contacts', {
         is_active: false
       }, {
-        filters: { id }
+        id
       });
       
       const response = { data: updateData, error: updateError };
