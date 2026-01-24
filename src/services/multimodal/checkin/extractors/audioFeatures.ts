@@ -68,10 +68,11 @@ export class CheckinAudioExtractor {
       
       console.log(`[CheckinAudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${CheckinAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
       
-      // Extract fundamental frequency (F0) for pitch analysis
-      console.log(`[CheckinAudioExtractor] Extracting pitch features (F0 series)...`);
+      // Extract fundamental frequency (F0) for pitch analysis - FAST VERSION
+      // Only process middle 10s window, downsample to 8kHz, use 100ms hop
+      console.log(`[CheckinAudioExtractor] Extracting pitch features (F0 series, fast mode: middle 10s only)...`);
       const f0StartTime = Date.now();
-      const f0Series = this.extractF0Series(channelData, sampleRate);
+      const f0Series = this.extractF0SeriesFast(channelData, sampleRate, duration);
       console.log(`[CheckinAudioExtractor] Pitch extraction complete in ${Date.now() - f0StartTime}ms`);
       
       // Extract energy/amplitude series
@@ -128,15 +129,16 @@ export class CheckinAudioExtractor {
     const validF0 = f0Series.filter(f0 => f0 > 0 && f0 < 500);
     
     if (validF0.length === 0) {
+      // Return null for pitch fields if unavailable (scoring will handle missing pitch)
       return {
-        meanPitch: 0,
-        pitchRange: 0,
-        pitchVariability: 0,
-        pitchContourSlope: 0,
+        meanPitch: null,
+        pitchRange: null,
+        pitchVariability: null,
+        pitchContourSlope: null,
         jitter: null,
-        shimmer: 0,
-        harmonicRatio: 0,
-        pitchDynamics: 0
+        shimmer: null,
+        harmonicRatio: null,
+        pitchDynamics: null
       };
     }
     
@@ -293,7 +295,7 @@ export class CheckinAudioExtractor {
     
     // Voiced ratio (proportion of voiced frames)
     const voicedFrames = f0Series.filter(f0 => f0 > 0).length;
-    const voicedRatio = voicedFrames / f0Series.length;
+    const voicedRatio = f0Series.length > 0 ? voicedFrames / f0Series.length : 0;
     
     return {
       spectralCentroid,
@@ -345,7 +347,44 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Extract fundamental frequency (F0) series using autocorrelation
+   * Extract fundamental frequency (F0) series using autocorrelation - FAST VERSION
+   * Only processes middle 10s window, downsamples to 8kHz, uses 100ms hop
+   */
+  private extractF0SeriesFast(channelData: Float32Array, sampleRate: number, duration: number): number[] {
+    // Extract only middle 10s window for pitch analysis
+    const windowDuration = 10; // 10 seconds
+    const middleStart = Math.max(0, (duration - windowDuration) / 2);
+    const middleStartSample = Math.floor(middleStart * sampleRate);
+    const windowSamples = Math.floor(windowDuration * sampleRate);
+    const middleWindow = channelData.slice(middleStartSample, middleStartSample + windowSamples);
+    
+    // Downsample to 8kHz for faster processing
+    const targetSampleRate = 8000;
+    const downsampleFactor = sampleRate / targetSampleRate;
+    const downsampledLength = Math.floor(middleWindow.length / downsampleFactor);
+    const downsampled = new Float32Array(downsampledLength);
+    
+    for (let i = 0; i < downsampledLength; i++) {
+      const srcIndex = Math.floor(i * downsampleFactor);
+      downsampled[i] = middleWindow[srcIndex];
+    }
+    
+    // Use 100ms hop (instead of 10ms) for much faster processing
+    const frameSize = Math.floor(targetSampleRate * 0.03); // 30ms frames at 8kHz
+    const hopSize = Math.floor(targetSampleRate * 0.1); // 100ms hop
+    const f0Series: number[] = [];
+    
+    for (let i = 0; i < downsampled.length - frameSize; i += hopSize) {
+      const frame = downsampled.slice(i, i + frameSize);
+      const f0 = this.estimateF0Autocorrelation(frame, targetSampleRate);
+      f0Series.push(f0);
+    }
+    
+    return f0Series;
+  }
+  
+  /**
+   * Extract fundamental frequency (F0) series using autocorrelation (legacy, kept for fallback)
    */
   private extractF0Series(channelData: Float32Array, sampleRate: number): number[] {
     const frameSize = Math.floor(sampleRate * 0.03); // 30ms frames
@@ -665,9 +704,14 @@ export class CheckinAudioExtractor {
   ): number {
     let quality = 1.0;
     
-    // Penalize if pitch detection is poor
-    if (pitchFeatures.meanPitch < 80 || pitchFeatures.meanPitch > 400) {
-      quality *= 0.7;
+    // Penalize if pitch detection is poor (skip if pitch is null/unavailable)
+    if (pitchFeatures.meanPitch !== null && pitchFeatures.meanPitch !== undefined) {
+      if (pitchFeatures.meanPitch < 80 || pitchFeatures.meanPitch > 400) {
+        quality *= 0.7;
+      }
+    } else {
+      // No pitch data available - slight quality penalty
+      quality *= 0.9;
     }
     
     // Penalize if very low speech ratio

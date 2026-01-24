@@ -530,12 +530,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       // No GPT/Lambda/Insight during check-in - deeper analysis is opt-in via Insight Pack module
       try {
         const assessmentSessionId = crypto.randomUUID();
+        // Only include columns that exist in production schema (removed fusion_output_id)
         const sessionData = {
           id: assessmentSessionId,
           user_id: user!.id,
           status: 'completed', // Check-in is complete, no background processing
           assessment_type: 'checkin',
-          fusion_output_id: savedId,
           final_score: enrichmentResult.finalScore,
           score: enrichmentResult.finalScore,
           conversation_summary: enrichmentResult.conversation_summary || null,
@@ -546,12 +546,14 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
         const { error: sessionError } = await backendService.database.insert('assessment_sessions', sessionData);
         if (sessionError) {
-          console.warn('[CheckinSDK] ⚠️ Could not create assessment_sessions record:', sessionError);
+          console.warn('[CheckinSDK] ⚠️ Could not create assessment_sessions record (non-blocking):', sessionError);
+          // Continue - check-in is still successful even if assessment_sessions insert fails
         } else {
           console.log('[CheckinSDK] ✅ Assessment session record created:', assessmentSessionId);
         }
       } catch (sessionError: any) {
-        console.warn('[CheckinSDK] ⚠️ Failed to create assessment_sessions record:', sessionError?.message || sessionError);
+        console.warn('[CheckinSDK] ⚠️ Failed to create assessment_sessions record (non-blocking):', sessionError?.message || sessionError);
+        // Continue - check-in is still successful even if assessment_sessions insert fails
       }
 
       // Small delay for UX
