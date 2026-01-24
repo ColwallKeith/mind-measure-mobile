@@ -8,6 +8,9 @@ import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
 import { CheckinEnrichmentService } from '../../services/multimodal/checkin/enrichmentService';
 import { ConversationScreen } from './ConversationScreen';
 
+/** When false (default), no insert into assessment_sessions in check-in. Ensures no /api/database/insert for assessment_sessions in production. */
+const ENABLE_ASSESSMENT_SESSIONS = import.meta.env.VITE_ENABLE_ASSESSMENT_SESSIONS === 'true';
+
 interface CheckinAssessmentSDKProps {
   onBack?: () => void;
   onComplete?: () => void;
@@ -414,6 +417,14 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       );
       console.log('[CheckinSDK] Step 2: ✅ Got backend service');
 
+      const safeInsert = async (table: string, data: any) => {
+        if (table === 'assessment_sessions' && !ENABLE_ASSESSMENT_SESSIONS) {
+          console.warn('[CheckinSDK] Skipping assessment_sessions insert (ENABLE_ASSESSMENT_SESSIONS=false)');
+          return { data: null, error: 'assessment_sessions insert disabled' };
+        }
+        return backendService.database.insert(table, data);
+      };
+
       // Step 3: Build analysis object - normalize field names for DB compatibility
       console.log('[CheckinSDK] Step 3: Building analysis object...');
       const analysis = {
@@ -479,9 +490,9 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         analysis_length: analysisJson.length
       });
 
-      // Step 7: Insert into database
+      // Step 7: Insert into database (fusion_outputs only; no assessment_sessions)
       console.log('[CheckinSDK] Step 7: 📡 Calling database insert...');
-      const { data: fusionResult, error: fusionError } = await backendService.database.insert('fusion_outputs', fusionData);
+      const { data: fusionResult, error: fusionError } = await safeInsert('fusion_outputs', fusionData);
       console.log('[CheckinSDK] Step 7: Insert returned:', { 
         hasData: !!fusionResult, 
         hasError: !!fusionError,
@@ -500,66 +511,38 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       const savedId = Array.isArray(fusionResult) ? fusionResult[0]?.id : fusionResult?.id;
       console.log('[CheckinSDK] ✅ Check-in saved successfully with ID:', savedId);
 
-      // Step 8: Save transcript to assessment_transcripts table (CRITICAL for reports)
+      // Step 8: Save transcript to assessment_transcripts (best-effort, non-blocking)
+      // fusion_outputs insert is required; transcript is best-effort. No assessment_sessions, no Lambda.
+      // Step 9: assessment_sessions insert disabled. Do not add without gating behind ENABLE_ASSESSMENT_SESSIONS.
       if (savedId && transcript.length > 0) {
-        console.log('[CheckinSDK] Step 8: 📝 Saving transcript...');
-        const transcriptData = {
-          fusion_output_id: savedId,
-          user_id: user!.id,
-          conversation_id: sessionId || null,
-          transcript: transcript,
-          message_count: transcript.split('\n').filter(l => l.trim()).length,
-          word_count: transcript.split(/\s+/).length,
-          duration_seconds: Math.round(duration),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        const { error: transcriptError } = await backendService.database.insert('assessment_transcripts', transcriptData);
-        if (transcriptError) {
-          console.warn('[CheckinSDK] ⚠️ Failed to store transcript:', transcriptError);
-          // Non-blocking - continue
-        } else {
-          console.log('[CheckinSDK] ✅ Transcript stored');
+        try {
+          console.log('[CheckinSDK] Step 8: 📝 Saving transcript...');
+          const transcriptData = {
+            fusion_output_id: savedId,
+            user_id: user!.id,
+            conversation_id: sessionId || null,
+            transcript,
+            message_count: transcript.split('\n').filter(l => l.trim()).length,
+            word_count: transcript.split(/\s+/).length,
+            duration_seconds: Math.round(duration),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          const { error: transcriptError } = await safeInsert('assessment_transcripts', transcriptData);
+          if (transcriptError) {
+            console.warn('[CheckinSDK] ⚠️ Transcript save failed (non-blocking):', transcriptError);
+          } else {
+            console.log('[CheckinSDK] ✅ Transcript stored');
+          }
+        } catch (e: any) {
+          console.warn('[CheckinSDK] ⚠️ Transcript save error (non-blocking):', e?.message ?? e);
         }
-      } else {
-        console.warn('[CheckinSDK] ⚠️ Skipping transcript save - no ID or empty transcript');
-      }
-
-      // Step 9: Create assessment_sessions record (for reporting, not GPT/Lambda)
-      // No GPT/Lambda/Insight during check-in - deeper analysis is opt-in via Insight Pack module
-      try {
-        const assessmentSessionId = crypto.randomUUID();
-        // Only include columns that exist in production schema (removed fusion_output_id)
-        const sessionData = {
-          id: assessmentSessionId,
-          user_id: user!.id,
-          status: 'completed', // Check-in is complete, no background processing
-          assessment_type: 'checkin',
-          final_score: enrichmentResult.finalScore,
-          score: enrichmentResult.finalScore,
-          conversation_summary: enrichmentResult.conversation_summary || null,
-          topics: JSON.stringify(enrichmentResult.themes || []),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        const { error: sessionError } = await backendService.database.insert('assessment_sessions', sessionData);
-        if (sessionError) {
-          console.warn('[CheckinSDK] ⚠️ Could not create assessment_sessions record (non-blocking):', sessionError);
-          // Continue - check-in is still successful even if assessment_sessions insert fails
-        } else {
-          console.log('[CheckinSDK] ✅ Assessment session record created:', assessmentSessionId);
-        }
-      } catch (sessionError: any) {
-        console.warn('[CheckinSDK] ⚠️ Failed to create assessment_sessions record (non-blocking):', sessionError?.message || sessionError);
-        // Continue - check-in is still successful even if assessment_sessions insert fails
       }
 
       // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Complete (check-in finished, no background processing)
+      // Complete: fusion_outputs saved. Transcript best-effort. No Lambda, no assessment_sessions.
       // Clear message rotation interval
       if (messageTimeoutRef.current) {
         clearInterval(messageTimeoutRef.current);

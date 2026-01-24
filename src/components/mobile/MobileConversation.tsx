@@ -8,6 +8,9 @@ import { useCheckinConversation } from '@/hooks/useCheckinConversation';
 import { useSession } from '@/components/SessionManager';
 import { useCostTracking } from '@/hooks/useCostTracking';
 import { StillImageCapture, StillImageCaptureRef } from '@/components/StillImageCapture';
+/** When false (default), skip assessment_sessions writes in widget path to avoid schema coupling. */
+const ENABLE_ASSESSMENT_SESSIONS_WIDGET = import.meta.env.VITE_ENABLE_ASSESSMENT_SESSIONS_WIDGET === 'true';
+
 interface MobileConversationProps {
   onNavigateBack: () => void;
   assessmentMode?: 'baseline' | 'checkin';
@@ -523,11 +526,16 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       // Create session first
       if (!currentSession && !sessionCreatedRef.current) {
         sessionCreatedRef.current = true;
-        // Clean up any pending sessions before creating new one
-        await backendService.database.select('assessment_sessions')
-          .update({ status: 'cancelled' })
-          .eq('user_id', user?.id)
-          .eq('status', 'pending');
+        if (ENABLE_ASSESSMENT_SESSIONS_WIDGET) {
+          try {
+            await backendService.database.select('assessment_sessions')
+              .update({ status: 'cancelled' })
+              .eq('user_id', user?.id)
+              .eq('status', 'pending');
+          } catch (e) {
+            console.warn('[MobileConversation] Skip cancel-pending assessment_sessions (flag off or error):', e);
+          }
+        }
         const sessionId = await createSession(actualMode ? 'baseline' : 'checkin');
         if (!sessionId) {
           startingRef.current = false;
@@ -589,20 +597,20 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   const finalizeSession = async (data: any) => {
     if (!currentSession || !user) return;
     try {
-      // Update session with visual data and completion status
-      await backendService.database.select('assessment_sessions')
-        .update({
-          status: 'completed',
-          visual_data: data,
-          assessment_type: actualMode ? 'baseline' : 'checkin'
-        })
-        .eq('id', currentSession.id);
-      // Trigger the analysis pipeline
-      const { error } = await backendService.functions.invoke('finalize-session', {
-        body: { sessionId: currentSession.id }
-      });
-      if (error) throw error;
-      console.log('✅ Mobile session finalized successfully');
+      if (ENABLE_ASSESSMENT_SESSIONS_WIDGET) {
+        try {
+          await backendService.database.select('assessment_sessions')
+            .update({
+              status: 'completed',
+              visual_data: data,
+              assessment_type: actualMode ? 'baseline' : 'checkin'
+            })
+            .eq('id', currentSession.id);
+          console.log('✅ Mobile session finalized');
+        } catch (e) {
+          console.warn('[MobileConversation] Skip assessment_sessions update (flag off or error):', e);
+        }
+      }
       setTimeout(() => {
         onNavigateBack();
       }, 1500);
