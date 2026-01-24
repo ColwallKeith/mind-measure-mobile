@@ -15,6 +15,15 @@ import type { CapturedMedia } from '../../types';
 import type { CheckinAudioFeatures } from '../types';
 import { CheckinMultimodalError } from '../types';
 
+/** Target sample rate for all post-decode processing. Reduces 48kHz→8kHz for ≤6s extraction. */
+const TARGET_SAMPLE_RATE = 8000;
+
+/** Frame length (ms) for energy/segmentation. */
+const FRAME_MS = 20;
+
+/** Hop length (ms) for energy frames. */
+const HOP_MS = 20;
+
 export class CheckinAudioExtractor {
   /**
    * Maximum duration of audio to process (in seconds)
@@ -54,41 +63,41 @@ export class CheckinAudioExtractor {
       
       // Extract raw audio data
       const fullChannelData = audioBuffer.getChannelData(0);
-      const sampleRate = audioBuffer.sampleRate;
+      const sourceRate = audioBuffer.sampleRate;
       const fullDuration = audioBuffer.duration;
       
-      // Sample audio chunks if duration exceeds max
-      const channelData = this.sampleAudioChunks(
+      // 1. Slice to 30s max (3×10s windows), then downsample to 8kHz immediately.
+      //    All downstream work runs on 8kHz (~240k samples for 30s) instead of 48kHz (~1.44M).
+      const trimmed = this.sampleAudioChunks(
         fullChannelData,
-        sampleRate,
+        sourceRate,
         fullDuration,
         CheckinAudioExtractor.MAX_AUDIO_DURATION_SECONDS
       );
-      const duration = channelData.length / sampleRate;
+      const channelData = this.downsample(trimmed, sourceRate, TARGET_SAMPLE_RATE);
+      const duration = channelData.length / TARGET_SAMPLE_RATE;
       
-      console.log(`[CheckinAudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${CheckinAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
+      console.log(`[CheckinAudioExtractor] Processing ${duration.toFixed(2)}s @ ${TARGET_SAMPLE_RATE}Hz (${(channelData.length / 1000).toFixed(0)}k samples, downsampled from ${sourceRate}Hz)`);
       
-      // Extract fundamental frequency (F0) for pitch analysis - FAST VERSION
-      // Only process middle 10s window, downsample to 8kHz, use 100ms hop
+      // 2. Pitch: middle 10s @ 8kHz, 100ms hop
       console.log(`[CheckinAudioExtractor] Extracting pitch features (F0 series, fast mode: middle 10s only)...`);
       const f0StartTime = Date.now();
-      const f0Series = this.extractF0SeriesFast(channelData, sampleRate, duration);
+      const f0Series = this.extractF0SeriesFast(channelData, duration);
       console.log(`[CheckinAudioExtractor] Pitch extraction complete in ${Date.now() - f0StartTime}ms`);
       
-      // Extract energy/amplitude series
+      // 3. Energy + segmentation: frame-level only (20ms frames, 20ms hop). No per-sample work.
       console.log(`[CheckinAudioExtractor] Extracting energy features...`);
-      const energySeries = this.extractEnergySeries(channelData, sampleRate);
+      const energySeries = this.extractEnergySeriesFrames(channelData);
       
-      // Detect speech/pause segments
       console.log(`[CheckinAudioExtractor] Detecting speech segments...`);
-      const segments = this.detectSpeechSegments(energySeries, sampleRate);
+      const segments = this.detectSpeechSegments(energySeries);
       
-      // Extract all feature groups
+      // 4. Feature groups (all use downsampled signal and/or frame-level data)
       console.log(`[CheckinAudioExtractor] Computing feature groups...`);
-      const pitchFeatures = this.extractPitchFeatures(f0Series, sampleRate);
-      const timingFeatures = this.extractTimingFeatures(segments, duration, channelData, sampleRate);
+      const pitchFeatures = this.extractPitchFeatures(f0Series, TARGET_SAMPLE_RATE);
+      const timingFeatures = this.extractTimingFeatures(segments, duration, channelData, TARGET_SAMPLE_RATE);
       const energyFeatures = this.extractEnergyFeatures(energySeries, segments);
-      const voiceQualityFeatures = this.extractVoiceQualityFeatures(channelData, sampleRate, f0Series);
+      const voiceQualityFeatures = this.extractVoiceQualityFeatures(channelData, TARGET_SAMPLE_RATE, f0Series);
       
       // Compute overall quality
       const quality = this.computeQuality(
@@ -129,16 +138,15 @@ export class CheckinAudioExtractor {
     const validF0 = f0Series.filter(f0 => f0 > 0 && f0 < 500);
     
     if (validF0.length === 0) {
-      // Return null for pitch fields if unavailable (scoring will handle missing pitch)
       return {
-        meanPitch: null,
-        pitchRange: null,
-        pitchVariability: null,
-        pitchContourSlope: null,
+        meanPitch: 0,
+        pitchRange: 0,
+        pitchVariability: 0,
+        pitchContourSlope: 0,
         jitter: null,
-        shimmer: null,
-        harmonicRatio: null,
-        pitchDynamics: null
+        shimmer: 0,
+        harmonicRatio: 0,
+        pitchDynamics: 0
       };
     }
     
@@ -195,8 +203,9 @@ export class CheckinAudioExtractor {
     const totalSpeechTime = speechSegments.reduce((sum, s) => sum + (s.end - s.start), 0);
     const speechRatio = totalSpeechTime / duration;
     
-    // Speaking rate (words per minute) - estimate from syllables
-    const estimatedSyllables = this.estimateSyllables(channelData, sampleRate, speechSegments);
+    // Speaking rate (words per minute) - FAST: estimate from speech ratio and duration
+    // Skip expensive syllable counting - use simple heuristic
+    const estimatedSyllables = Math.max(1, Math.floor(totalSpeechTime * 2.5)); // ~2.5 syllables/sec average
     const speakingRate = (estimatedSyllables / totalSpeechTime) * 60; // syllables/min
     
     // Articulation rate (syllables per second, excluding pauses)
@@ -236,8 +245,9 @@ export class CheckinAudioExtractor {
     energySeries: number[],
     segments: Array<{ start: number; end: number; isSpeech: boolean }>
   ) {
+    const frameTime = FRAME_MS / 1000;
     const speechEnergy = energySeries.filter((_, i) => {
-      const time = i * 0.02; // 20ms frames
+      const time = i * frameTime;
       return segments.some(s => s.isSpeech && time >= s.start && time <= s.end);
     });
     
@@ -309,6 +319,25 @@ export class CheckinAudioExtractor {
   // ==========================================================================
   
   /**
+   * Downsample to target rate (e.g. 48kHz → 8kHz). Applied immediately after decode/slice.
+   */
+  private downsample(
+    data: Float32Array,
+    fromRate: number,
+    toRate: number
+  ): Float32Array {
+    if (fromRate <= toRate) return data;
+    const factor = fromRate / toRate;
+    const outLen = Math.floor(data.length / factor);
+    const out = new Float32Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const src = Math.floor(i * factor);
+      out[i] = data[src];
+    }
+    return out;
+  }
+  
+  /**
    * Sample audio in 3 × 10s windows (start, middle, end) - checkin23_bounded mode
    * 
    * @param fullChannelData - Complete audio channel data
@@ -348,35 +377,23 @@ export class CheckinAudioExtractor {
   
   /**
    * Extract fundamental frequency (F0) series using autocorrelation - FAST VERSION
-   * Only processes middle 10s window, downsamples to 8kHz, uses 100ms hop
+   * Expects already-downsampled 8kHz signal. Uses middle 10s only, 100ms hop.
    */
-  private extractF0SeriesFast(channelData: Float32Array, sampleRate: number, duration: number): number[] {
-    // Extract only middle 10s window for pitch analysis
-    const windowDuration = 10; // 10 seconds
+  private extractF0SeriesFast(channelData: Float32Array, duration: number): number[] {
+    const sr = TARGET_SAMPLE_RATE;
+    const windowDuration = 10;
     const middleStart = Math.max(0, (duration - windowDuration) / 2);
-    const middleStartSample = Math.floor(middleStart * sampleRate);
-    const windowSamples = Math.floor(windowDuration * sampleRate);
+    const middleStartSample = Math.floor(middleStart * sr);
+    const windowSamples = Math.floor(windowDuration * sr);
     const middleWindow = channelData.slice(middleStartSample, middleStartSample + windowSamples);
     
-    // Downsample to 8kHz for faster processing
-    const targetSampleRate = 8000;
-    const downsampleFactor = sampleRate / targetSampleRate;
-    const downsampledLength = Math.floor(middleWindow.length / downsampleFactor);
-    const downsampled = new Float32Array(downsampledLength);
-    
-    for (let i = 0; i < downsampledLength; i++) {
-      const srcIndex = Math.floor(i * downsampleFactor);
-      downsampled[i] = middleWindow[srcIndex];
-    }
-    
-    // Use 100ms hop (instead of 10ms) for much faster processing
-    const frameSize = Math.floor(targetSampleRate * 0.03); // 30ms frames at 8kHz
-    const hopSize = Math.floor(targetSampleRate * 0.1); // 100ms hop
+    const frameSize = Math.floor(sr * 0.03);  // 30ms frames
+    const hopSize = Math.floor(sr * 0.1);     // 100ms hop
     const f0Series: number[] = [];
     
-    for (let i = 0; i < downsampled.length - frameSize; i += hopSize) {
-      const frame = downsampled.slice(i, i + frameSize);
-      const f0 = this.estimateF0Autocorrelation(frame, targetSampleRate);
+    for (let i = 0; i < middleWindow.length - frameSize; i += hopSize) {
+      const frame = middleWindow.slice(i, i + frameSize);
+      const f0 = this.estimateF0Autocorrelation(frame, sr);
       f0Series.push(f0);
     }
     
@@ -426,17 +443,19 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Extract energy series (RMS in 20ms frames)
+   * Extract energy series from frame-level RMS. Uses 20ms frames, 20ms hop.
+   * Input must be downsampled (8kHz). Iterates over frames only, no per-sample scan.
    */
-  private extractEnergySeries(channelData: Float32Array, sampleRate: number): number[] {
-    const frameSize = Math.floor(sampleRate * 0.02); // 20ms frames
+  private extractEnergySeriesFrames(channelData: Float32Array): number[] {
+    const frameSamples = Math.floor((TARGET_SAMPLE_RATE * FRAME_MS) / 1000);
+    const hopSamples = Math.floor((TARGET_SAMPLE_RATE * HOP_MS) / 1000);
     const energySeries: number[] = [];
     
-    for (let i = 0; i < channelData.length - frameSize; i += frameSize) {
-      const frame = channelData.slice(i, i + frameSize);
-      const rms = Math.sqrt(
-        frame.reduce((sum, sample) => sum + sample * sample, 0) / frame.length
-      );
+    for (let i = 0; i <= channelData.length - frameSamples; i += hopSamples) {
+      const frame = channelData.slice(i, i + frameSamples);
+      let sumSq = 0;
+      for (let j = 0; j < frame.length; j++) sumSq += frame[j] * frame[j];
+      const rms = Math.sqrt(sumSq / frame.length);
       energySeries.push(rms);
     }
     
@@ -444,21 +463,20 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Detect speech vs pause segments using energy threshold
+   * Detect speech vs pause segments from frame-level energy. Iterates over frames only.
    */
   private detectSpeechSegments(
-    energySeries: number[],
-    sampleRate: number
+    energySeries: number[]
   ): Array<{ start: number; end: number; isSpeech: boolean }> {
-    const frameTime = 0.02; // 20ms frames
+    const frameTime = FRAME_MS / 1000;
     const threshold = this.computeEnergyThreshold(energySeries);
     
     const segments: Array<{ start: number; end: number; isSpeech: boolean }> = [];
     let currentSegment: { start: number; isSpeech: boolean } | null = null;
     
-    energySeries.forEach((energy, i) => {
+    for (let i = 0; i < energySeries.length; i++) {
       const time = i * frameTime;
-      const isSpeech = energy > threshold;
+      const isSpeech = energySeries[i] > threshold;
       
       if (!currentSegment) {
         currentSegment = { start: time, isSpeech };
@@ -466,14 +484,13 @@ export class CheckinAudioExtractor {
         segments.push({ ...currentSegment, end: time });
         currentSegment = { start: time, isSpeech };
       }
-    });
+    }
     
     if (currentSegment) {
       segments.push({ ...currentSegment, end: energySeries.length * frameTime });
     }
     
-    // Merge short segments
-    return this.mergeShortSegments(segments, 0.2); // Merge segments < 200ms
+    return this.mergeShortSegments(segments, 0.2);
   }
   
   /**
@@ -510,7 +527,22 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Estimate syllable count from energy peaks
+   * Legacy energy series (20ms frames) for estimateSyllables. Frame-level only.
+   */
+  private extractEnergySeries(data: Float32Array, sampleRate: number): number[] {
+    const frameSamples = Math.floor((sampleRate * FRAME_MS) / 1000);
+    const out: number[] = [];
+    for (let i = 0; i <= data.length - frameSamples; i += frameSamples) {
+      const frame = data.slice(i, i + frameSamples);
+      let sumSq = 0;
+      for (let j = 0; j < frame.length; j++) sumSq += frame[j] * frame[j];
+      out.push(Math.sqrt(sumSq / frame.length));
+    }
+    return out;
+  }
+  
+  /**
+   * Estimate syllable count from energy peaks (legacy; timing uses heuristic)
    */
   private estimateSyllables(
     channelData: Float32Array,
@@ -524,13 +556,12 @@ export class CheckinAudioExtractor {
       const endIdx = Math.floor(seg.end * sampleRate);
       const segmentData = channelData.slice(startIdx, endIdx);
       
-      // Count energy peaks (syllable nuclei)
       const energySeries = this.extractEnergySeries(segmentData, sampleRate);
       const peaks = this.findPeaks(energySeries);
       syllableCount += peaks.length;
     }
     
-    return Math.max(1, syllableCount); // At least 1
+    return Math.max(1, syllableCount);
   }
   
   /**
@@ -619,11 +650,15 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Compute spectral centroid (voice brightness)
+   * Compute spectral centroid (voice brightness). Input: downsampled 8kHz.
+   * Samples middle 2s only; frame-level FFT (2048).
    */
   private computeSpectralCentroid(channelData: Float32Array, sampleRate: number): number {
     const fftSize = 2048;
-    const spectrum = this.computeFFT(channelData.slice(0, fftSize));
+    const sampleStart = Math.floor((channelData.length - (sampleRate * 2)) / 2);
+    const sampleEnd = sampleStart + (sampleRate * 2);
+    const sample = channelData.slice(Math.max(0, sampleStart), Math.min(channelData.length, sampleEnd));
+    const spectrum = this.computeFFT(sample.slice(0, Math.min(fftSize, sample.length)));
     
     let numerator = 0;
     let denominator = 0;
@@ -639,17 +674,24 @@ export class CheckinAudioExtractor {
   }
   
   /**
-   * Compute spectral flux (rate of spectral change)
+   * Compute spectral flux (rate of spectral change). Input: downsampled 8kHz.
+   * Middle 3s only; 2048 FFT, hop 1024 (fewer FFTs).
    */
   private computeSpectralFlux(channelData: Float32Array, sampleRate: number): number {
     const fftSize = 2048;
-    const hopSize = 512;
+    const hopSize = 1024;
+    const sampleDuration = 3;
+    const sampleStart = Math.floor((channelData.length - (sampleRate * sampleDuration)) / 2);
+    const sampleEnd = sampleStart + (sampleRate * sampleDuration);
+    const sampleData = channelData.slice(Math.max(0, sampleStart), Math.min(channelData.length, sampleEnd));
+    
     let totalFlux = 0;
     let frameCount = 0;
     let prevSpectrum: number[] | null = null;
     
-    for (let i = 0; i < channelData.length - fftSize; i += hopSize) {
-      const frame = channelData.slice(i, i + fftSize);
+    // Process only the sampled window
+    for (let i = 0; i < sampleData.length - fftSize; i += hopSize) {
+      const frame = sampleData.slice(i, i + fftSize);
       const spectrum = this.computeFFT(frame);
       
       if (prevSpectrum) {
@@ -704,14 +746,10 @@ export class CheckinAudioExtractor {
   ): number {
     let quality = 1.0;
     
-    // Penalize if pitch detection is poor (skip if pitch is null/unavailable)
-    if (pitchFeatures.meanPitch !== null && pitchFeatures.meanPitch !== undefined) {
-      if (pitchFeatures.meanPitch < 80 || pitchFeatures.meanPitch > 400) {
-        quality *= 0.7;
-      }
+    if (pitchFeatures.meanPitch > 0) {
+      if (pitchFeatures.meanPitch < 80 || pitchFeatures.meanPitch > 400) quality *= 0.7;
     } else {
-      // No pitch data available - slight quality penalty
-      quality *= 0.9;
+      quality *= 0.9; // No pitch data
     }
     
     // Penalize if very low speech ratio
