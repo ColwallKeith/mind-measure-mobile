@@ -15,7 +15,8 @@ import { Client } from 'pg';
 const ALLOWED_TABLES = new Set([
   'profiles',
   'assessment_sessions',
-  'weekly_summary'
+  'weekly_summary',
+  'buddy_contacts'  // User's emergency support contacts
 ]);
 
 interface UpdateRequest {
