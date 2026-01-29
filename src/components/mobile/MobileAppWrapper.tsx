@@ -6,7 +6,7 @@ import { Preferences } from '@capacitor/preferences';
 import { BottomNav } from '@/components/BottomNavigation';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileCheckin } from './MobileCheckin';
-import { MobileBuddies } from './MobileBuddies';
+import { BuddiesScreen } from './BuddiesScreen';
 import { MobileProfile } from './MobileProfile';
 import { HelpScreen as HelpPage } from './HelpPage';
 import { MobileConversation } from './MobileConversation';
@@ -217,7 +217,7 @@ export function MobileAppWrapper() {
           />
         } />
         <Route path="/checkin-welcome" element={<MobileCheckin onNavigateToJodie={() => navigate('/checkin')} />} />
-        <Route path="/buddies" element={<MobileBuddies />} />
+        <Route path="/buddies" element={<BuddiesScreen />} />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
         <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />

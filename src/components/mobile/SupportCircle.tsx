@@ -48,13 +48,13 @@ export function SupportCircle() {
     load();
   }, [load]);
 
-  const handleInvite = async (p: { name: string; email: string; personalMessage: string }) => {
+  const handleInvite = async (p: { name: string; email: string; personalMessage?: string }) => {
     try {
       await buddiesApi.createInvite({
         inviteeName: p.name.trim(),
         contactType: 'email',
         contactValue: p.email.trim().toLowerCase(),
-        personalMessage: p.personalMessage.trim() || undefined,
+        personalMessage: (p.personalMessage ?? '').trim() || undefined,
       });
       setIsModalOpen(false);
       await load();

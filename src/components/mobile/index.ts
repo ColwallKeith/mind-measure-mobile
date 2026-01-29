@@ -21,7 +21,6 @@ export { default as MobileHeader } from './MobileHeader';
 export { default as CheckInScreen } from './CheckInScreen';
 export { default as DashboardScreen } from './DashboardScreen';
 export { default as ProfileScreen } from './ProfileScreen';
-export { default as BuddyScreen } from './BuddyScreen';
 export { default as HelpScreen } from './HelpScreen';
 
 // Mobile UI Components

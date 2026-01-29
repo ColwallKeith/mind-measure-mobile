@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardScreen } from './MobileDashboard';
 import { MobileConversation } from './MobileConversation';
 import { HelpScreen } from './HelpPage';
-import { MobileBuddies } from './MobileBuddies';
+import { BuddiesScreen } from './BuddiesScreen';
 import { MobileProfile } from './MobileProfile';
 import { MobileSettings } from './MobileSettings';
 import { RegistrationScreen } from "./RegistrationScreen";
@@ -152,7 +152,7 @@ export const MobileAppStructure: React.FC = () => {
           />
         );
       case 'buddies':
-        return <MobileBuddies />;
+        return <BuddiesScreen />;
       case 'help':
         return <HelpScreen />;
       case 'profile':

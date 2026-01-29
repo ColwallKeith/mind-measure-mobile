@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckInScreen } from './components/CheckInScreen';
 import { DashboardScreen } from './components/DashboardScreen';
 import { HelpScreen } from './components/HelpScreen';
-import { BuddyScreen } from './components/BuddyScreen';
+import { BuddiesScreen } from './components/mobile/BuddiesScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { SplashScreen } from './components/SplashScreen';
 import { ReturningSplashScreen } from './components/ReturningSplashScreen';
@@ -159,7 +159,7 @@ function AppContent() {
         <div className="flex-1 overflow-auto">
           {activeScreen === 'dashboard' && <DashboardScreen onNeedHelp={() => setActiveScreen('help')} />}
           {activeScreen === 'checkin' && <CheckInScreen />}
-          {activeScreen === 'buddy' && <BuddyScreen />}
+          {activeScreen === 'buddy' && <BuddiesScreen />}
           {activeScreen === 'profile' && <ProfileScreen />}
           {activeScreen === 'help' && <HelpScreen />}
         </div>

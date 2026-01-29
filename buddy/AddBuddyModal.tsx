@@ -16,7 +16,7 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!name.trim()) {
       alert('Please enter a name');
       return;
@@ -27,6 +27,7 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
       return;
     }
 
+    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       alert('Please enter a valid email address');
@@ -34,7 +35,8 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
     }
 
     onAdd({ name, email, personalMessage });
-
+    
+    // Reset form
     setName('');
     setEmail('');
     setPersonalMessage('');
@@ -43,6 +45,7 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
 
   return (
     <>
+      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -59,6 +62,7 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
           padding: '16px'
         }}
       >
+        {/* Modal */}
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
@@ -72,25 +76,28 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
           }}
         >
+          {/* Header */}
           <div style={{ marginBottom: '28px' }}>
-            <h2 style={{
-              fontSize: '24px',
-              fontWeight: '600',
+            <h2 style={{ 
+              fontSize: '24px', 
+              fontWeight: '600', 
               color: '#0F172A',
               margin: '0 0 8px 0'
             }}>
               Invite a Buddy
             </h2>
-            <p style={{
-              fontSize: '14px',
-              color: '#64748B',
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#64748B', 
               margin: 0
             }}>
               Inviting buddy {currentBuddyCount + 1} of 5
             </p>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit}>
+            {/* Name Field */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{
                 display: 'block',
@@ -118,11 +125,16 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
                   transition: 'border-color 0.2s',
                   color: '#0F172A'
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#8B5CF6';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                }}
               />
             </div>
 
+            {/* Email Field */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{
                 display: 'block',
@@ -150,11 +162,16 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
                   transition: 'border-color 0.2s',
                   color: '#0F172A'
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#8B5CF6';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                }}
               />
             </div>
 
+            {/* Personal Message Field */}
             <div style={{ marginBottom: '28px' }}>
               <label style={{
                 display: 'block',
@@ -182,11 +199,16 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
                   fontFamily: 'inherit',
                   resize: 'vertical'
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#E2E8F0'; }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#8B5CF6';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                }}
               />
             </div>
 
+            {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 type="button"
@@ -203,8 +225,12 @@ export function AddBuddyModal({ isOpen, onClose, onAdd, currentBuddyCount }: Add
                   cursor: 'pointer',
                   transition: 'background-color 0.2s'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#E2E8F0'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#E2E8F0';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#F1F5F9';
+                }}
               >
                 Cancel
               </button>
