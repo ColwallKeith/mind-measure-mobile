@@ -46,13 +46,19 @@ interface UniversityData {
 interface MobileProfileProps {
   onNavigateBack?: () => void;
   onNavigateToBaseline?: () => void;
+  /** When set (e.g. from post-baseline reminder), open on this tab (e.g. 'details') */
+  initialTab?: TabType;
   autoTriggerExport?: boolean;
   onExportTriggered?: () => void;
+  /** Called when unsaved changes state changes */
+  onUnsavedChangesChange?: (hasChanges: boolean) => void;
+  /** Ref to register save function for parent to call */
+  saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
-export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTriggerExport = false, onExportTriggered }: MobileProfileProps) {
+export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab, autoTriggerExport = false, onExportTriggered, onUnsavedChangesChange, saveRef }: MobileProfileProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('wellness'); // Start on wellness if auto-triggering
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'wellness');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +72,13 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
   const [isExporting, setIsExporting] = useState(false);
   const [hasBaselineToday, setHasBaselineToday] = useState<boolean | null>(null);
   const [showBaselineRequired, setShowBaselineRequired] = useState(false);
+  const [profileCompleted, setProfileCompleted] = useState(false);
+  const [showExportProfileReminder, setShowExportProfileReminder] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+  // Store original profile data to detect changes
+  const [originalUserData, setOriginalUserData] = useState<UserData | null>(null);
   
   const [userData, setUserData] = useState<UserData>({
     firstName: '',
@@ -91,6 +104,55 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
     totalCheckIns: 0,
     averageScore: null
   });
+
+  // Sync activeTab when initialTab prop changes (e.g. from post-baseline reminder "Go to Profile")
+  // Also enable editing if navigating to details tab
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      if (initialTab === 'details') {
+        setIsEditing(true);
+      }
+    }
+  }, [initialTab]);
+
+  // Detect unsaved changes by comparing current userData with original
+  useEffect(() => {
+    if (!originalUserData || !isEditing) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+    // Compare editable fields only
+    const editableFields: (keyof UserData)[] = [
+      'firstName', 'lastName', 'phone', 'ageRange', 'gender', 'school',
+      'yearOfStudy', 'course', 'studyMode', 'livingArrangement',
+      'accommodationName', 'domicileStatus', 'firstGenStudent', 'caringResponsibilities'
+    ];
+    const hasChanges = editableFields.some(
+      (field) => userData[field] !== originalUserData[field]
+    );
+    setHasUnsavedChanges(hasChanges);
+  }, [userData, originalUserData, isEditing]);
+
+  // Report unsaved changes to parent
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
+
+  // Helper to handle navigation with unsaved changes check
+  const handleTabChangeWithWarning = (newTab: TabType) => {
+    if (activeTab === 'details' && isEditing && hasUnsavedChanges) {
+      setPendingNavigation(() => () => {
+        setActiveTab(newTab);
+        setIsEditing(false);
+        setHasUnsavedChanges(false);
+      });
+      setShowUnsavedWarning(true);
+    } else {
+      setActiveTab(newTab);
+      if (activeTab === 'details') setIsEditing(false);
+    }
+  };
 
   // Auto-trigger export after completing baseline
   useEffect(() => {
@@ -249,7 +311,8 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
         console.log('📊 Themes extracted:', themesArray.length, 'unique themes');
         setThemesData(themesArray);
 
-        setUserData({
+        setProfileCompleted(!!profile.profile_completed);
+        const loadedUserData = {
           firstName: profile.first_name || '',
           lastName: profile.last_name || '',
           email: profile.email || user.email || '',
@@ -272,7 +335,10 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
           longestStreak: currentStreak, // TODO: Track longest streak separately
           totalCheckIns,
           averageScore
-        });
+        };
+        setUserData(loadedUserData);
+        setOriginalUserData(loadedUserData);
+        setHasUnsavedChanges(false);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -326,10 +392,9 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
         BackendServiceFactory.getEnvironmentConfig()
       );
 
-      await backendService.database.update({
-        table: 'profiles',
-        filters: { user_id: user.id },
-        data: {
+      await backendService.database.update(
+        'profiles',
+        {
           first_name: userData.firstName,
           last_name: userData.lastName,
           phone: userData.phone,
@@ -343,10 +408,16 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
           hall_of_residence: userData.accommodationName,
           domicile: userData.domicileStatus,
           is_first_generation: userData.firstGenStudent,
-          has_caring_responsibilities: userData.caringResponsibilities
-        }
-      });
+          has_caring_responsibilities: userData.caringResponsibilities,
+          profile_completed: true,
+          profile_completed_at: new Date().toISOString()
+        },
+        { user_id: user.id }
+      );
 
+      setProfileCompleted(true);
+      setOriginalUserData({ ...userData });
+      setHasUnsavedChanges(false);
       setIsEditing(false);
       console.log('✅ Profile saved successfully');
     } catch (error) {
@@ -356,6 +427,18 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
       setIsSaving(false);
     }
   };
+
+  // Register save function with parent via ref (must run after handleSaveProfile is defined)
+  useEffect(() => {
+    if (saveRef) {
+      saveRef.current = handleSaveProfile;
+    }
+    return () => {
+      if (saveRef) {
+        saveRef.current = null;
+      }
+    };
+  }, [saveRef, handleSaveProfile]);
 
   // Check if user has completed baseline today
   const checkBaselineToday = async () => {
@@ -411,6 +494,9 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
     if (!hasBaseline) {
       console.log('[Export Flow] No baseline - showing requirement modal');
       setShowBaselineRequired(true);
+    } else if (!profileCompleted) {
+      console.log('[Export Flow] Profile not complete - showing reminder');
+      setShowExportProfileReminder(true);
     } else {
       console.log('[Export Flow] Has baseline - showing export modal');
       setShowExportModal(true);
@@ -569,7 +655,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
           gap: '8px'
         }}>
           <button
-            onClick={() => setActiveTab('overview')}
+            onClick={() => handleTabChangeWithWarning('overview')}
             style={{
               flex: 1,
               padding: '10px 16px',
@@ -588,7 +674,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('details')}
+            onClick={() => handleTabChangeWithWarning('details')}
             style={{
               flex: 1,
               padding: '10px 16px',
@@ -607,7 +693,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
             Details
           </button>
           <button
-            onClick={() => setActiveTab('wellness')}
+            onClick={() => handleTabChangeWithWarning('wellness')}
             style={{
               flex: 1,
               padding: '10px 16px',
@@ -1400,6 +1486,223 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, autoTrigge
                 }}
               >
                 {isExporting ? 'Sending...' : 'Email Report to Me'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved changes warning */}
+      {showUnsavedWarning && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setShowUnsavedWarning(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Unsaved changes
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 24px 0',
+              lineHeight: '1.6'
+            }}>
+              You have unsaved changes. Do you want to save before leaving?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowUnsavedWarning(false);
+                  await handleSaveProfile();
+                  if (pendingNavigation) {
+                    pendingNavigation();
+                    setPendingNavigation(null);
+                  }
+                }}
+                disabled={isSaving}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: isSaving ? 'default' : 'pointer',
+                  opacity: isSaving ? 0.6 : 1
+                }}
+              >
+                {isSaving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  // Discard changes: restore original data
+                  if (originalUserData) {
+                    setUserData(originalUserData);
+                  }
+                  setHasUnsavedChanges(false);
+                  if (pendingNavigation) {
+                    pendingNavigation();
+                    setPendingNavigation(null);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Discard changes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setPendingNavigation(null);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: '#999999',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export: Profile incomplete reminder */}
+      {showExportProfileReminder && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setShowExportProfileReminder(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              margin: '0 0 16px 0'
+            }}>
+              Complete your profile
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: '#666666',
+              margin: '0 0 24px 0',
+              lineHeight: '1.6'
+            }}>
+              Complete your profile so your export includes your details. You can fill in your details in the Details tab.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExportProfileReminder(false);
+                  setActiveTab('details');
+                  setIsEditing(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Go to details
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExportProfileReminder(false);
+                  setShowExportModal(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #E0E0E0',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#666666',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Export anyway
               </button>
             </div>
           </div>
