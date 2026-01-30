@@ -8,6 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const ALLOWED_ORIGINS = [
   // Production
   'https://mobile.mindmeasure.app',
+  'https://buddy.mindmeasure.app',
   'https://admin.mindmeasure.co.uk',
   'https://mindmeasure.co.uk',
   
