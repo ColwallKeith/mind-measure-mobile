@@ -62,10 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await client.connect();
 
     const inviterRow = await client.query(
-      `SELECT first_name FROM profiles WHERE user_id = $1`,
+      `SELECT first_name, last_name FROM profiles WHERE user_id = $1`,
       [userId]
     );
-    const inviterName = (inviterRow.rows[0] as { first_name?: string } | undefined)?.first_name || 'Someone';
+    const inviterData = inviterRow.rows[0] as { first_name?: string; last_name?: string } | undefined;
+    const firstName = inviterData?.first_name || '';
+    const lastName = inviterData?.last_name || '';
+    const inviterName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Someone';
 
     const countResult = await client.query(
       `SELECT (
