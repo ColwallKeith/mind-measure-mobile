@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Settings, Bell, Shield, Moon, Palette, ArrowLeft, LogOut, ExternalLink } from 'lucide-react';
+import { Settings, Bell, Shield, Moon, Palette, ArrowLeft, LogOut, ExternalLink, Eye } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { PrivacyOverlay } from './PrivacyOverlay';
 interface MobileSettingsProps {
   onNavigateBack: () => void;
 }
@@ -14,6 +15,7 @@ export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
   const { preferences, loading, saving, updatePreference } = useUserPreferences();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -149,6 +151,16 @@ export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
               disabled={saving}
             />
           </div>
+          <div className="pt-2 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-purple-600 hover:bg-purple-50 h-10 sm:h-12 text-sm sm:text-base"
+              onClick={() => setShowPrivacy(true)}
+            >
+              <Eye className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
+              Your Privacy
+            </Button>
+          </div>
         </div>
       </Card>
       {/* Appearance */}
@@ -223,7 +235,7 @@ export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
           <Button
             variant="outline"
             className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 h-10 sm:h-12 text-sm sm:text-base"
-            onClick={() => handleExternalLink('https://mindmeasure.app/privacy')}
+            onClick={() => handleExternalLink('https://mindmeasure.co.uk/privacy')}
           >
             <Shield className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
             Privacy Policy
@@ -232,7 +244,7 @@ export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
           <Button
             variant="outline"
             className="w-full border-gray-200 text-gray-700 hover:bg-gray-50 h-10 sm:h-12 text-sm sm:text-base"
-            onClick={() => handleExternalLink('https://mindmeasure.app/terms')}
+            onClick={() => handleExternalLink('https://mindmeasure.co.uk/terms')}
           >
             <Settings className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
             Terms of Service
@@ -250,6 +262,8 @@ export function MobileSettings({ onNavigateBack }: MobileSettingsProps) {
       </Card>
       {/* Bottom padding for navigation */}
       <div className="h-24" />
+
+      <PrivacyOverlay isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </div>
   );
 }

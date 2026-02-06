@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import mindMeasureLogo from '../../assets/Mindmeasure_logo.png';
+import { PrivacyOverlay } from './PrivacyOverlay';
 
 interface BaselineWelcomeProps {
   onStartAssessment?: () => void;
 }
 
 export function BaselineWelcome({ onStartAssessment }: BaselineWelcomeProps) {
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -277,14 +281,22 @@ export function BaselineWelcome({ onStartAssessment }: BaselineWelcomeProps) {
           </div>
         </div>
 
-        {/* Privacy */}
-        <div style={{
-          background: 'white',
-          borderRadius: '16px',
-          padding: '20px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          textAlign: 'center'
-        }}>
+        {/* Privacy - tappable to open overlay */}
+        <div
+          onClick={() => setShowPrivacy(true)}
+          style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'box-shadow 0.2s ease',
+            border: '2px solid transparent',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(139, 92, 246, 0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.08)'; }}
+        >
           <div style={{
             width: '48px',
             height: '48px',
@@ -309,9 +321,10 @@ export function BaselineWelcome({ onStartAssessment }: BaselineWelcomeProps) {
           </div>
           <div style={{
             fontSize: '12px',
-            color: '#666666'
+            color: '#8B5CF6',
+            fontWeight: 500,
           }}>
-            Encrypted and secure
+            Tap to learn more
           </div>
         </div>
       </div>
@@ -391,6 +404,8 @@ export function BaselineWelcome({ onStartAssessment }: BaselineWelcomeProps) {
           </div>
         </div>
       </div>
+
+      <PrivacyOverlay isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </div>
   );
 }
