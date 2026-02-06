@@ -34,12 +34,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res);
   if (handleCorsPreflightIfNeeded(req, res)) return;
 
-  if (req.method !== 'GET') {
+  if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Content-Type', 'text/html');
-    return res.status(405).end(htmlPage('Error', '<h1>Method not allowed</h1><p>Use GET with ?token=...</p>'));
+    return res.status(405).end(htmlPage('Error', '<h1>Method not allowed</h1><p>Use GET with ?token=... or POST with { "token": "..." }</p>'));
   }
 
-  const token = (req.query.token ?? '').toString().trim();
+  // Accept token from query string (GET) or request body (POST)
+  const token = req.method === 'POST'
+    ? (req.body?.token ?? '').toString().trim()
+    : (req.query.token ?? '').toString().trim();
   if (!token) {
     res.setHeader('Content-Type', 'text/html');
     return res.status(400).end(htmlPage('Opt-out', '<h1>Missing token</h1><p>The opt-out link is invalid or incomplete.</p>'));
