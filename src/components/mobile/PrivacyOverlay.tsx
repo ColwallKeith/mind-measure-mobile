@@ -87,8 +87,8 @@ export function PrivacyOverlay({ isOpen, onClose }: PrivacyOverlayProps) {
           </button>
 
           {/* Decorative circles */}
-          <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)' }} />
-          <div style={{ position: 'absolute', bottom: '-20px', left: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)' }} />
+          <div style={{ position: 'absolute', top: '-40px', right: '-40px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: '-20px', left: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', pointerEvents: 'none' }} />
 
           <div
             style={{
