@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Download, Edit2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Download, Edit2, Settings } from 'lucide-react';
 import { Select } from './Select';
 import { MoodTrendChart } from './MoodTrendChart';
 import { KeyThemes, type ThemeData } from './KeyThemes';
@@ -58,6 +59,7 @@ interface MobileProfileProps {
 
 export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab, autoTriggerExport = false, onExportTriggered, onUnsavedChangesChange, saveRef }: MobileProfileProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'wellness');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -566,6 +568,29 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
         padding: '72px 20px 24px 20px',
         borderBottom: '1px solid #F0F0F0'
       }}>
+        {/* Settings gear */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <button
+            onClick={() => navigate('/settings')}
+            style={{
+              background: '#F5F5F5',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background 200ms ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#F5F5F5'; }}
+            aria-label="Settings"
+          >
+            <Settings size={18} color="#666666" />
+          </button>
+        </div>
         <div style={{
           display: 'flex',
           alignItems: 'center',

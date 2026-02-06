@@ -228,7 +228,7 @@ export function MobileAppWrapper() {
             <Route path="/buddies/invite" element={<BuddyConsentPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
-            <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />
+            <Route path="/settings" element={<MobileSettings onNavigateBack={() => navigate('/profile')} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
