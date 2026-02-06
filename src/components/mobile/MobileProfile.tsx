@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Download, Edit2, Settings } from 'lucide-react';
 import { Select } from './Select';
 import { MoodTrendChart } from './MoodTrendChart';
@@ -59,7 +58,6 @@ interface MobileProfileProps {
 
 export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab, autoTriggerExport = false, onExportTriggered, onUnsavedChangesChange, saveRef }: MobileProfileProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'wellness');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -571,7 +569,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
         {/* Settings gear */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => { window.location.href = '/settings'; }}
             style={{
               background: '#F5F5F5',
               border: 'none',
