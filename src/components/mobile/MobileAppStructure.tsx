@@ -388,6 +388,7 @@ export const MobileAppStructure: React.FC = () => {
         const shouldAutoExport = baselineReturnContext === 'export_data';
         return <MobileProfile 
           onNavigateBack={handleNavigateBack} 
+          onNavigateToSettings={handleNavigateToSettings}
           initialTab={profileInitialTab}
           onNavigateToBaseline={() => {
             setBaselineReturnContext('export_data');

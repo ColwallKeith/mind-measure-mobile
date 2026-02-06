@@ -46,6 +46,7 @@ interface UniversityData {
 interface MobileProfileProps {
   onNavigateBack?: () => void;
   onNavigateToBaseline?: () => void;
+  onNavigateToSettings?: () => void;
   /** When set (e.g. from post-baseline reminder), open on this tab (e.g. 'details') */
   initialTab?: TabType;
   autoTriggerExport?: boolean;
@@ -56,7 +57,7 @@ interface MobileProfileProps {
   saveRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
-export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab, autoTriggerExport = false, onExportTriggered, onUnsavedChangesChange, saveRef }: MobileProfileProps) {
+export function MobileProfile({ onNavigateBack, onNavigateToBaseline, onNavigateToSettings, initialTab, autoTriggerExport = false, onExportTriggered, onUnsavedChangesChange, saveRef }: MobileProfileProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'wellness');
   const [isEditing, setIsEditing] = useState(false);
@@ -569,7 +570,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
         {/* Settings gear */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
           <button
-            onClick={() => { window.location.href = '/settings'; }}
+            onClick={() => onNavigateToSettings?.()}
             style={{
               background: '#F5F5F5',
               border: 'none',
