@@ -6,15 +6,11 @@ build/
 .vite/
 *.tsbuildinfo
 
-# Environment files
+# Environment files (NEVER commit credentials)
 .env
-.env.local
-.env.production
-.env.development
-.env.test
-.env.vercel
-.env.vercel.local
-.env.production.local
+.env.*
+*.env
+production-environment.env
 
 # Logs
 *.log
