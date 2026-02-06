@@ -40,7 +40,6 @@ export class CheckinAudioExtractor {
    * Extract all 23 audio features from conversational speech
    */
   async extract(media: CapturedMedia): Promise<CheckinAudioFeatures> {
-    console.log('[CheckinAudioExtractor] Starting extraction...');
     
     if (!media.audio) {
       throw new CheckinMultimodalError(
@@ -59,7 +58,6 @@ export class CheckinAudioExtractor {
       const arrayBuffer = await media.audio.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       
-      console.log(`[CheckinAudioExtractor] Audio decoded: ${audioBuffer.duration.toFixed(2)}s, ${audioBuffer.sampleRate}Hz`);
       
       // Extract raw audio data
       const fullChannelData = audioBuffer.getChannelData(0);
@@ -77,23 +75,17 @@ export class CheckinAudioExtractor {
       const channelData = this.downsample(trimmed, sourceRate, TARGET_SAMPLE_RATE);
       const duration = channelData.length / TARGET_SAMPLE_RATE;
       
-      console.log(`[CheckinAudioExtractor] Processing ${duration.toFixed(2)}s @ ${TARGET_SAMPLE_RATE}Hz (${(channelData.length / 1000).toFixed(0)}k samples, downsampled from ${sourceRate}Hz)`);
       
       // 2. Pitch: middle 10s @ 8kHz, 100ms hop
-      console.log(`[CheckinAudioExtractor] Extracting pitch features (F0 series, fast mode: middle 10s only)...`);
       const f0StartTime = Date.now();
       const f0Series = this.extractF0SeriesFast(channelData, duration);
-      console.log(`[CheckinAudioExtractor] Pitch extraction complete in ${Date.now() - f0StartTime}ms`);
       
       // 3. Energy + segmentation: frame-level only (20ms frames, 20ms hop). No per-sample work.
-      console.log(`[CheckinAudioExtractor] Extracting energy features...`);
       const energySeries = this.extractEnergySeriesFrames(channelData);
       
-      console.log(`[CheckinAudioExtractor] Detecting speech segments...`);
       const segments = this.detectSpeechSegments(energySeries);
       
       // 4. Feature groups (all use downsampled signal and/or frame-level data)
-      console.log(`[CheckinAudioExtractor] Computing feature groups...`);
       const pitchFeatures = this.extractPitchFeatures(f0Series, TARGET_SAMPLE_RATE);
       const timingFeatures = this.extractTimingFeatures(segments, duration, channelData, TARGET_SAMPLE_RATE);
       const energyFeatures = this.extractEnergyFeatures(energySeries, segments);
@@ -108,7 +100,6 @@ export class CheckinAudioExtractor {
       );
       
       const processingTime = Date.now() - startTime;
-      console.log(`[CheckinAudioExtractor] ✅ Extraction complete in ${processingTime}ms`);
       
       return {
         ...pitchFeatures,
@@ -771,12 +762,4 @@ export class CheckinAudioExtractor {
     return Math.max(0.3, Math.min(1.0, quality));
   }
 }
-
-
-
-
-
-
-
-
 

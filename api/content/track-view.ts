@@ -52,8 +52,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [articleId]
     );
 
-    console.log(`[Track View] Article ${articleId} viewed by ${userId || 'anonymous'} from ${universityId || 'unknown'}`);
-
     return res.status(200).json({ 
       success: true,
       message: 'View tracked successfully'

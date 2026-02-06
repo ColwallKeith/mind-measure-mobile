@@ -73,12 +73,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     }
 
-    console.log('✅ Rekognition frame analysis completed:', {
-      faceDetected: analysisResult.faceDetected,
-      dominantEmotion: analysisResult.dominantEmotion,
-      confidence: analysisResult.confidence
-    });
-
     res.status(200).json(analysisResult);
 
   } catch (error) {

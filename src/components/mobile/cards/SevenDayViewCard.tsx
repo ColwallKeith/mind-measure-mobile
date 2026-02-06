@@ -9,7 +9,6 @@ export function SevenDayViewCard({
   weekData,
   averageScore
 }: SevenDayViewCardProps) {
-  console.log('🎨 SevenDayViewCard rendering with weekData:', weekData);
   
   // Calculate day labels based on current date
   const getDayLabels = () => {
@@ -182,7 +181,6 @@ export function SevenDayViewCard({
           }}>
             {weekData.map((value, index) => {
               const barHeight = getBarHeight(value);
-              console.log(`📊 Bar ${index}: value=${value}, height=${barHeight}px`);
               return (
                 <div key={index} style={{ 
                   flex: 1, 

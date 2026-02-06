@@ -157,7 +157,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
   // Auto-trigger export after completing baseline
   useEffect(() => {
     if (autoTriggerExport && user && !isLoading) {
-      console.log('🚀 Auto-triggering export after baseline completion');
       // Switch to wellness tab
       setActiveTab('wellness');
       // Open export modal after a short delay
@@ -234,13 +233,7 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
 
         const sessions = sessionsResponse.data || [];
         
-        console.log('📊 Sessions fetched:', sessions.length);
         if (sessions.length > 0) {
-          console.log('📊 Sample session:', {
-            has_analysis: !!sessions[0].analysis,
-            analysis_type: typeof sessions[0].analysis,
-            analysis_preview: sessions[0].analysis ? JSON.stringify(sessions[0].analysis).substring(0, 100) : 'null'
-          });
         }
         
         const totalCheckIns = sessions.length;
@@ -278,7 +271,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
           })
           .filter((item: any) => item !== null);
 
-        console.log('📊 Mood scores extracted:', moodScores.length, 'from', sessions.length, 'sessions');
         setMoodData(moodScores);
 
         // Extract themes from sessions
@@ -308,7 +300,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
           .sort((a, b) => b.value - a.value)
           .slice(0, 15); // Top 15 themes
 
-        console.log('📊 Themes extracted:', themesArray.length, 'unique themes');
         setThemesData(themesArray);
 
         setProfileCompleted(!!profile.profile_completed);
@@ -419,7 +410,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
       setOriginalUserData({ ...userData });
       setHasUnsavedChanges(false);
       setIsEditing(false);
-      console.log('✅ Profile saved successfully');
     } catch (error) {
       console.error('❌ Error saving profile:', error);
       alert('Failed to save profile. Please try again.');
@@ -443,7 +433,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
   // Check if user has completed baseline today
   const checkBaselineToday = async () => {
     if (!user?.id) {
-      console.log('[Baseline Check] No user ID');
       return false;
     }
 
@@ -453,7 +442,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
       );
       
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      console.log('[Baseline Check] Checking for baseline on date:', today);
       
       const response = await backendService.database.select('fusion_outputs', {
         filters: { 
@@ -463,18 +451,15 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
         limit: 10 // Check last 10 entries
       });
 
-      console.log('[Baseline Check] Found sessions:', response.data?.length);
 
       if (response.data && response.data.length > 0) {
         // Check if any are baselines from today
         const baselineToday = response.data.find((session: any) => {
           const sessionDate = new Date(session.created_at).toISOString().split('T')[0];
           const isBaseline = session.analysis?.assessment_type === 'baseline';
-          console.log('[Baseline Check] Session:', sessionDate, 'isBaseline:', isBaseline, 'matches today:', sessionDate === today);
           return isBaseline && sessionDate === today;
         });
         
-        console.log('[Baseline Check] Has baseline today:', !!baselineToday);
         return !!baselineToday;
       }
       
@@ -486,19 +471,14 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
   };
 
   const handleExportData = async () => {
-    console.log('[Export Flow] Starting export data check...');
     const hasBaseline = await checkBaselineToday();
-    console.log('[Export Flow] Has baseline today?', hasBaseline);
     setHasBaselineToday(hasBaseline);
     
     if (!hasBaseline) {
-      console.log('[Export Flow] No baseline - showing requirement modal');
       setShowBaselineRequired(true);
     } else if (!profileCompleted) {
-      console.log('[Export Flow] Profile not complete - showing reminder');
       setShowExportProfileReminder(true);
     } else {
-      console.log('[Export Flow] Has baseline - showing export modal');
       setShowExportModal(true);
     }
   };
@@ -509,7 +489,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
     try {
       setIsExporting(true);
 
-      console.log('[MobileProfile] Generating report with periodDays:', exportPeriod);
 
       // Get JWT token for authentication
       const idToken = await cognitoApiClient.getIdToken();
@@ -549,7 +528,6 @@ export function MobileProfile({ onNavigateBack, onNavigateToBaseline, initialTab
       }
 
       const data = await response.json();
-      console.log('[Export] Report generated successfully:', data);
 
       setShowExportModal(false);
       alert(`Report generated successfully!\n\nWe've sent an email to ${user.email} with a link to view your report.\n\nCheck your inbox (and spam folder).`);

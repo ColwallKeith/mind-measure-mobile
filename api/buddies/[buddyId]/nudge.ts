@@ -48,6 +48,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Buddy is not active' });
     }
 
+    // Fetch inviter's full name for the email
+    const inviterRow = await client.query(
+      `SELECT first_name, last_name FROM profiles WHERE user_id = $1`,
+      [userId]
+    );
+    const inviterData = inviterRow.rows[0] as { first_name?: string; last_name?: string } | undefined;
+    const firstName = inviterData?.first_name || '';
+    const lastName = inviterData?.last_name || '';
+    const inviterName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'your friend';
+
     if (b.last_nudged_at) {
       const days = (Date.now() - new Date(b.last_nudged_at).getTime()) / (1000 * 60 * 60 * 24);
       if (days < NUDGE_COOLDOWN_DAYS) {
@@ -69,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sendNudgeEmail({
         to: b.email,
         buddyName: b.name,
+        inviterName,
         optOutUrl: outUrl,
       });
     } catch (mailErr: any) {

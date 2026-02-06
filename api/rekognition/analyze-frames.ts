@@ -27,16 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log('[Rekognition API] Analyzing frames...');
-
     // Get frames from request body (base64 encoded images)
     const { frames } = req.body;
 
     if (!frames || !Array.isArray(frames) || frames.length === 0) {
       return res.status(400).json({ error: 'No frames provided' });
     }
-
-    console.log('[Rekognition API] Processing', frames.length, 'frames');
 
     // Analyze each frame with Rekognition
     const analyses = await Promise.all(
@@ -56,13 +52,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const response = await rekognitionClient.send(command);
 
           if (!response.FaceDetails || response.FaceDetails.length === 0) {
-            console.log(`[Rekognition API] No face detected in frame ${index}`);
             return null;
           }
 
           // Return the first (primary) face details
           const face = response.FaceDetails[0];
-          console.log(`[Rekognition API] Frame ${index}: Face detected with confidence ${face.Confidence?.toFixed(2)}%`);
 
           return {
             frameIndex: index,
@@ -111,8 +105,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Filter out failed analyses
     const validAnalyses = analyses.filter(a => a !== null);
-
-    console.log('[Rekognition API] ✅ Successfully analyzed', validAnalyses.length, '/', frames.length, 'frames');
 
     return res.status(200).json({
       success: true,

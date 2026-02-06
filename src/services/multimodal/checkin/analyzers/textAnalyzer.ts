@@ -31,8 +31,6 @@ export class CheckinTextAnalyzer {
    * Analyze transcript to extract all text features and user-facing outputs
    */
   async analyze(transcript: string): Promise<CheckinTextAnalysis> {
-    console.log('[TextAnalyzer] Starting analysis...');
-    console.log('[TextAnalyzer] Transcript length:', transcript.length, 'characters');
     
     if (!transcript || transcript.trim().length === 0) {
       throw new CheckinMultimodalError(
@@ -79,7 +77,6 @@ export class CheckinTextAnalyzer {
       const quality = this.computeQuality(transcript, words, sentences);
       
       const processingTime = Date.now() - startTime;
-      console.log(`[TextAnalyzer] ✅ Analysis complete in ${processingTime}ms`);
       
       return {
         // User-facing outputs
@@ -537,12 +534,4 @@ export class CheckinTextAnalyzer {
     return Math.max(0.3, Math.min(1.0, quality));
   }
 }
-
-
-
-
-
-
-
-
 

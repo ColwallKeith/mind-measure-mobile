@@ -7,9 +7,14 @@ import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b
 import { MediaCapture } from '../../services/multimodal/baseline/mediaCapture';
 import { CheckinEnrichmentService } from '../../services/multimodal/checkin/enrichmentService';
 import { ConversationScreen } from './ConversationScreen';
+import { CheckInFailedModal } from './CheckInFailedModal';
 
 /** When false (default), no insert into assessment_sessions in check-in. Ensures no /api/database/insert for assessment_sessions in production. */
 const ENABLE_ASSESSMENT_SESSIONS = import.meta.env.VITE_ENABLE_ASSESSMENT_SESSIONS === 'true';
+
+/** Minimum check-in duration (seconds) and transcript length to count as a valid check-in. Shorter = incomplete; no score saved. */
+const MIN_DURATION_SECONDS = 45;
+const MIN_TRANSCRIPT_LENGTH = 100;
 
 interface CheckinAssessmentSDKProps {
   onBack?: () => void;
@@ -36,7 +41,8 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
+
   // Processing messages for check-ins - covers ~60 seconds with pauses
   // Format: { message: string, duration: number } where duration is in milliseconds
   // Total duration: ~60 seconds (with pauses at key moments)
@@ -85,14 +91,10 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   // Initialize the ElevenLabs conversation hook - SAME AS BASELINE
   const conversation = useConversation({
     onConnect: () => {
-      console.log('[CheckinSDK] ✅ Connected to ElevenLabs');
-      console.log('[CheckinSDK] 📋 Context: user_name passed via dynamicVariables');
     },
     onDisconnect: () => {
-      console.log('[CheckinSDK] 🔌 Disconnected from ElevenLabs');
     },
     onMessage: (message) => {
-      console.log('[CheckinSDK] 📩 Message received:', message);
       
       const newMessage: Message = {
         id: crypto.randomUUID(),
@@ -125,7 +127,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
     lastSummary: string;
   } | null> => {
     try {
-      console.log('[CheckinSDK] 📋 Fetching previous check-in context...');
       const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
       const backendService = BackendServiceFactory.createService(
         BackendServiceFactory.getEnvironmentConfig()
@@ -142,7 +143,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       ) as { data: any[] | null; error: any };
       
       if (error || !sessions || sessions.length === 0) {
-        console.log('[CheckinSDK] 📋 No previous check-ins found');
         return null;
       }
       
@@ -153,7 +153,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       });
       
       if (!lastCheckin) {
-        console.log('[CheckinSDK] 📋 No previous check-ins found (only baselines)');
         return null;
       }
       
@@ -175,7 +174,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         lastSummary: (analysis.conversation_summary || '').substring(0, 100) || ''
       };
       
-      console.log('[CheckinSDK] ✅ Previous context loaded:', context);
       return context;
       
     } catch (err) {
@@ -207,13 +205,10 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
   const handleStartCheckIn = async () => {
     try {
-      console.log('[CheckinSDK] 🎯 Starting ElevenLabs SDK check-in');
       
       // Request microphone permission
-      console.log('[CheckinSDK] 🎤 Requesting microphone permission...');
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[CheckinSDK] ✅ Audio permission granted');
       } catch (err) {
         console.error('[CheckinSDK] ❌ Audio permission denied:', err);
         return;
@@ -221,7 +216,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
 
       // Start media capture for multimodal features
       try {
-        console.log('[CheckinSDK] 📹 Starting multimodal media capture...');
         mediaCaptureRef.current = new MediaCapture({
           captureAudio: true,
           captureVideo: true,
@@ -230,7 +224,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         await mediaCaptureRef.current.start();
         captureStartTimeRef.current = Date.now();
         setIsCapturingMedia(true);
-        console.log('[CheckinSDK] ✅ Media capture started');
       } catch (captureError) {
         console.warn('[CheckinSDK] ⚠️ Media capture failed, continuing anyway:', captureError);
         setIsCapturingMedia(false);
@@ -246,8 +239,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         try {
           // Get user's first name for personalised greeting
           const firstName = user?.user_metadata?.first_name || 'there';
-          console.log('[CheckinSDK] 🚀 Starting ElevenLabs conversation session...');
-          console.log('[CheckinSDK] 👤 User name for context:', firstName);
           
           // Phase 2: Fetch previous check-in context
           const prevContext = await fetchPreviousContext();
@@ -264,14 +255,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
             dynamicVars.last_mood = prevContext.lastMood;
             dynamicVars.days_since_checkin = prevContext.daysSince;
             dynamicVars.last_summary = prevContext.lastSummary;
-            console.log('[CheckinSDK] 📋 Previous context being passed:', dynamicVars);
           } else {
             // Provide defaults so placeholders don't show raw
             dynamicVars.last_themes = '';
             dynamicVars.last_mood = '';
             dynamicVars.days_since_checkin = '';
             dynamicVars.last_summary = '';
-            console.log('[CheckinSDK] 📋 No previous context - first check-in');
           }
           
           // Pass user context via dynamicVariables
@@ -281,7 +270,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
             dynamicVariables: dynamicVars
           } as any); // Type assertion needed for dynamicVariables
 
-          console.log('[CheckinSDK] ✅ Session started with ID:', sid);
           setSessionId(sid);
 
         } catch (error) {
@@ -297,45 +285,40 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
   const handleFinish = async () => {
     // Prevent double-clicking
     if (isSaving) {
-      console.log('[CheckinSDK] ⚠️ Already processing, ignoring duplicate click');
       return;
     }
 
     try {
-      console.log('[CheckinSDK] 🏁 Finish button clicked');
       
       // Try haptics, but don't fail if not supported (web browsers)
       try {
         await Haptics.impact({ style: ImpactStyle.Medium });
       } catch (hapticsError) {
-        console.log('[CheckinSDK] ℹ️ Haptics not supported (expected on web)');
       }
       
       // End ElevenLabs session
       if (conversation.status === 'connected') {
         await conversation.endSession();
-        console.log('[CheckinSDK] ✅ Conversation ended');
       }
 
       const endedAt = Date.now();
       const duration = startedAt ? (endedAt - startedAt) / 1000 : 0;
       
-      console.log('[CheckinSDK] 📊 Processing check-in data...');
-      console.log('[CheckinSDK] 📝 Transcript length:', transcript.length, 'Duration:', duration, 'seconds');
 
       // Stop media capture FIRST (before setting up UI)
       let capturedMedia: any = null;
       if (mediaCaptureRef.current && !isStoppedRef.current) {
         isStoppedRef.current = true; // Mark as stopped to prevent duplicate calls
-        console.log('[CheckinSDK] 📹 Stopping media capture...');
         capturedMedia = await mediaCaptureRef.current.stop();
         setIsCapturingMedia(false);
-        console.log('[CheckinSDK] ✅ Media captured:', {
-          audioSize: capturedMedia.audio?.size,
-          videoFrames: capturedMedia.videoFrames?.length
-        });
       } else if (isStoppedRef.current) {
-        console.log('[CheckinSDK] ⚠️ Media capture already stopped, skipping');
+      }
+
+      const transcriptTrimmed = transcript.trim();
+      const tooShort = duration < MIN_DURATION_SECONDS || transcriptTrimmed.length < MIN_TRANSCRIPT_LENGTH;
+      if (tooShort) {
+        setShowIncompleteModal(true);
+        return;
       }
 
       // Show processing overlay BEFORE setting up messages
@@ -369,7 +352,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         if (messageIndexRef.current < processingMessages.length) {
           const currentMsg = processingMessages[messageIndexRef.current];
           setProcessingMessage(currentMsg.message);
-          console.log(`[CheckinSDK] 📝 Message rotated to: ${currentMsg.message} (${messageIndexRef.current + 1}/${processingMessages.length})`);
         } else {
           // Reached end of messages, stop interval
           if (messageTimeoutRef.current) {
@@ -384,7 +366,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       let enrichmentResult = null;
       
       try {
-        console.log('[CheckinSDK] 🔬 Running check-in enrichment (Bedrock + Multimodal)...');
         const enrichmentService = new CheckinEnrichmentService();
         enrichmentResult = await enrichmentService.enrichCheckIn({
           userId: user!.id,
@@ -395,7 +376,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           sessionId: sessionId || undefined,
           studentFirstName: user?.user_metadata?.first_name || user?.user_metadata?.given_name
         });
-        console.log('[CheckinSDK] ✅ Enrichment complete:', enrichmentResult);
       } catch (enrichmentError: any) {
         console.error('[CheckinSDK] ⚠️ Enrichment failed, continuing with basic save:', enrichmentError);
         console.error('[CheckinSDK] ⚠️ Error details:', enrichmentError?.message || String(enrichmentError));
@@ -403,19 +383,14 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       }
 
       // Save to database
-      console.log('[CheckinSDK] 💾 Saving check-in to database... [v3-dec10]');
 
       // Step 1: Import backend service
-      console.log('[CheckinSDK] Step 1: Importing BackendServiceFactory...');
       const { BackendServiceFactory } = await import('../../services/database/BackendServiceFactory');
-      console.log('[CheckinSDK] Step 1: ✅ Import successful');
       
       // Step 2: Get service instance (same pattern as BaselineAssessmentSDK)
-      console.log('[CheckinSDK] Step 2: Getting backend service...');
       const backendService = BackendServiceFactory.createService(
         BackendServiceFactory.getEnvironmentConfig()
       );
-      console.log('[CheckinSDK] Step 2: ✅ Got backend service');
 
       const safeInsert = async (table: string, data: any) => {
         if (table === 'assessment_sessions' && !ENABLE_ASSESSMENT_SESSIONS) {
@@ -426,7 +401,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       };
 
       // Step 3: Build analysis object - normalize field names for DB compatibility
-      console.log('[CheckinSDK] Step 3: Building analysis object...');
       const analysis = {
         assessment_type: 'checkin',
         mind_measure_score: enrichmentResult?.mind_measure_score ?? enrichmentResult?.finalScore ?? 50,
@@ -456,26 +430,20 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         processing_time_ms: enrichmentResult?.processing_time_ms,
         warnings: enrichmentResult?.warnings ?? []
       };
-      console.log('[CheckinSDK] Step 3: ✅ Analysis built with keys:', Object.keys(analysis));
 
       // Step 4: Calculate final score
-      console.log('[CheckinSDK] Step 4: Calculating final score...');
       const finalScore = Math.round(enrichmentResult?.finalScore ?? enrichmentResult?.mind_measure_score ?? 50);
-      console.log('[CheckinSDK] Step 4: ✅ Final score:', finalScore);
       
       // Step 5: Stringify analysis
-      console.log('[CheckinSDK] Step 5: Stringifying analysis...');
       let analysisJson: string;
       try {
         analysisJson = JSON.stringify(analysis);
-        console.log('[CheckinSDK] Step 5: ✅ Analysis stringified, length:', analysisJson.length);
       } catch (stringifyError: any) {
         console.error('[CheckinSDK] Step 5: ❌ JSON.stringify failed:', stringifyError?.message);
         throw stringifyError;
       }
       
       // Step 6: Build fusion data payload
-      console.log('[CheckinSDK] Step 6: Building fusion data...');
       const fusionData = {
         user_id: user!.id,
         score: finalScore,
@@ -483,22 +451,9 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
         analysis: analysisJson,
         created_at: new Date().toISOString()
       };
-      console.log('[CheckinSDK] Step 6: ✅ Fusion data built:', {
-        user_id: fusionData.user_id,
-        score: fusionData.score,
-        final_score: fusionData.final_score,
-        analysis_length: analysisJson.length
-      });
 
       // Step 7: Insert into database (fusion_outputs only; no assessment_sessions)
-      console.log('[CheckinSDK] Step 7: 📡 Calling database insert...');
       const { data: fusionResult, error: fusionError } = await safeInsert('fusion_outputs', fusionData);
-      console.log('[CheckinSDK] Step 7: Insert returned:', { 
-        hasData: !!fusionResult, 
-        hasError: !!fusionError,
-        errorType: typeof fusionError,
-        errorValue: fusionError
-      });
       
       if (fusionError || !fusionResult) {
         console.error('[CheckinSDK] ❌ Database insert failed');
@@ -509,14 +464,12 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
       }
 
       const savedId = Array.isArray(fusionResult) ? fusionResult[0]?.id : fusionResult?.id;
-      console.log('[CheckinSDK] ✅ Check-in saved successfully with ID:', savedId);
 
       // Step 8: Save transcript to assessment_transcripts (best-effort, non-blocking)
       // fusion_outputs insert is required; transcript is best-effort. No assessment_sessions, no Lambda.
       // Step 9: assessment_sessions insert disabled. Do not add without gating behind ENABLE_ASSESSMENT_SESSIONS.
       if (savedId && transcript.length > 0) {
         try {
-          console.log('[CheckinSDK] Step 8: 📝 Saving transcript...');
           const transcriptData = {
             fusion_output_id: savedId,
             user_id: user!.id,
@@ -532,7 +485,6 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
           if (transcriptError) {
             console.warn('[CheckinSDK] ⚠️ Transcript save failed (non-blocking):', transcriptError);
           } else {
-            console.log('[CheckinSDK] ✅ Transcript stored');
           }
         } catch (e: any) {
           console.warn('[CheckinSDK] ⚠️ Transcript save error (non-blocking):', e?.message ?? e);
@@ -705,6 +657,51 @@ export function CheckinAssessmentSDK({ onBack, onComplete }: CheckinAssessmentSD
                 to { transform: rotate(360deg); }
               }
             `}</style>
+          </div>
+        )}
+
+        <CheckInFailedModal
+          isOpen={showIncompleteModal}
+          onReturnToDashboard={() => {
+            setShowIncompleteModal(false);
+            onBack?.();
+          }}
+        />
+
+        {/* Error modal: save failed */}
+        {showErrorModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem'
+          }}>
+            <div style={{
+              backgroundColor: 'white', borderRadius: '1rem', maxWidth: '28rem', width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', overflow: 'hidden'
+            }}>
+              <div style={{ padding: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#111827', margin: 0 }}>
+                  Couldn&apos;t save check-in
+                </h3>
+              </div>
+              <div style={{ padding: '1.5rem' }}>
+                <p style={{ color: '#6b7280', lineHeight: 1.6, margin: 0 }}>{errorMessage}</p>
+              </div>
+              <div style={{ padding: '1rem 1.5rem', backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    setShowErrorModal(false);
+                    onBack?.();
+                  }}
+                  style={{
+                    padding: '0.5rem 1.25rem', fontSize: '0.9375rem', fontWeight: 600, color: 'white',
+                    background: 'linear-gradient(to right, #7c3aed, #6366f1)', border: 'none', borderRadius: '0.5rem',
+                    cursor: 'pointer', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)'
+                  }}
+                >
+                  Return to dashboard
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

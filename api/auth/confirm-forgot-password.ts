@@ -25,9 +25,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, code, newPassword } = req.body;
+  const rawEmail = (req.body?.email ?? '').toString().trim();
+  const email = rawEmail.toLowerCase().replace(/\s/g, '');
+  const code = (req.body?.code ?? '').toString().trim();
+  const newPassword = (req.body?.newPassword ?? '').toString();
 
-  if (!email || !code || !newPassword) {
+  if (!email || !email.includes('@') || !code || !newPassword) {
     return res.status(400).json({ error: 'Email, code, and new password are required' });
   }
 

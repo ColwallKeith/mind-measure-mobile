@@ -189,8 +189,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log('[Bedrock API] Starting text analysis...');
-
     // Get transcript and context from request body
     const { transcript, context } = req.body;
 
@@ -206,8 +204,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         data: getEmptyResult("There was not enough information in this check in to understand how the student is feeling.")
       });
     }
-
-    console.log('[Bedrock API] Transcript length:', transcript.length);
 
     // Build user context
     const userContext = {
@@ -254,8 +250,6 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
       ]
     };
 
-    console.log('[Bedrock API] Calling Bedrock with model:', MODEL_ID);
-
     const command = new InvokeModelCommand({
       modelId: MODEL_ID,
       contentType: "application/json",
@@ -266,14 +260,6 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
     const response = await bedrockClient.send(command);
     const decoded = new TextDecoder().decode(response.body);
     const responseBody = JSON.parse(decoded);
-
-    console.log('[Bedrock API] ✅ Bedrock response received');
-    console.log('[Bedrock API] Full response body structure:', JSON.stringify({
-      hasContent: !!responseBody?.content,
-      contentLength: responseBody?.content?.length,
-      firstContentType: responseBody?.content?.[0]?.type,
-      hasText: !!responseBody?.content?.[0]?.text
-    }));
 
     // Extract text from Claude response (defensive)
     const responseText: string | undefined = responseBody?.content?.[0]?.text;
@@ -286,17 +272,10 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
       });
     }
 
-    console.log('[Bedrock API] Response preview:', responseText.substring(0, 200));
-    console.log('[Bedrock API] Full response text length:', responseText.length);
-
     // Parse JSON from response (defensive)
     let parsed: any;
     try {
       parsed = JSON.parse(responseText);
-      console.log('[Bedrock API] ✅ JSON parsed successfully');
-      console.log('[Bedrock API] Parsed text_score:', parsed.text_score);
-      console.log('[Bedrock API] Parsed mood_score:', parsed.mood_score);
-      console.log('[Bedrock API] Parsed themes:', parsed.themes);
     } catch (parseError) {
       console.error('[Bedrock API] ❌ Failed to parse JSON from model response', parseError);
       console.error('[Bedrock API] Response text that failed to parse:', responseText.substring(0, 500));
@@ -308,16 +287,7 @@ Now produce a single valid JSON object that matches the TextAnalysisResult schem
     }
 
     // Validate and sanitize
-    console.log('[Bedrock API] Before validation - text_score:', parsed.text_score);
     const result = validateAndSanitize(parsed);
-    console.log('[Bedrock API] After validation - text_score:', result.text_score);
-
-    console.log('[Bedrock API] ✅ Analysis complete:', {
-      score: result.text_score,
-      uncertainty: result.uncertainty,
-      risk_level: result.risk_level,
-      themes: result.themes.length
-    });
 
     return res.status(200).json({
       success: true,

@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const row = await client.query(
       `SELECT bi.id, bi.contact_value, bi.invitee_name, bi.personal_message, bi.status, bi.last_resend_at,
-              p.first_name AS inviter_name
+              p.first_name, p.last_name
        FROM buddy_invites bi
        LEFT JOIN profiles p ON p.user_id = bi.user_id
        WHERE bi.id = $1 AND bi.user_id = $2`,
@@ -54,8 +54,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       personal_message: string | null;
       status: string;
       last_resend_at: string | null;
-      inviter_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
     };
+    const firstName = inv.first_name || '';
+    const lastName = inv.last_name || '';
+    const inviterName = [firstName, lastName].filter(Boolean).join(' ').trim() || 'Someone';
     if (inv.status !== 'pending') {
       await client.end();
       return res.status(400).json({ error: 'Can only resend pending invites' });
@@ -88,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sendInviteEmail({
         to: inv.contact_value,
         inviteeName: inv.invitee_name,
-        inviterName: inv.inviter_name || 'Someone',
+        inviterName,
         personalMessage: inv.personal_message,
         consentUrl: url,
       });

@@ -37,11 +37,8 @@ export class AWSBrowserDatabaseService implements DatabaseService {
       this.apiBaseUrl = '/api/database';
     }
     
-    console.log('🌐 Using Aurora Serverless v2 Browser Service with API endpoints');
-    console.log('🔧 API Base URL:', this.apiBaseUrl);
   }
   private async apiCall(endpoint: string, method: string = 'POST', body?: any): Promise<any> {
-    console.log('🔄 API Call:', method, `${this.apiBaseUrl}${endpoint}`);
     
     try {
       // Get JWT token for authentication
@@ -62,7 +59,6 @@ export class AWSBrowserDatabaseService implements DatabaseService {
       }
       
       const result = await response.json();
-      console.log('✅ API Response:', result);
       return result;
     } catch (error) {
       console.error('❌ API Call failed:', error);
@@ -110,9 +106,7 @@ export class AWSBrowserDatabaseService implements DatabaseService {
   }
   async insert<T = any>(table: string, data: Partial<T> | Partial<T>[], options?: any): Promise<InsertResult<T>> {
     try {
-      console.log('[AWSBrowserService] 📝 Insert to table:', table);
       const result = await this.apiCall('/insert', 'POST', { table, data, options });
-      console.log('[AWSBrowserService] ✅ Insert successful:', result?.data?.id || 'no id');
       return {
         data: result.data,
         error: null
@@ -183,16 +177,10 @@ export class AWSBrowserAuthService implements AuthService {
     const userPoolId = config.cognitoUserPoolId?.trim();
     const clientId = config.cognitoClientId?.trim();
     
-    console.log('🔧 AWSBrowserAuthService config:', {
-      cognitoUserPoolId: userPoolId,
-      cognitoClientId: clientId,
-      awsRegion: config.awsRegion?.trim()
-    });
     
     if (!userPoolId || !clientId) {
       // Note: This is EXPECTED in production - we use token-based auth via cognito-api-client
       // not full Amplify in-browser. Auth works via tokens restored from native storage.
-      console.log('🔧 Browser Cognito config not set (expected - using token-based auth)');
       // Use fallback values to prevent crashes - actual auth uses different pathway
       this.userPoolId = userPoolId || 'fallback-pool-id';
       this.clientId = clientId || 'fallback-client-id';
@@ -490,7 +478,6 @@ export class AWSBrowserFunctionsService {
       this.lambdaBaseUrl = 'https://4xg1jsjh7k.execute-api.eu-west-2.amazonaws.com/dev';
     }
     
-    console.log('🔧 Lambda Functions Base URL:', this.lambdaBaseUrl);
   }
 
   /**
@@ -521,7 +508,6 @@ export class AWSBrowserFunctionsService {
           const cognitoClient = CognitoApiClient.getInstance();
           idToken = await cognitoClient.getIdToken();
           if (idToken) {
-            console.log('✅ Retrieved ID token from CognitoApiClient');
           }
         } catch (e) {
           console.warn('⚠️ Could not get ID token from CognitoApiClient:', e);
@@ -563,18 +549,6 @@ export class AWSBrowserFunctionsService {
         const isExpired = payload.exp ? payload.exp < now : false;
         const expiresInSeconds = payload.exp ? payload.exp - now : null;
         
-        console.log(`🔍 ${tokenType} Token Details:`, {
-          token_use: payload.token_use || 'unknown',
-          iss: payload.iss || 'unknown',
-          aud: payload.aud || payload.client_id || 'unknown',
-          client_id: payload.client_id || payload.aud || 'unknown',
-          exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'unknown',
-          exp_timestamp: payload.exp || 'unknown',
-          isExpired: isExpired,
-          expiresInSeconds: expiresInSeconds,
-          sub: payload.sub ? payload.sub.substring(0, 20) + '...' : 'unknown',
-          tokenLength: token.length
-        });
       }
     } catch (e) {
       console.warn(`⚠️ Could not decode ${tokenType} token for details:`, e);
@@ -587,7 +561,6 @@ export class AWSBrowserFunctionsService {
   }
 
   async invoke(functionName: string, data: any): Promise<any> {
-    console.log(`🚀 Invoking Lambda function: ${functionName}`);
     
     // Use proxy endpoint for finalize-session to avoid CORS issues
     const useProxy = functionName === 'finalize-session';
@@ -621,14 +594,6 @@ export class AWSBrowserFunctionsService {
             }
           }
           
-          console.log(`📡 Lambda request attempt ${attempt} with ${tokenType} token:`, {
-            functionName,
-            endpoint,
-            method: 'POST',
-            tokenType: tokenType,
-            tokenLength: token.length,
-            payloadSize: JSON.stringify(data).length
-          });
           
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -641,7 +606,6 @@ export class AWSBrowserFunctionsService {
           
           if (response.ok) {
             const result = await response.json();
-            console.log(`✅ Lambda function ${functionName} completed successfully with ${tokenType} token`);
             return result;
           }
           
@@ -669,14 +633,6 @@ export class AWSBrowserFunctionsService {
         // For other functions, use standard token retrieval
         const token = await this.getAccessToken();
         
-        console.log(`📡 Lambda request details:`, {
-          functionName,
-          endpoint,
-          method: 'POST',
-          hasAuth: !!token,
-          useProxy,
-          payloadSize: JSON.stringify(data).length
-        });
         
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -711,7 +667,6 @@ export class AWSBrowserFunctionsService {
           throw new Error(`Lambda function ${functionName} failed with status ${response.status} . Body: ${rawText}`);
         }
 
-        console.log(`✅ Lambda function ${functionName} completed successfully`);
         return parsedBody;
       }
       
@@ -746,7 +701,6 @@ export class AWSBrowserBackendService implements BackendService {
   public functions: AWSBrowserFunctionsService;
   
   constructor(config: DatabaseConfig) {
-    console.log('🌐 Using Aurora Serverless v2 Browser Service with API endpoints');
     this.database = new AWSBrowserDatabaseService(config);
     this.auth = new AWSBrowserAuthService(config);
     this.functions = new AWSBrowserFunctionsService(config);

@@ -1,5 +1,5 @@
 import { useState, useEffect, memo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Heart, ArrowRight } from 'lucide-react';
 import mindMeasureLogo from '@/assets/Mindmeasure_logo.png';
@@ -47,7 +47,6 @@ interface SplashScreenProps {
 
 // Component definition - memoized to prevent unnecessary re-renders
 function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
-  console.log('🎨 SplashScreen rendering with onGetStarted:', typeof onGetStarted);
   const [currentTaglineIndex, setCurrentTaglineIndex] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -308,7 +307,6 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
         >
           <Button
             onClick={() => {
-              console.log('🎯 Splash button clicked!');
               onGetStarted();
             }}
             className="bg-white text-purple-600 hover:bg-white/90 h-14 px-8 text-lg font-semibold rounded-2xl shadow-xl border-2 border-white/50 min-w-[280px]"
@@ -352,7 +350,6 @@ function SplashScreenComponent({ onGetStarted }: SplashScreenProps) {
                   try {
                     const { Preferences } = await import('@capacitor/preferences');
                     const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-                    console.log('🔍 Current device data:', value);
                     alert(value ? `Device data: ${value}` : 'No device data found');
                   } catch (error) {
                     console.error('Error reading preferences:', error);

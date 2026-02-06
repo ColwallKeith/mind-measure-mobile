@@ -164,9 +164,9 @@ function escapeHtml(s: string): string {
 }
 
 export function consentUrl(token: string): string {
-  return `${BASE_URL}/buddies/invite?token=${encodeURIComponent(token)}`;
+  return `${BASE_URL}/invite?token=${encodeURIComponent(token)}`;
 }
 
 export function optOutUrl(optOutSlug: string): string {
-  return `${BASE_URL}/buddies/optout?token=${encodeURIComponent(optOutSlug)}`;
+  return `${BASE_URL}/optout?token=${encodeURIComponent(optOutSlug)}`;
 }

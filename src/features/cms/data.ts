@@ -167,7 +167,6 @@ export async function createUniversity(universityData: Partial<University>): Pro
     // 2. Create dedicated S3 bucket for this university
     if (universitySlug) {
       try {
-        console.log(`🏗️ Creating S3 bucket for university: ${universityData.name}`);
         
         const bucketResponse = await fetch('/api/universities/create-bucket', {
           method: 'POST',
@@ -183,7 +182,6 @@ export async function createUniversity(universityData: Partial<University>): Pro
         const bucketResult = await bucketResponse.json();
         
         if (bucketResult.success) {
-          console.log(`✅ S3 bucket created: ${bucketResult.bucketName}`);
         } else {
           console.warn(`⚠️ S3 bucket creation failed: ${bucketResult.error}`);
           // Don't fail university creation if bucket creation fails

@@ -39,7 +39,6 @@ export class CheckinFusionEngine {
    * Fuse multimodal features into final Mind Measure score
    */
   async fuse(input: FusionInput): Promise<CheckinFusionResult> {
-    console.log('[FusionEngine] Starting fusion...');
     
     const startTime = Date.now();
     
@@ -55,7 +54,6 @@ export class CheckinFusionEngine {
       
       const textScore = this.normalizeTextFeatures(input.textAnalysis, input.baseline);
       
-      console.log('[FusionEngine] Normalized scores:', { audioScore, visualScore, textScore });
       
       // Get confidence scores
       const audioConfidence = input.audioFeatures?.quality || 0;
@@ -146,7 +144,6 @@ export class CheckinFusionEngine {
       );
       
       const processingTime = Date.now() - startTime;
-      console.log(`[FusionEngine] ✅ Fusion complete: score=${mindMeasureScore}, direction=${directionOfChange}`);
       
       return {
         mindMeasureScore,
@@ -541,12 +538,4 @@ export class CheckinFusionEngine {
     return areas.slice(0, 3); // Top 3
   }
 }
-
-
-
-
-
-
-
-
 

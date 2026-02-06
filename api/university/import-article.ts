@@ -31,7 +31,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // 1. Fetch article from Marketing CMS public API
-    console.log(`Fetching article ${sourceArticleId} from Marketing CMS...`);
     const response = await fetch(
       `https://marketing.mindmeasure.co.uk/api/public/library/${sourceArticleId}`
     );
@@ -44,7 +43,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 2. Connect to Aurora
     await client.connect();
-    console.log('Connected to Aurora');
 
     // 3. Check if category exists, create if not
     let categoryId = null;
@@ -116,7 +114,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const newArticleId = insertResult.rows[0].id;
-    console.log(`Imported article ${newArticleId} for university ${universityId}`);
 
     await client.end();
 

@@ -38,7 +38,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   const stillImageCaptureRef = useRef<StillImageCaptureRef>(null);
   // Use the assessmentMode prop instead of URL parameter
   const actualMode = assessmentMode === 'baseline';
-  console.log('📱 MobileConversation initialized with mode:', assessmentMode, 'actualMode:', actualMode);
   
   // AWS Backend Service
   const backendService = BackendServiceFactory.createService(
@@ -54,7 +53,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   const loadUserContext = useCallback(async () => {
     if (!user?.id) return null;
     try {
-      console.log('Loading user context for mobile conversation...');
       // Get user profile data
       const { data: profile } = await backendService.database.select({
         table: 'profiles',
@@ -94,7 +92,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
         isFirstTime: !recentAssessments || recentAssessments.length === 0,
         platform: 'mobile'
       };
-      console.log('✅ User context loaded:', context);
       setUserContext(context);
       return context;
     } catch (error) {
@@ -110,21 +107,17 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       setLoading(false);
       return;
     }
-    console.log('Loading ElevenLabs script...');
     const script = document.createElement('script');
     script.id = id;
     script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
     script.async = true;
     script.onload = () => {
-      console.log('✅ ElevenLabs script loaded successfully');
       setScriptLoaded(true);
       setLoading(false);
       setConnectionError(null); // Clear any previous errors
       // Add a timeout to check if the widget is actually working
       setTimeout(() => {
-        console.log('🔍 Checking if ElevenLabs widget is available...');
         if (customElements.get('elevenlabs-convai')) {
-          console.log('✅ Widget custom element is registered');
         } else {
           console.error('❌ Widget custom element NOT registered');
         }
@@ -132,13 +125,10 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       // Check if the custom element is available
       setTimeout(() => {
         if (customElements.get('elevenlabs-convai')) {
-          console.log('✅ ElevenLabs custom element is available');
         } else {
           console.error('❌ ElevenLabs custom element not available after script load');
           // Fallback: try to manually register the element
-          console.log('🔄 Attempting fallback element registration...');
           if (window.customElements && !customElements.get('elevenlabs-convai')) {
-            console.log('⚠️ Custom element not registered, this may cause issues');
           }
         }
       }, 1000);
@@ -194,11 +184,9 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       setConnectionError('Failed to load ElevenLabs. Please check your internet connection.');
       // Retry mechanism
       if (retryCount < 3) {
-        console.log(`🔄 Retrying script load (attempt ${retryCount + 1})...`);
         setTimeout(() => {
           setRetryCount(prev => prev + 1);
           // Instead of calling loadScript() which doesn't exist, reload the page or handle differently
-          console.log('🔄 Would retry script loading here');
         }, 2000);
       }
     };
@@ -206,9 +194,7 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   }, []);
   // Initialize ElevenLabs widget when script is loaded
   useEffect(() => {
-    console.log('🔄 Widget init effect:', { scriptLoaded, hasRef: !!widgetRef.current, currentStep, alreadyInitialized: widgetInitializedRef.current });
     if (scriptLoaded && widgetRef.current && currentStep === 'recording' && !widgetInitializedRef.current) {
-      console.log('🚀 Initializing mobile widget...');
       widgetInitializedRef.current = true; // Set flag immediately to prevent re-initialization
       initializeWidget();
     }
@@ -216,7 +202,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   // Enhanced conversation monitoring for mobile with camera integration
   useEffect(() => {
     if (currentStep !== 'recording' || !widgetRef.current || !scriptLoaded || widgetInitializedRef.current) return;
-    console.log('📱 Starting mobile conversation initialization...');
     widgetInitializedRef.current = true;
     // Set up client tools for the ElevenLabs widget
     const setupClientTools = () => {
@@ -229,8 +214,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
             return 'Mobile conversation completed';
           },
           getConversationContext: () => {
-            console.log('[ClientTools] getConversationContext called');
-            console.log('[ClientTools] userContext available:', !!userContext);
             
             // Check if userContext is available
             if (!userContext) {
@@ -256,9 +239,7 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
               const now = new Date();
               const diffTime = Math.abs(now.getTime() - lastCheckinDate.getTime());
               lastCheckinDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              console.log('[ClientTools] Last check-in was', lastCheckinDays, 'days ago');
             } else {
-              console.log('[ClientTools] No previous check-ins found');
             }
             
             // Extract last 3 scores from wellnessTrends
@@ -267,9 +248,7 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
               for (let i = 0; i < Math.min(3, userContext.wellnessTrends.length); i++) {
                 recentTrend.push(userContext.wellnessTrends[i].score);
               }
-              console.log('[ClientTools] Recent trend scores:', recentTrend);
             } else {
-              console.log('[ClientTools] No wellness trends available');
             }
             
             // Determine current period (e.g., "Exam Season")
@@ -292,7 +271,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
               currentPeriod = 'Winter Break'; // Dec
             }
             
-            console.log('[ClientTools] Current period:', currentPeriod);
             
             // Build rich context object
             const context = {
@@ -316,16 +294,13 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
               isFirstTime: userContext.isFirstTime
             };
             
-            console.log('[ClientTools] Sending context to widget:', context);
             return JSON.stringify(context);
           }
         };
         // Add event listeners for cost tracking
         widget.addEventListener('conversationstarted', () => {
-          console.log('📱 Mobile conversation started');
         });
         widget.addEventListener('conversationended', () => {
-          console.log('📱 Mobile conversation ended');
         });
       }
     };
@@ -367,10 +342,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
                     conversationData: conversationHistory
                   };
                   updateSessionData({ text_data: textData });
-                  console.log('📱 Updated mobile session with conversation data:', {
-                    transcriptCount: transcripts.length,
-                    conversationEntries: conversationHistory.length
-                  });
                 }
               }
               // Look for conversation end indicators
@@ -409,33 +380,18 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   // Activate camera when recording starts
   useEffect(() => {
     if (currentStep === 'conversation' && scriptLoaded && !cameraActive) {
-      console.log('📹 Activating camera for conversation...');
       setCameraActive(true);
     }
   }, [scriptLoaded]); // Simplified to prevent death loop
   const initializeWidget = () => {
     if (!widgetRef.current) return;
-    console.log('🚀 Initializing widget with container:', widgetRef.current);
-    console.log('Container dimensions:', {
-      width: widgetRef.current.offsetWidth,
-      height: widgetRef.current.offsetHeight,
-      clientWidth: widgetRef.current.clientWidth,
-      clientHeight: widgetRef.current.clientHeight
-    });
     // Also check parent container dimensions
     const parentContainer = widgetRef.current.parentElement;
     if (parentContainer) {
-      console.log('Parent container dimensions:', {
-        width: parentContainer.offsetWidth,
-        height: parentContainer.offsetHeight,
-        clientWidth: parentContainer.clientWidth,
-        clientHeight: parentContainer.clientHeight
-      });
     }
     // Check if widget already exists
     const existingWidget = widgetRef.current.querySelector('elevenlabs-convai');
     if (existingWidget) {
-      console.log('✅ Widget already exists, skipping initialization');
       return;
     }
     // Check if the custom element is defined
@@ -443,14 +399,11 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       console.error('❌ ElevenLabs custom element not defined!');
       return;
     }
-    console.log('✅ ElevenLabs custom element is defined');
     // Create the widget element with the same attributes as working examples
     const widget = document.createElement('elevenlabs-convai');
-    console.log('📱 Widget element created:', widget);
     // Use the correct agent ID based on mode
     const agentId = actualMode ? 'agent_9301k22s8e94f7qs5e704ez02npe' : 'agent_7501k3hpgd5gf8ssm3c3530jx8qx';
     widget.setAttribute('agent-id', agentId);
-    console.log('🎯 Setting agent ID:', agentId, 'for mode:', actualMode ? 'baseline' : 'checkin');
     widget.setAttribute('auto-start', 'false');
     widget.setAttribute('conversation-mode', 'voice');
     widget.setAttribute('language', 'en');
@@ -461,17 +414,12 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
       min-height: 600px !important;
       display: block !important;
     `;
-    console.log('🎨 Widget styles applied:', widget.style.cssText);
     // Debug: Check if widget is actually created
-    console.log('🔍 Widget element created:', widget);
-    console.log('🔍 Widget tagName:', widget.tagName);
     // Add event listeners
     widget.addEventListener('conversation-started', () => {
-      console.log('🎙️ Conversation started');
       setConversationState('active');
     });
     widget.addEventListener('conversation-ended', () => {
-      console.log('🔚 Conversation ended');
       setConversationState('idle');
     });
     widget.addEventListener('error', (event) => {
@@ -479,44 +427,32 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
     });
     // Listen for our custom start event
     widget.addEventListener('start-conversation', () => {
-      console.log('🎯 Custom start event received');
       setConversationState('active');
     });
     // Listen for agent ready event
     widget.addEventListener('ready', () => {
-      console.log('✅ Widget ready and agent loaded');
     });
     // Append to container
     widgetRef.current.appendChild(widget);
-    console.log('📦 Widget appended to container');
-    console.log('🔍 Widget in DOM:', widgetRef.current.contains(widget));
-    console.log('🔍 Container children:', widgetRef.current.children);
     // Force widget initialization after append
     setTimeout(() => {
-      console.log('🚀 Attempting to force widget initialization...');
       if (widget && typeof (widget as any).connect === 'function') {
-        console.log('🔌 Calling widget.connect()...');
         (widget as any).connect();
       }
     }, 1500);
     // Check if widget is actually in the DOM
     setTimeout(() => {
       const widgetInDOM = widgetRef.current?.querySelector('elevenlabs-convai');
-      console.log('🔍 Widget in DOM after append:', widgetInDOM);
       if (widgetInDOM) {
-        console.log('✅ Widget successfully added to DOM');
         // Check for iframe content
         const iframe = widgetInDOM.querySelector('iframe');
         if (iframe) {
-          console.log('✅ Iframe found and widget is rendering');
         } else {
-          console.log('⏳ Widget element created, waiting for iframe to initialize...');
         }
       } else {
         console.error('❌ Widget not found in DOM after append');
       }
     }, 100);
-    console.log('🎯 Widget initialization complete');
     widgetInitializedRef.current = true;
   };
   const handleStartConversation = async () => {
@@ -606,7 +542,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
               assessment_type: actualMode ? 'baseline' : 'checkin'
             })
             .eq('id', currentSession.id);
-          console.log('✅ Mobile session finalized');
         } catch (e) {
           console.warn('[MobileConversation] Skip assessment_sessions update (flag off or error):', e);
         }
@@ -654,12 +589,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
   }
   // Conversation step - full-screen interface
   if (currentStep === 'conversation') {
-    console.log('🎙️ Rendering conversation step', {
-      currentStep,
-      conversationState,
-      scriptLoaded,
-      userId: user?.id
-    });
     return (
       <div
         className="min-h-screen bg-white flex flex-col"
@@ -791,12 +720,9 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
             <Button
               onClick={async () => {
                 if (conversationState === 'idle') {
-                  console.log('🎯 Start button clicked, attempting to start conversation...');
                   // First, ensure we have a session
                   if (!currentSession) {
-                    console.log('🎯 Creating new session...');
                     const sessionId = await createSession(actualMode ? 'baseline' : 'checkin');
-                    console.log('📝 Session creation result:', sessionId);
                     if (!sessionId) {
                       console.error('❌ Failed to create session');
                       toast.error('Failed to start conversation. Please try again.');
@@ -804,26 +730,20 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
                     }
                   }
                   // Transition to conversation step
-                                console.log('🎙️ Transitioning to conversation step...');
                   setCurrentStep('conversation');
                   setConversationState('active');
-                  console.log('🔍 Current step after transition:', currentStep);
-                  console.log('🔍 Conversation state after transition:', conversationState);
                   // Try to find the widget and start it
                   setTimeout(() => {
                     const widget = document.querySelector('elevenlabs-convai');
                     if (widget) {
-                      console.log('✅ Widget found, attempting to start conversation...');
                       // Try to find and click the start button
                       const startButton = widget.shadowRoot?.querySelector('[data-testid="start-button"]') ||
                                         widget.shadowRoot?.querySelector('button') ||
                                         widget.shadowRoot?.querySelector('[aria-label*="start"]') ||
                                         widget.shadowRoot?.querySelector('[aria-label*="Start"]');
                       if (startButton && startButton instanceof HTMLElement) {
-                        console.log('🎙️ Found start button, clicking it...');
                         startButton.click();
                       } else {
-                        console.log('⚠️ No start button found, using fallback...');
                         // Fallback: dispatch custom event
                         widget.dispatchEvent(new CustomEvent('start-conversation'));
                       }
@@ -849,7 +769,6 @@ export const MobileConversation: React.FC<MobileConversationProps> = ({ onNaviga
                     audio.muted = !isMuted;
                   });
                 }
-                console.log('Toggle mute:', !isMuted);
               }}
               className="h-12 px-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all"
             >

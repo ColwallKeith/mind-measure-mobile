@@ -9,7 +9,6 @@ export function ThirtyDayViewCard({
   monthData,
   averageScore
 }: ThirtyDayViewCardProps) {
-  console.log('🎨 ThirtyDayViewCard rendering with monthData:', monthData);
   
   const maxValue = 100;
   

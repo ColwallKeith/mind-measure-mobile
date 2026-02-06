@@ -65,8 +65,6 @@ export class BaselineVisualExtractor {
         BaselineVisualExtractor.MAX_FRAMES_TO_ANALYZE
       );
       
-      console.log('[VisualExtractor] Sampling', framesToAnalyze.length, 'frames from', media.videoFrames.length, 'total (max:', BaselineVisualExtractor.MAX_FRAMES_TO_ANALYZE + ')');
-      console.log('[VisualExtractor] Extracting features from', framesToAnalyze.length, 'frames using AWS Rekognition');
 
       // Convert video frames to base64 for API transmission
       const framesBase64 = await Promise.all(
@@ -75,7 +73,6 @@ export class BaselineVisualExtractor {
 
       // Calculate payload size for debugging
       const payloadSize = JSON.stringify({ frames: framesBase64 }).length;
-      console.log('[VisualExtractor] Payload size:', (payloadSize / 1024 / 1024).toFixed(2), 'MB for', framesBase64.length, 'frames');
 
       // Warn if payload is large
       if (payloadSize > 6 * 1024 * 1024) { // 6MB limit for most APIs
@@ -83,7 +80,6 @@ export class BaselineVisualExtractor {
       }
 
       // Call Rekognition API
-      console.log('[VisualExtractor] 📡 Calling Rekognition API...');
       const response = await fetch('/api/rekognition/analyze-frames', {
         method: 'POST',
         headers: {
@@ -121,7 +117,6 @@ export class BaselineVisualExtractor {
 
       const analyses: RekognitionFrame[] = result.analyses;
 
-      console.log('[VisualExtractor] ✅ Rekognition analyzed', analyses.length, '/', framesToAnalyze.length, 'frames');
 
       if (analyses.length === 0) {
         throw new MultimodalError(
@@ -145,7 +140,6 @@ export class BaselineVisualExtractor {
         overallQuality: this.extractOverallQuality(analyses)
       };
 
-      console.log('[VisualExtractor] ✅ Features extracted:', features);
       return features;
 
     } catch (error) {

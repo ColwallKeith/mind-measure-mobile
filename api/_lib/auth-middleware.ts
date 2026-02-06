@@ -38,14 +38,6 @@ function getKey(header: any, callback: any) {
  * Verify Cognito JWT token
  */
 export async function verifyToken(token: string): Promise<any> {
-  // Log configuration for debugging
-  console.log('[AUTH] Verification config:', {
-    userPoolId: COGNITO_USER_POOL_ID,
-    region: COGNITO_REGION,
-    clientId: COGNITO_CLIENT_ID ? '***' + COGNITO_CLIENT_ID.slice(-4) : 'NOT_SET',
-    issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`
-  });
-
   // Check if token is a Supabase token (legacy) by decoding without verification
   try {
     const tokenParts = token.split('.');
@@ -58,9 +50,6 @@ export async function verifyToken(token: string): Promise<any> {
         console.error('[AUTH] ❌ Detected Supabase token (legacy) - user needs to sign in again');
         throw new Error('Legacy Supabase token detected. Please sign out and sign in again to get a fresh Cognito token.');
       }
-      
-      // Log token type for debugging
-      console.log('[AUTH] Token issuer:', issuer, 'token_use:', payload.token_use);
     }
   } catch (decodeError) {
     // If we can't decode, continue with normal verification (will fail with proper error)
@@ -83,7 +72,7 @@ export async function verifyToken(token: string): Promise<any> {
           console.error('[AUTH] JWT verification failed:', {
             errorName: err.name,
             errorMessage: err.message,
-            errorCode: err.code,
+            errorCode: (err as { code?: string }).code,
             // Log token preview for debugging (first 20 chars + last 10)
             tokenPreview: token.substring(0, 20) + '...' + token.substring(token.length - 10),
             tokenLength: token.length,
@@ -108,7 +97,6 @@ export async function verifyToken(token: string): Promise<any> {
           }
         }
         
-        console.log('[AUTH] Token verified successfully for user:', decoded?.sub);
         resolve(decoded);
       }
     );
@@ -154,7 +142,6 @@ export async function requireAuth(
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log(`[AUTH] Missing auth header - route: ${req.url}`);
     res.status(401).json({
       error: 'Unauthorized',
       message: 'No authentication token provided',
@@ -165,19 +152,12 @@ export async function requireAuth(
 
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   
-  // Log token info for debugging (without exposing full token)
-  const tokenParts = token.split('.');
-  console.log(`[AUTH] Validating token - route: ${req.url}, tokenParts: ${tokenParts.length}, tokenLength: ${token.length}, preview: ${token.substring(0, 20)}...`);
-  
   try {
     // Verify token signature and claims
     const payload = await verifyToken(token);
     
     // Extract user ID (this is the ONLY source of identity)
     const userId = extractUserId(payload);
-    
-    // Log security event (minimal, no sensitive data)
-    console.log(`[AUTH] ✅ User authenticated - userId: ${userId}, route: ${req.url}`);
     
     return { userId, payload };
     
@@ -186,7 +166,7 @@ export async function requireAuth(
     console.error(`[AUTH] ❌ Authentication failed - route: ${req.url}`, {
       errorName: error?.name,
       errorMessage: error?.message,
-      errorCode: error?.code,
+      errorCode: error?.code as string | undefined,
       tokenPreview: token.substring(0, 20) + '...',
       tokenLength: token.length
     });
@@ -229,8 +209,6 @@ export async function requireRole(
   const hasRequiredRole = userRoles.some(role => requiredRoles.includes(role));
   
   if (!hasRequiredRole) {
-    console.log(`[AUTHZ] Authorization failed - userId: ${userId}, route: ${req.url}, required: ${requiredRoles.join(',')}, has: ${userRoles.join(',')}`);
-    
     res.status(403).json({
       error: 'Forbidden',
       message: 'Insufficient permissions',
@@ -239,16 +217,32 @@ export async function requireRole(
     return null;
   }
   
-  console.log(`[AUTHZ] Authorization success - userId: ${userId}, role: ${userRoles.join(',')}`);
-  
   return { userId, payload, roles: userRoles };
 }
 
 /**
- * Fetch user roles from database (fallback if not in token)
+ * Fetch user roles from memberships (fallback if not in token)
  */
 async function fetchUserRolesFromDB(userId: string): Promise<string[]> {
-  // TODO: Implement database lookup
-  // For now, return empty array (no roles)
-  return [];
+  try {
+    const { Client } = await import('pg');
+    const client = new Client({
+      host: process.env.AWS_AURORA_HOST || process.env.AWS_RDS_HOST,
+      port: parseInt(process.env.AWS_AURORA_PORT || process.env.AWS_RDS_PORT || '5432'),
+      database: process.env.AWS_AURORA_DATABASE || process.env.AWS_RDS_DATABASE || 'mindmeasure',
+      user: process.env.AWS_AURORA_USERNAME || process.env.AWS_RDS_USERNAME,
+      password: process.env.AWS_AURORA_PASSWORD || process.env.AWS_RDS_PASSWORD,
+      ssl: { rejectUnauthorized: false },
+    });
+    await client.connect();
+    const r = await client.query<{ role: string }>(
+      `SELECT DISTINCT role FROM memberships WHERE user_id = $1 AND is_active = true`,
+      [userId]
+    );
+    await client.end();
+    return (r.rows ?? []).map((row) => row.role);
+  } catch (e) {
+    console.error('[AUTH] fetchUserRolesFromDB failed:', e);
+    return [];
+  }
 }

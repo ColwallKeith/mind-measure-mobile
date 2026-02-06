@@ -43,7 +43,6 @@ export class BackendServiceFactory {
     }
 
     if (!this.instances.has(instanceId)) {
-      console.log(`🔧 Creating new service instance: ${instanceId}`);
       this.instances.set(instanceId, this.createService(serviceConfig));
     }
     
@@ -54,7 +53,6 @@ export class BackendServiceFactory {
    * Clear all cached instances
    */
   static clearInstances(): void {
-    console.log('🧹 Clearing all service instances');
     this.instances.clear();
     this.instance = null;
   }
@@ -69,20 +67,15 @@ export class BackendServiceFactory {
    * Create a new backend service instance
    */
   static createService(config: BackendServiceConfig): BackendService {
-    console.log('🔧 BackendServiceFactory.createService called with provider:', config.provider);
     switch (config.provider) {
       case 'aws':
-        console.log('🔧 Using AWS Browser Service with Cognito and API endpoints');
         return new AWSBrowserBackendService(config);
       case 'local':
-        console.log('🏠 Using Local Backend Service with Capacitor storage');
-        console.log('🏠 CREATING LOCAL BACKEND SERVICE - NO AWS NEEDED');
         return new LocalBackendService();
       case 'aurora-serverless':
         // Check if we're in browser environment
         if (typeof window !== 'undefined') {
           // Use browser-compatible Aurora service with API endpoints
-          console.log('🌐 Using Aurora Serverless v2 Browser Service with API endpoints');
           return new AWSBrowserBackendService(config);
         }
         // Server-side: use full Aurora Serverless v2 service
@@ -134,9 +127,7 @@ export class BackendServiceFactory {
     const storedProvider = typeof window !== 'undefined' ? localStorage.getItem('backend_provider') : null;
     
     // 🏠 FORCE LOCAL BACKEND FOR MOBILE - Override everything
-    console.log('🔧 Backend Factory: Using AWS backend for production');
     const backendProvider = (storedProvider as BackendProvider) || 'aws' as BackendProvider;
-    console.log('🔧 Backend provider set to:', backendProvider, '');
     const baseConfig: Partial<BackendServiceConfig> = {
       provider: backendProvider};
     switch (backendProvider) {
@@ -198,7 +189,6 @@ export const initializeBackendService = () => {
   );
   const config = BackendServiceFactory.getEnvironmentConfig();
   BackendServiceFactory.initialize(config);
-  console.log(`Backend service initialized with provider: ${config.provider}`);
   return BackendServiceFactory.getInstance();
 };
 // Legacy function removed - all operations now use backendService.database
@@ -213,7 +203,6 @@ export const performHealthCheck = async () => {
       realtime: true, // Realtime services typically don't have health checks
       provider: BackendServiceFactory.config?.provider || 'unknown',
       timestamp: new Date().toISOString()};
-    console.log('Backend health check results:', results);
     return results;
   } catch (error) {
     console.error('Backend health check failed:', error);
@@ -238,7 +227,6 @@ export const switchProvider = (provider: BackendProvider, additionalConfig: Part
     ...additionalConfig,
     provider};
   BackendServiceFactory.initialize(newConfig);
-  console.log(`Switched to backend provider: ${provider}`);
   return BackendServiceFactory.getInstance();
 };
 export default BackendServiceFactory;

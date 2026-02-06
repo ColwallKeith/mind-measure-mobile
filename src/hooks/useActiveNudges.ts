@@ -41,7 +41,6 @@ export function useActiveNudges(universityId: string | null | undefined) {
         setLoading(true);
         setError(null);
         
-        console.log('[useActiveNudges] Fetching nudges for:', universityId);
         
         const response = await fetch(`/api/nudges/active?universityId=${universityId}`);
         
@@ -51,12 +50,6 @@ export function useActiveNudges(universityId: string | null | undefined) {
         
         const data = await response.json();
         
-        console.log('[useActiveNudges] Received:', {
-          hasPinned: !!data.pinned,
-          hasRotated: !!data.rotated,
-          pinnedTemplate: data.pinned?.template,
-          rotatedTemplate: data.rotated?.template
-        });
         
         setPinned(data.pinned || null);
         setRotated(data.rotated || null);

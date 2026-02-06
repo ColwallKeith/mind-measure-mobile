@@ -27,17 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startTime = Date.now();
 
   try {
-    console.log('Attempting to connect to Aurora Serverless...');
-    console.log('Config:', {
-      host: dbConfig.host,
-      port: dbConfig.port,
-      database: dbConfig.database,
-      user: dbConfig.user,
-      // Don't log password
-    });
-
     await client.connect();
-    console.log('Connected successfully');
 
     // Test basic query
     const result = await client.query('SELECT NOW() as current_time, version() as db_version');

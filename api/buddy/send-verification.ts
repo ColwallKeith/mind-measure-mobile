@@ -107,10 +107,6 @@ export default async function handler(
     // 8. Send verification email via AWS SES
     // TODO: Implement actual email sending
     // For now, return the verification details for testing
-    
-    console.log('📧 Verification email would be sent to:', buddy.email);
-    console.log('🔗 Accept URL:', acceptUrl);
-    console.log('🔗 Decline URL:', declineUrl);
 
     // 9. In production, call AWS SES here
     const emailContent = {

@@ -25,10 +25,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email } = req.body;
+  const raw = (req.body?.email ?? '').toString().trim();
+  const email = raw.toLowerCase().replace(/\s/g, '');
 
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email is required' });
   }
 
   try {
@@ -39,8 +40,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await client.send(command);
 
+    // Cognito sends the reset code by email or SMS per User Pool "Account recovery" (separate from
+    // sign-up verification). If users get no email: (1) User Pool → Account recovery → set to email.
+    // (2) Use SES for Cognito email instead of default. (3) Check spam.
+    const delivery = result.CodeDeliveryDetails;
+
+    const codeDeliveryDetails = delivery
+      ? { DeliveryMedium: delivery.DeliveryMedium, Destination: delivery.Destination }
+      : undefined;
+
     res.status(200).json({
-      codeDeliveryDetails: result.CodeDeliveryDetails,
+      codeDeliveryDetails,
       error: null
     });
 

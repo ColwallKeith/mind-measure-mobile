@@ -15,12 +15,15 @@ import { ReturningSplashScreen } from './ReturningSplashScreen';
 import { BaselineAssessmentScreen } from './BaselineWelcome';
 import { BaselineAssessmentSDK } from './BaselineAssessmentSDK';
 import { ProfileReminderModal } from './ProfileReminderModal';
+import { BuddyReminderModal } from './BuddyReminderModal';
 import { SplashScreen } from './LandingPage';
 import { useUserAssessmentHistory } from '@/hooks/useUserAssessmentHistory';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
+import { buddiesApi } from '@/services/buddies-api';
 
 const PROFILE_REMINDER_VISIT_KEY = 'profile_reminder_visit_count';
+const BUDDY_REMINDER_SHOWN_KEY = 'buddy_reminder_shown';
 
 const getProfileReminderVisitCount = async (): Promise<number> => {
   try {
@@ -60,6 +63,60 @@ const shouldShowProfileReminderThisVisit = async (userId: string): Promise<boole
   }
 };
 
+const getBuddyReminderShown = async (): Promise<boolean> => {
+  try {
+    const { value } = await Preferences.get({ key: BUDDY_REMINDER_SHOWN_KEY });
+    return value === '1' || value === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const setBuddyReminderShown = async (): Promise<void> => {
+  try {
+    await Preferences.set({ key: BUDDY_REMINDER_SHOWN_KEY, value: '1' });
+  } catch (e) {
+    console.warn('[Buddy reminder] Could not persist shown flag:', e);
+  }
+};
+
+/**
+ * Returns true if we should show the buddy reminder this visit.
+ * Show once: on the next visit after the user’s first check-in, only if they have 0 buddies.
+ * Stop for good once they have ≥1 buddy or we’ve already shown it.
+ */
+const shouldShowBuddyReminderThisVisit = async (userId: string): Promise<boolean> => {
+  try {
+    if (await getBuddyReminderShown()) return false;
+
+    const { activeBuddies } = await buddiesApi.list();
+    if (activeBuddies.length >= 1) return false;
+
+    const backend = BackendServiceFactory.createService(BackendServiceFactory.getEnvironmentConfig());
+    const { data: sessions } = await backend.database.select('fusion_outputs', {
+      filters: { user_id: userId },
+      columns: 'analysis',
+      orderBy: [{ column: 'created_at', ascending: false }],
+      limit: 200
+    });
+    const rows = Array.isArray(sessions) ? sessions : [];
+    const checkInCount = rows.filter((r: { analysis?: unknown }) => {
+      try {
+        const a = typeof r.analysis === 'string' ? JSON.parse(r.analysis as string) : r.analysis;
+        return (a as { assessment_type?: string })?.assessment_type === 'checkin';
+      } catch {
+        return false;
+      }
+    }).length;
+    if (checkInCount < 1) return false;
+
+    return true;
+  } catch (e) {
+    console.warn('[Buddy reminder] Could not check buddies/check-ins:', e);
+    return false;
+  }
+};
+
 // Device user data management helpers
 const saveUserToDevice = async (userId: string, baselineCompleted: boolean = false) => {
   try {
@@ -69,7 +126,6 @@ const saveUserToDevice = async (userId: string, baselineCompleted: boolean = fal
       lastLogin: Date.now(),
       savedAt: new Date().toISOString()
     };
-    console.log('💾 Saving user data to device:', userData);
     await Preferences.set({
       key: 'mindmeasure_user',
       value: JSON.stringify(userData)
@@ -77,8 +133,6 @@ const saveUserToDevice = async (userId: string, baselineCompleted: boolean = fal
     
     // Verify it was saved
     const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-    console.log('🔍 Verification read after save:', value);
-    console.log('✅ User data saved successfully to device');
     return true;
   } catch (error) {
     console.error('❌ Failed to save user data to device:', error);
@@ -88,7 +142,6 @@ const saveUserToDevice = async (userId: string, baselineCompleted: boolean = fal
 
 const markBaselineComplete = async () => {
   try {
-    console.log('🎯 Marking baseline complete...');
     const { value } = await Preferences.get({ key: 'mindmeasure_user' });
     if (value) {
       const userData = JSON.parse(value);
@@ -101,8 +154,6 @@ const markBaselineComplete = async () => {
       
       // Verify
       const { value: newValue } = await Preferences.get({ key: 'mindmeasure_user' });
-      console.log('🔍 Verification after baseline complete:', newValue);
-      console.log('✅ Baseline completion marked on device');
       return true;
     }
   } catch (error) {
@@ -134,17 +185,16 @@ export const MobileAppStructure: React.FC = () => {
   const [profileHasUnsavedChanges, setProfileHasUnsavedChanges] = useState(false);
   const [showProfileUnsavedWarning, setShowProfileUnsavedWarning] = useState(false);
   const [pendingTabChange, setPendingTabChange] = useState<MobileTab | null>(null);
+  const [showBuddyReminderModal, setShowBuddyReminderModal] = useState(false);
   // Ref to trigger save from parent
   const profileSaveRef = useRef<(() => Promise<void>) | null>(null);
 
   // Keep ref in sync with state
   useEffect(() => {
     baselineReturnContextRef.current = baselineReturnContext;
-    console.log('🔄 baselineReturnContext updated to:', baselineReturnContext);
   }, [baselineReturnContext]);
   
   useEffect(() => {
-    console.log('🔄 Onboarding screen changed to:', onboardingScreen);
   }, [onboardingScreen]);
 
   // Clear profile initial tab when leaving profile so next open uses default tab
@@ -160,14 +210,11 @@ export const MobileAppStructure: React.FC = () => {
   useEffect(() => {
     const checkDeviceUser = async () => {
       try {
-        console.log('📱 Checking device preferences for returning user...');
         const { value } = await Preferences.get({ key: 'mindmeasure_user' });
         if (value) {
           const userData = JSON.parse(value);
-          console.log('👤 Found device user data:', userData);
           setDeviceUserData(userData);
         } else {
-          console.log('🆕 No device user data found - new user');
           setDeviceUserData(null);
         }
       } catch (error) {
@@ -182,59 +229,57 @@ export const MobileAppStructure: React.FC = () => {
   useEffect(() => {
     // On first mount, always show returning splash
     if (!hasCompletedInitialSplash && onboardingScreen === null) {
-      console.log('🚀 App launch - showing returning splash for 5 seconds');
       setOnboardingScreen('returning_splash');
     }
   }, [hasCompletedInitialSplash, onboardingScreen]);
 
   const handleSplashComplete = useCallback(() => {
-    console.log('✅ Splash complete - going to auth (RegistrationFlow)');
     setOnboardingScreen('auth');
   }, []);
 
   const handleReturningSplashComplete = useCallback(async () => {
-    console.log('✅ Returning splash complete - checking auth state');
     setHasCompletedInitialSplash(true);
     
     if (!user) {
-      console.log('🆕 No user found - showing new user splash');
       setOnboardingScreen('splash');
       return;
     }
     if (hasAssessmentHistory === true) {
-      console.log('✅ Returning user with history - going to dashboard');
       setOnboardingScreen(null);
       setCurrentScreen('dashboard');
       setActiveTab('dashboard');
-      const show = await shouldShowProfileReminderThisVisit(user.id);
-      if (show) setShowProfileReminderModal(true);
+      const showProfile = await shouldShowProfileReminderThisVisit(user.id);
+      if (showProfile) setShowProfileReminderModal(true);
+      else {
+        const showBuddy = await shouldShowBuddyReminderThisVisit(user.id);
+        if (showBuddy) setShowBuddyReminderModal(true);
+      }
       return;
     }
-    console.log('🎯 Returning user without history - showing baseline welcome');
     setOnboardingScreen('baseline_welcome');
   }, [user, hasAssessmentHistory]);
 
   const handleBaselineStart = useCallback(() => {
-    console.log('🎯 Starting baseline assessment');
     setOnboardingScreen('baseline_assessment');
   }, []);
 
   const handleBaselineComplete = useCallback(async () => {
-    console.log('✅ Baseline complete - marking on device');
     await markBaselineComplete();
     setOnboardingScreen(null);
     if (baselineReturnContextRef.current === 'export_data') {
-      console.log('📊 Baseline done - going to profile with auto-export');
       setCurrentScreen('profile');
       setActiveTab('profile');
     } else {
-      console.log('🏠 Baseline done - going to dashboard');
       setCurrentScreen('dashboard');
       setActiveTab('dashboard');
-    }
-    if (user?.id) {
-      const show = await shouldShowProfileReminderThisVisit(user.id);
-      if (show) setShowProfileReminderModal(true);
+      if (user?.id) {
+        const showProfile = await shouldShowProfileReminderThisVisit(user.id);
+        if (showProfile) setShowProfileReminderModal(true);
+        else {
+          const showBuddy = await shouldShowBuddyReminderThisVisit(user.id);
+          if (showBuddy) setShowBuddyReminderModal(true);
+        }
+      }
     }
   }, [user]);
 
@@ -269,13 +314,10 @@ export const MobileAppStructure: React.FC = () => {
   ];
 
   const renderContent = () => {
-    console.log('🎨 Rendering content - onboardingScreen:', onboardingScreen);
     
     if (onboardingScreen) {
-      console.log('🎯 Rendering onboarding screen:', onboardingScreen);
       switch (onboardingScreen) {
         case 'splash':
-          console.log('🎨 Rendering SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;
         case 'auth':
           return (
@@ -284,31 +326,24 @@ export const MobileAppStructure: React.FC = () => {
               onSignInSuccess={async (userId) => {
                 if (userId) await saveUserToDevice(userId, false);
                 setOnboardingScreen('returning_splash');
-                console.log('🔄 Sign-in complete (RegistrationFlow) - going to returning splash');
               }}
               onRegistrationComplete={() => {
                 setOnboardingScreen('baseline_welcome');
-                console.log('✅ Registration complete (RegistrationFlow) - going to baseline welcome');
               }}
             />
           );
         case 'baseline_welcome':
-          console.log('🎨 Rendering BaselineAssessmentScreen');
           return <BaselineAssessmentScreen onStartAssessment={handleBaselineStart} />;
         case 'returning_splash':
-          console.log('🎨 Rendering ReturningSplashScreen');
           return <ReturningSplashScreen onComplete={handleReturningSplashComplete} />;
         case 'baseline_assessment':
-          console.log('🎨 Rendering BaselineAssessmentSDK (multimodal)');
           return <BaselineAssessmentSDK onComplete={handleBaselineComplete} />;
         default:
-          console.log('🎨 Rendering default SplashScreen');
           return <SplashScreen onGetStarted={handleSplashComplete} />;
       }
     }
     
     if (!onboardingScreen && !user) {
-      console.log('⚠️ No onboarding screen and no user - showing splash');
       return <SplashScreen onGetStarted={handleSplashComplete} />;
     }
     
@@ -318,7 +353,6 @@ export const MobileAppStructure: React.FC = () => {
           onNeedHelp={() => setCurrentScreen('help')}
           onCheckIn={() => setCurrentScreen('checkin')}
           onRetakeBaseline={() => {
-            console.log('🔄 Retaking baseline from developer mode');
             setOnboardingScreen('baseline_welcome');
           }}
         />;
@@ -330,10 +364,17 @@ export const MobileAppStructure: React.FC = () => {
         return (
           <CheckinAssessmentSDK
             onBack={() => setCurrentScreen('dashboard')}
-            onComplete={() => {
-              console.log('✅ Check-in complete');
+            onComplete={async () => {
               setCurrentScreen('dashboard');
               setActiveTab('dashboard');
+              if (user?.id) {
+                const showProfile = await shouldShowProfileReminderThisVisit(user.id);
+                if (showProfile) setShowProfileReminderModal(true);
+                else {
+                  const showBuddy = await shouldShowBuddyReminderThisVisit(user.id);
+                  if (showBuddy) setShowBuddyReminderModal(true);
+                }
+              }
             }}
           />
         );
@@ -345,19 +386,16 @@ export const MobileAppStructure: React.FC = () => {
         return <HelpScreen onNavigateBack={handleNavigateBack} />;
       case 'profile':
         const shouldAutoExport = baselineReturnContext === 'export_data';
-        console.log('🎯 Rendering profile - shouldAutoExport:', shouldAutoExport, 'context:', baselineReturnContext);
         return <MobileProfile 
           onNavigateBack={handleNavigateBack} 
           initialTab={profileInitialTab}
           onNavigateToBaseline={() => {
-            console.log('🔄 Starting baseline from export flow - setting return context to export_data');
             setBaselineReturnContext('export_data');
             setOnboardingScreen('baseline_welcome');
           }}
           autoTriggerExport={shouldAutoExport}
           onExportTriggered={() => {
             // Reset context AFTER export is triggered
-            console.log('✅ Export triggered - resetting context to dashboard');
             setBaselineReturnContext('dashboard');
           }}
           onUnsavedChangesChange={setProfileHasUnsavedChanges}
@@ -392,6 +430,19 @@ export const MobileAppStructure: React.FC = () => {
           setActiveTab('profile');
         }}
         onSkip={() => setShowProfileReminderModal(false)}
+      />
+      <BuddyReminderModal
+        isOpen={showBuddyReminderModal}
+        onChooseBuddy={async () => {
+          await setBuddyReminderShown();
+          setShowBuddyReminderModal(false);
+          setCurrentScreen('buddies');
+          setActiveTab('buddies');
+        }}
+        onSkip={async () => {
+          await setBuddyReminderShown();
+          setShowBuddyReminderModal(false);
+        }}
       />
       {/* Unsaved changes warning when leaving Profile via bottom nav */}
       {showProfileUnsavedWarning && (

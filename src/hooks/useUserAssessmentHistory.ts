@@ -22,7 +22,6 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
     
     // Early return if no userId
     if (!userId) {
-      console.log('[useUserAssessmentHistory] No user ID - needs baseline');
       setNeedsBaseline(true);
       setHasAssessmentHistory(false);
       setNeedsCheckin(false);
@@ -32,7 +31,6 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
 
     try {
       setLoading(true);
-      console.log('[useUserAssessmentHistory] Checking assessment history for user:', userId);
       
       // Get JWT token for authentication
       const idToken = await cognitoApiClient.getIdToken();
@@ -45,7 +43,6 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
         return;
       }
 
-      console.log('[useUserAssessmentHistory] Token retrieved:', idToken.substring(0, 20) + '...' + idToken.substring(idToken.length - 20));
 
       // Call secure assessment history endpoint
       const response = await fetch('https://mobile.mindmeasure.app/api/assessments/history', {
@@ -67,12 +64,10 @@ export function useUserAssessmentHistory(): UserAssessmentHistory {
         const assessments = data.data || [];
         
         if (assessments.length > 0) {
-          console.log('[useUserAssessmentHistory] Found', assessments.length, 'assessment(s) - has history');
           setHasAssessmentHistory(true);
           setNeedsBaseline(false);
           setNeedsCheckin(false);
         } else {
-          console.log('[useUserAssessmentHistory] No assessments found - needs baseline');
           setHasAssessmentHistory(false);
           setNeedsBaseline(true);
           setNeedsCheckin(false);

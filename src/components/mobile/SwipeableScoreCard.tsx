@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { CurrentScoreCard } from './cards/CurrentScoreCard';
 import { SevenDayViewCard } from './cards/SevenDayViewCard';
 import { ThirtyDayViewCard } from './cards/ThirtyDayViewCard';
@@ -121,7 +121,6 @@ export function SwipeableScoreCard({
       data.push(dayData?.score || 0);
     }
     
-    console.log('📊 7-day data prepared:', data, 'from', last7Days.length, 'check-ins');
     return data;
   };
 

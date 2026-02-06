@@ -16,12 +16,10 @@ import {
   FunctionService
 } from './DatabaseService';
 
-console.log('🏠 LOCAL BACKEND SERVICE CONSTRUCTOR CALLED - THIS SHOULD ALWAYS SHOW');
 
 // Local Database Service using Capacitor Preferences
 class LocalDatabaseService implements DatabaseService {
   constructor() {
-    console.log('🏠 Initializing Local Database Service');
   }
 
   async select<T = any>(
@@ -35,7 +33,6 @@ class LocalDatabaseService implements DatabaseService {
     }
   ): Promise<QueryResult<T>> {
     try {
-      console.log('🏠 Local select from table:', table, 'with options:', options);
       
       // Get data from Capacitor Preferences
       const { value } = await Preferences.get({ key: `table_${table}` });
@@ -73,7 +70,6 @@ class LocalDatabaseService implements DatabaseService {
         data = data.slice(0, options.limit);
       }
 
-      console.log('🏠 Local select result:', data.length, 'rows');
       return { data, error: null };
     } catch (error) {
       console.error('❌ Local select error:', error);
@@ -83,7 +79,6 @@ class LocalDatabaseService implements DatabaseService {
 
   async insert<T = any>(table: string, data: Partial<T> | Partial<T>[]): Promise<InsertResult<T>> {
     try {
-      console.log('🏠 Local insert to table:', table, 'data:', data);
       
       // Get existing data
       const { value } = await Preferences.get({ key: `table_${table}` });
@@ -112,7 +107,6 @@ class LocalDatabaseService implements DatabaseService {
         value: JSON.stringify(existingData) 
       });
 
-      console.log('🏠 Local insert successful:', insertedData.length, 'rows');
       return { data: insertedData, error: null };
     } catch (error) {
       console.error('❌ Local insert error:', error);
@@ -126,7 +120,6 @@ class LocalDatabaseService implements DatabaseService {
     filters: Record<string, any>
   ): Promise<UpdateResult<T>> {
     try {
-      console.log('🏠 Local update table:', table, 'data:', data, 'filters:', filters);
       
       // Get existing data
       const { value } = await Preferences.get({ key: `table_${table}` });
@@ -160,7 +153,6 @@ class LocalDatabaseService implements DatabaseService {
         value: JSON.stringify(existingData) 
       });
 
-      console.log('🏠 Local update successful:', updatedCount, 'rows updated');
       return { data: updatedData, error: null };
     } catch (error) {
       console.error('❌ Local update error:', error);
@@ -170,7 +162,6 @@ class LocalDatabaseService implements DatabaseService {
 
   async delete(table: string, filters: Record<string, any>): Promise<DeleteResult> {
     try {
-      console.log('🏠 Local delete from table:', table, 'filters:', filters);
       
       // Get existing data
       const { value } = await Preferences.get({ key: `table_${table}` });
@@ -192,7 +183,6 @@ class LocalDatabaseService implements DatabaseService {
         value: JSON.stringify(existingData) 
       });
 
-      console.log('🏠 Local delete successful:', deletedCount, 'rows deleted');
       return { error: null };
     } catch (error) {
       console.error('❌ Local delete error:', error);
@@ -216,7 +206,6 @@ class LocalDatabaseService implements DatabaseService {
 // Local Auth Service (mock implementation)
 class LocalAuthService implements AuthService {
   async signUp(email: string, password: string, options?: any): Promise<any> {
-    console.log('🏠 Local auth sign up:', email);
     // Mock successful signup
     return { 
       data: { 
@@ -231,7 +220,6 @@ class LocalAuthService implements AuthService {
   }
 
   async signInWithPassword(email: string, password: string): Promise<any> {
-    console.log('🏠 Local auth sign in:', email);
     // Mock successful signin
     return { 
       data: { 
@@ -246,37 +234,30 @@ class LocalAuthService implements AuthService {
   }
 
   async signOut(): Promise<any> {
-    console.log('🏠 Local auth sign out');
     return { error: null };
   }
 
   async getUser(): Promise<any> {
-    console.log('🏠 Local auth get user');
     return { data: { user: null }, error: null };
   }
 
   async confirmSignUp(email: string, code: string): Promise<any> {
-    console.log('🏠 Local auth confirm sign up:', email);
     return { error: null };
   }
 
   async resendConfirmationCode(email: string): Promise<any> {
-    console.log('🏠 Local auth resend confirmation:', email);
     return { error: null };
   }
 
   async resetPassword(email: string): Promise<any> {
-    console.log('🏠 Local auth reset password:', email);
     return { error: null };
   }
 
   async confirmResetPassword(email: string, code: string, newPassword: string): Promise<any> {
-    console.log('🏠 Local auth confirm reset password:', email);
     return { error: null };
   }
 
   onAuthStateChange(callback: (event: string, user: any) => void): () => void {
-    console.log('🏠 Local auth state change listener setup');
     // Return no-op unsubscribe function
     return () => {};
   }
@@ -285,27 +266,22 @@ class LocalAuthService implements AuthService {
 // Local Storage Service (mock implementation)
 class LocalStorageService implements StorageService {
   async uploadFile(file: File, path: string): Promise<any> {
-    console.log('🏠 Local storage upload file:', path);
     return { data: { path }, error: null };
   }
 
   async downloadFile(path: string): Promise<any> {
-    console.log('🏠 Local storage download file:', path);
     return { data: null, error: 'Local storage download not implemented' };
   }
 
   async deleteFile(path: string): Promise<any> {
-    console.log('🏠 Local storage delete file:', path);
     return { error: null };
   }
 
   async getSignedUrl(path: string, expiresIn?: number): Promise<any> {
-    console.log('🏠 Local storage get signed URL:', path);
     return { data: { signedUrl: `local://file/${path}` }, error: null };
   }
 
   async listFiles(path: string): Promise<any> {
-    console.log('🏠 Local storage list files:', path);
     return { data: [], error: null };
   }
 }
@@ -313,23 +289,19 @@ class LocalStorageService implements StorageService {
 // Local Realtime Service (mock implementation)
 class LocalRealtimeService implements RealtimeService {
   subscribe(table: string, callback: (payload: any) => void): any {
-    console.log('🏠 Local realtime subscribe to:', table);
     return { unsubscribe: () => {} };
   }
 
   unsubscribe(subscription: any): void {
-    console.log('🏠 Local realtime unsubscribe');
   }
 
   removeAllSubscriptions(): void {
-    console.log('🏠 Local realtime remove all subscriptions');
   }
 }
 
 // Local Functions Service (mock implementation)
 class LocalFunctionsService implements FunctionService {
   async invoke(functionName: string, payload?: any): Promise<{ data: any; error: any }> {
-    console.log('🏠 Local functions invoke:', functionName, 'with payload:', payload);
     
     // Mock some common function responses
     if (functionName === 'analyze-baseline') {
@@ -359,8 +331,6 @@ export class LocalBackendService implements BackendService {
   public functions: LocalFunctionsService;
 
   constructor() {
-    console.log('🏠 Initializing Local Backend Service');
-    console.log('🏠 LOCAL BACKEND SERVICE CONSTRUCTOR CALLED - THIS SHOULD ALWAYS SHOW');
     
     this.database = new LocalDatabaseService();
     this.auth = new LocalAuthService();
@@ -368,6 +338,5 @@ export class LocalBackendService implements BackendService {
     this.realtime = new LocalRealtimeService();
     this.functions = new LocalFunctionsService();
     
-    console.log('🏠 Local Backend Service initialized successfully');
   }
 }

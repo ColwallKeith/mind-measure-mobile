@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { ChevronLeft, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
 
 interface SignInScreenProps {
-  onSignInComplete: () => void;
+  onSignInComplete: (userId: string) => void;
   onBack: () => void;
   onForgotPassword?: () => void;
   preFilledEmail?: string;
@@ -39,7 +39,7 @@ export function SignInScreen({ onSignInComplete, onBack, onForgotPassword, preFi
     setError(null);
 
     console.log('🔐 Signing in user:', email);
-    const { error: signInError } = await signIn(email, password);
+    const { error: signInError, user } = await signIn(email, password);
 
     if (signInError) {
       console.error('❌ Sign in failed:', signInError);
@@ -47,7 +47,9 @@ export function SignInScreen({ onSignInComplete, onBack, onForgotPassword, preFi
       setIsLoading(false);
     } else {
       console.log('✅ Sign in successful - tokens stored on device');
-      onSignInComplete();
+      setIsLoading(false);
+      const userId = user?.id ?? '';
+      onSignInComplete(userId);
     }
   };
 

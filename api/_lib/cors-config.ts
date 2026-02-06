@@ -46,7 +46,6 @@ export function setCorsHeaders(req: VercelRequest, res: VercelResponse): boolean
   }
   
   // Origin not in allowlist
-  console.log(`[CORS] Rejected origin: ${origin}, route: ${req.url}`);
   return false;
 }
 

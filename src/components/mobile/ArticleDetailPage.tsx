@@ -41,7 +41,6 @@ export function ArticleDetailPage({
             universityId: user?.university_id
           })
         });
-        console.log(`📊 Tracked view for article: ${article.title}`);
       } catch (error) {
         console.error('Failed to track article view:', error);
       }

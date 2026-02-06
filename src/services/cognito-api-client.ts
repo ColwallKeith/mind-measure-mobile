@@ -68,7 +68,6 @@ async function storeTokens(tokens: AuthTokens) {
     Preferences.set({ key: TOKEN_EXPIRY_KEY, value: expiryTime.toString() })
   ]);
   
-  console.log('✅ Tokens stored securely in device storage');
 }
 
 async function getStoredTokens(): Promise<AuthTokens | null> {
@@ -86,7 +85,6 @@ async function getStoredTokens(): Promise<AuthTokens | null> {
   // Check if tokens are expired
   const expiryTime = parseInt(expiry.value || '0');
   if (expiryTime < Date.now()) {
-    console.log('⚠️ Tokens expired - attempting refresh...');
     
     // Try to refresh the tokens
     try {
@@ -99,11 +97,9 @@ async function getStoredTokens(): Promise<AuthTokens | null> {
       const data = await response.json();
       
       if (response.ok && data.session) {
-        console.log('✅ Tokens refreshed successfully');
         await storeTokens(data.session);
         return data.session;
       } else {
-        console.log('❌ Token refresh failed:', data.error);
         await clearTokens();
         return null;
       }
@@ -130,7 +126,6 @@ async function clearTokens() {
     Preferences.remove({ key: TOKEN_EXPIRY_KEY })
   ]);
   
-  console.log('🗑️ Tokens cleared from device storage');
 }
 
 // Parse JWT token to extract user info (without verifying - server already verified it)
@@ -158,7 +153,6 @@ export const cognitoApiClient = {
    */
   async signUp(email: string, password: string, options?: { data?: { first_name?: string; last_name?: string } }) {
     try {
-      console.log('🔐 API Client: Sign up for:', email);
 
       const result = await makeAuthRequest('signup', {
         email,
@@ -174,7 +168,6 @@ export const cognitoApiClient = {
         user_metadata: options?.data
       };
 
-      console.log('✅ API Client: Sign up successful');
       return { data: { user }, error: null };
 
     } catch (error: any) {
@@ -188,7 +181,6 @@ export const cognitoApiClient = {
    */
   async signInWithPassword(email: string, password: string) {
     try {
-      console.log('🔐 API Client: Sign in for:', email);
 
       const result = await makeAuthRequest('signin', {
         email,
@@ -197,7 +189,6 @@ export const cognitoApiClient = {
 
       // Check for special cases
       if (result.needsVerification) {
-        console.log('📧 API Client: Email not verified');
         return { data: { user: null }, error: 'UNVERIFIED_EMAIL', needsVerification: true, email };
       }
 
@@ -223,7 +214,6 @@ export const cognitoApiClient = {
           }
         };
 
-        console.log('✅ API Client: Sign in successful');
         return { data: { user }, error: null };
       }
 
@@ -240,14 +230,12 @@ export const cognitoApiClient = {
    */
   async confirmSignUp(email: string, code: string) {
     try {
-      console.log('📧 API Client: Confirm sign up for:', email);
 
       await makeAuthRequest('confirm-signup', {
         email,
         code
       });
 
-      console.log('✅ API Client: Email confirmation successful');
       return { error: null };
 
     } catch (error: any) {
@@ -261,13 +249,11 @@ export const cognitoApiClient = {
    */
   async resendConfirmationCode(email: string) {
     try {
-      console.log('📧 API Client: Resend confirmation for:', email);
 
       await makeAuthRequest('resend-confirmation', {
         email
       });
 
-      console.log('✅ API Client: Confirmation code resent');
       return { error: null };
 
     } catch (error: any) {
@@ -277,23 +263,30 @@ export const cognitoApiClient = {
   },
 
   /**
-   * Initiate password reset
+   * Initiate password reset.
+   * Returns codeDeliveryDetails (DeliveryMedium, Destination) so UI can show where the code was sent.
    */
-  async resetPassword(email: string) {
+  async resetPassword(email: string): Promise<{
+    error: string | null;
+    needsVerification?: boolean;
+    codeDeliveryDetails?: { DeliveryMedium?: string; Destination?: string };
+  }> {
     try {
-      console.log('🔑 API Client: Reset password for:', email);
 
       const result = await makeAuthRequest('forgot-password', {
         email
       });
 
       if (result.needsVerification) {
-        console.log('📧 API Client: Email not verified - cannot reset password');
-        return { error: 'UNVERIFIED_EMAIL_RESET', needsVerification: true, email };
+        return { error: 'UNVERIFIED_EMAIL_RESET', needsVerification: true };
       }
 
-      console.log('✅ API Client: Password reset initiated');
-      return { error: null };
+      const raw = result.codeDeliveryDetails ?? (result as any).CodeDeliveryDetails;
+      const delivery = raw as { DeliveryMedium?: string; Destination?: string } | undefined;
+      if (delivery?.DeliveryMedium) {
+      } else {
+      }
+      return { error: null, codeDeliveryDetails: delivery ?? undefined };
 
     } catch (error: any) {
       console.error('❌ API Client: Reset password error:', error);
@@ -306,7 +299,6 @@ export const cognitoApiClient = {
    */
   async confirmResetPassword(email: string, code: string, newPassword: string) {
     try {
-      console.log('🔑 API Client: Confirm reset password for:', email);
 
       await makeAuthRequest('confirm-forgot-password', {
         email,
@@ -314,7 +306,6 @@ export const cognitoApiClient = {
         newPassword
       });
 
-      console.log('✅ API Client: Password reset successful');
       return { error: null };
 
     } catch (error: any) {
@@ -328,9 +319,7 @@ export const cognitoApiClient = {
    */
   async signOut() {
     try {
-      console.log('🔐 API Client: Sign out');
       await clearTokens();
-      console.log('✅ API Client: Sign out successful');
       return { error: null };
     } catch (error: any) {
       console.error('❌ API Client: Sign out error:', error);
@@ -343,12 +332,10 @@ export const cognitoApiClient = {
    */
   async getUser() {
     try {
-      console.log('🔍 API Client: Checking for authenticated user...');
       
       const tokens = await getStoredTokens();
       
       if (!tokens) {
-        console.log('❌ API Client: No valid tokens - user not authenticated');
         return { data: { user: null }, error: null };
       }
 
@@ -370,7 +357,6 @@ export const cognitoApiClient = {
         }
       };
 
-      console.log('✅ API Client: User session restored:', user.email);
       return { data: { user }, error: null };
 
     } catch (error: any) {
@@ -392,11 +378,9 @@ export const cognitoApiClient = {
   onAuthStateChange(callback: (event: string, user: AuthUser | null) => void) {
     // This is a simplified listener for explicit auth events (sign-in, sign-out)
     // We do NOT poll - we only trigger on actual auth actions
-    console.log('🔔 Auth state listener registered');
     
     // Return unsubscribe function
     return () => {
-      console.log('🔕 Auth state listener unsubscribed');
     };
   },
 
@@ -415,5 +399,4 @@ export const cognitoApiClient = {
 };
 
 // Initialize on load - no AWS SDK initialization needed!
-console.log('🔧 Cognito API Client initialized - all auth calls go through secure server endpoints');
 

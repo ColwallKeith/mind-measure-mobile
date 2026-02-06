@@ -57,7 +57,6 @@ export class CheckinVisualExtractor {
    * Extract all 18 visual features from video frames
    */
   async extract(media: CapturedMedia): Promise<CheckinVisualFeatures> {
-    console.log('[CheckinVisualExtractor] Starting extraction...');
     
     if (!media.videoFrames || media.videoFrames.length === 0) {
       throw new CheckinMultimodalError(
@@ -77,12 +76,10 @@ export class CheckinVisualExtractor {
         CheckinVisualExtractor.MAX_FRAMES_TO_ANALYZE
       );
       
-      console.log(`[CheckinVisualExtractor] Sampling ${framesToAnalyze.length} frames from ${media.videoFrames.length} total (max: ${CheckinVisualExtractor.MAX_FRAMES_TO_ANALYZE})`);
       
       // Call Rekognition API with sampled frames
       const rekognitionData = await this.analyzeFramesWithRekognition(framesToAnalyze);
       
-      console.log(`[CheckinVisualExtractor] Rekognition analyzed ${rekognitionData.analyzedFrames}/${rekognitionData.totalFrames} frames`);
       
       if (rekognitionData.analyzedFrames === 0) {
         throw new CheckinMultimodalError(
@@ -104,7 +101,6 @@ export class CheckinVisualExtractor {
       const overallQuality = this.computeOverallQuality(rekognitionData);
       
       const processingTime = Date.now() - startTime;
-      console.log(`[CheckinVisualExtractor] ✅ Extraction complete in ${processingTime}ms`);
       
       return {
         ...facialExpressionFeatures,
@@ -188,14 +184,12 @@ export class CheckinVisualExtractor {
     }
     
     const payloadSize = JSON.stringify({ frames: framesBase64 }).length;
-    console.log(`[CheckinVisualExtractor] Payload size: ${(payloadSize / 1024 / 1024).toFixed(2)} MB for ${frames.length} frames`);
     
     if (payloadSize > 4.5 * 1024 * 1024) {
       console.warn('[CheckinVisualExtractor] ⚠️ Large payload detected, may cause timeout');
     }
     
     // Call API endpoint
-    console.log('[CheckinVisualExtractor] 📡 Calling Rekognition API...');
     
     const response = await fetch('/api/rekognition/analyze-frames', {
       method: 'POST',
@@ -219,7 +213,6 @@ export class CheckinVisualExtractor {
     }
     
     const result: RekognitionResponse = await response.json();
-    console.log(`[CheckinVisualExtractor] ✅ Rekognition analyzed ${result.analyzedFrames} / ${result.totalFrames} frames`);
     
     return result;
   }

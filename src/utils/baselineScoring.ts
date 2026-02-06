@@ -76,7 +76,6 @@ export function extractAssessmentFromTranscript(
         const qNum = parseQuestionNumber(questionMatch[1]);
         if (qNum) {
           lastQuestionNumber = qNum;
-          console.log(`[SDK] 🔍 Found question ${qNum} in: "${line.substring(0, 50)}..."`);
         }
       }
     } else if (trimmed.startsWith('user:') && lastQuestionNumber !== null) {
@@ -85,16 +84,13 @@ export function extractAssessmentFromTranscript(
       
       // If this question was already answered, we're overwriting with the latest response
       if (questionResponses.has(lastQuestionNumber)) {
-        console.log(`[SDK] ⚠️ Question ${lastQuestionNumber} repeated - using latest response`);
       }
       
       questionResponses.set(lastQuestionNumber, response);
-      console.log(`[SDK] 📝 Q${lastQuestionNumber} response: "${response}"`);
       lastQuestionNumber = null; // Reset for next question
     }
   }
   
-  console.log('[SDK] 📋 Question-response map:', Array.from(questionResponses.entries()));
   
   // Now map questions to PHQ/GAD/Mood based on question numbers
   // Question 1: PHQ-2 Q1 (little interest or pleasure)
@@ -149,7 +145,6 @@ export function extractAssessmentFromTranscript(
     gad2_q2: gad2_q2 ?? 0,
   };
 
-  console.log("[SDK] 📝 Extracted from transcript:", { phqResponses, moodScore });
 
   return { phqResponses, moodScore };
 }
@@ -286,16 +281,10 @@ export function validateAssessmentData(state: AssessmentState) {
     return !(typeof value === "number" && !Number.isNaN(value));
   });
 
-  console.log("[SDK] ✅ Validation result:", {
-    isValid,
-    details: { hasAllQuestions, hasMood, hasTranscript, hasDuration },
-    missingQuestions: missingQuestions.length > 0 ? missingQuestions : 'none'
-  });
 
   return {
     isValid,
     details: { hasAllQuestions, hasMood, hasTranscript, hasDuration, missingQuestions },
   };
 }
-
 

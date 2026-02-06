@@ -1,25 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import { Preferences } from '@capacitor/preferences';
 import { BottomNav } from '@/components/BottomNavigation';
-import { DashboardScreen } from './MobileDashboard';
-import { MobileCheckin } from './MobileCheckin';
-import { BuddiesScreen } from './BuddiesScreen';
-import { MobileProfile } from './MobileProfile';
-import { HelpScreen as HelpPage } from './HelpPage';
-import { MobileConversation } from './MobileConversation';
-import { MobileSettings } from './MobileSettings';
+
+// Eagerly loaded: first screen users see
 import { SplashScreen } from './LandingPage';
-import { RegistrationScreen } from './RegistrationScreen';
-import { WelcomeBack } from './WelcomeBack';
-import { BaselineAssessmentScreen } from './BaselineWelcome';
-import { BaselineAssessmentSDK } from './BaselineAssessmentSDK';
-import { CheckinAssessment } from './CheckinAssessment';
-import { ReturningSplashScreen } from './ReturningSplashScreen';
-import NotFound from '../../pages/NotFound';
-console.log('🔥 MobileAppWrapper module loaded');
+
+// Lazily loaded: only fetched when navigated to
+const DashboardScreen = lazy(() => import('./MobileDashboard').then(m => ({ default: m.DashboardScreen })));
+const MobileCheckin = lazy(() => import('./MobileCheckin').then(m => ({ default: m.MobileCheckin })));
+const BuddiesScreen = lazy(() => import('./BuddiesScreen').then(m => ({ default: m.BuddiesScreen })));
+const BuddyConsentPage = lazy(() => import('./BuddyConsentPage').then(m => ({ default: m.BuddyConsentPage })));
+const MobileProfile = lazy(() => import('./MobileProfile').then(m => ({ default: m.MobileProfile })));
+const HelpPage = lazy(() => import('./HelpPage').then(m => ({ default: m.HelpScreen })));
+const MobileConversation = lazy(() => import('./MobileConversation').then(m => ({ default: m.MobileConversation })));
+const MobileSettings = lazy(() => import('./MobileSettings').then(m => ({ default: m.MobileSettings })));
+const RegistrationScreen = lazy(() => import('./RegistrationScreen').then(m => ({ default: m.RegistrationScreen })));
+const WelcomeBack = lazy(() => import('./WelcomeBack').then(m => ({ default: m.WelcomeBack })));
+const BaselineAssessmentScreen = lazy(() => import('./BaselineWelcome').then(m => ({ default: m.BaselineAssessmentScreen })));
+const BaselineAssessmentSDK = lazy(() => import('./BaselineAssessmentSDK').then(m => ({ default: m.BaselineAssessmentSDK })));
+const CheckinAssessment = lazy(() => import('./CheckinAssessment').then(m => ({ default: m.CheckinAssessment })));
+const ReturningSplashScreen = lazy(() => import('./ReturningSplashScreen').then(m => ({ default: m.ReturningSplashScreen })));
+
+// Loading fallback
+function LoadingFallback() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%)',
+    }}>
+      <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
+        <div style={{
+          width: 32, height: 32,
+          border: '3px solid rgba(255,255,255,0.3)',
+          borderTopColor: '#FFFFFF',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+          margin: '0 auto 12px',
+        }} />
+        <p style={{ fontSize: 14, opacity: 0.8 }}>Loading…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    </div>
+  );
+}
+
+// Simple NotFound component (no external dependency)
+function NotFound() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #7C3AED 0%, #3B82F6 100%)',
+    }}>
+      <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
+        <h1 style={{ fontSize: 48, fontWeight: 700, marginBottom: 8 }}>404</h1>
+        <p style={{ fontSize: 16, opacity: 0.8, marginBottom: 24 }}>Page not found</p>
+        <a href="/" style={{
+          color: '#FFFFFF',
+          textDecoration: 'underline',
+          fontSize: 14,
+        }}>Go home</a>
+      </div>
+    </div>
+  );
+}
+
 // Helper functions for device user data management
 export const saveUserToDevice = async (userId: string, baselineCompleted: boolean = false) => {
   try {
@@ -29,216 +82,172 @@ export const saveUserToDevice = async (userId: string, baselineCompleted: boolea
       lastLogin: Date.now(),
       savedAt: new Date().toISOString()
     };
-    console.log('💾 Attempting to save user data to device:', userData);
-    const result = await Preferences.set({
+    await Preferences.set({
       key: 'mindmeasure_user',
       value: JSON.stringify(userData)
     });
-    console.log('💾 Preferences.set result:', result);
-    // Verify it was saved by reading it back
-    const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-    console.log('🔍 Verification read after save:', value);
-    console.log('✅ User data saved successfully to device');
     return true;
   } catch (error) {
-    console.error('❌ Failed to save user data to device:', error);
+    console.error('Failed to save user data to device:', error);
     return false;
   }
 };
+
 export const markBaselineComplete = async () => {
   try {
-    console.log('🎯 Marking baseline complete...');
     const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-    console.log('📋 Current user data before marking complete:', value);
     if (value) {
       const userData = JSON.parse(value);
-      console.log('📝 Parsed user data:', userData);
       userData.baselineCompleted = true;
       userData.baselineCompletedAt = new Date().toISOString();
-      console.log('💾 Saving updated user data:', userData);
       await Preferences.set({
         key: 'mindmeasure_user',
         value: JSON.stringify(userData)
       });
-      // Verify it was saved
-      const { value: newValue } = await Preferences.get({ key: 'mindmeasure_user' });
-      console.log('🔍 Verification read after baseline complete:', newValue);
-      console.log('✅ Baseline completion marked on device');
       return true;
-    } else {
-      console.warn('⚠️ No user data found to mark baseline complete');
     }
   } catch (error) {
-    console.error('❌ Failed to mark baseline complete:', error);
+    console.error('Failed to mark baseline complete:', error);
   }
   return false;
 };
+
 export const clearUserFromDevice = async () => {
   try {
     await Preferences.remove({ key: 'mindmeasure_user' });
-    console.log('🗑️ User data cleared from device');
     return true;
   } catch (error) {
-    console.error('❌ Failed to clear user data:', error);
+    console.error('Failed to clear user data:', error);
     return false;
   }
 };
+
 export function MobileAppWrapper() {
   // AWS Backend Service
   const backendService = BackendServiceFactory.createService(
     BackendServiceFactory.getEnvironmentConfig()
   );
-  console.log('🚀 MobileAppWrapper rendering');
+
   const [activeScreen, setActiveScreen] = useState<'dashboard' | 'content' | 'buddies' | 'profile'>('dashboard');
   const [hasCheckedUserStatus, setHasCheckedUserStatus] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+
   // Check device preferences for returning user status
   useEffect(() => {
     const checkDeviceUserStatus = async () => {
-      console.log('📱 Checking device user status for path:', location.pathname);
       // Only redirect on the root path
       if (location.pathname === '/') {
         try {
-          console.log('🔍 Reading from Capacitor Preferences...');
-          // Check device preferences for stored user data
           const { value } = await Preferences.get({ key: 'mindmeasure_user' });
-          console.log('📋 Raw preference value:', value);
           if (value) {
             const userData = JSON.parse(value);
-            console.log('👤 Found stored user data:', userData);
             if (userData.baselineCompleted) {
-              // Returning user with completed baseline
-              console.log('👋 Returning user detected (from device) - redirecting to welcome-back');
               navigate('/welcome-back');
             } else {
-              // User exists but baseline not completed
-              console.log('🎯 User needs baseline (from device) - redirecting to baseline-welcome');
               navigate('/baseline-welcome');
             }
-          } else {
-            // No user data on device - new user
-            console.log('🆕 New user detected - no data found in preferences');
-            console.log('📍 Staying on splash screen for new user flow');
           }
         } catch (error) {
-          console.error('❌ Error reading device preferences:', error);
-          // On error, stay on splash (safest option for new users)
+          console.error('Error reading device preferences:', error);
         }
       }
       setHasCheckedUserStatus(true);
     };
     checkDeviceUserStatus();
   }, [location.pathname, navigate]);
+
   try {
-  console.log('📍 Current location:', location.pathname);
-  // Update activeScreen based on current route
-  React.useEffect(() => {
-    const path = location.pathname;
-    if (path === '/dashboard') {
-      setActiveScreen('dashboard');
-    } else if (path === '/content') {
-      setActiveScreen('content');
-    } else if (path === '/buddies') {
-      setActiveScreen('buddies');
-    } else if (path === '/profile') {
-      setActiveScreen('profile');
-    }
-  }, [location.pathname]);
-  const handleScreenChange = (screen: 'dashboard' | 'content' | 'buddies' | 'profile') => {
-    setActiveScreen(screen);
-    // Navigate to the appropriate route
-    switch (screen) {
-      case 'dashboard':
-        window.location.href = '/dashboard';
-        break;
-      case 'content':
-        window.location.href = '/content';
-        break;
-      case 'buddies':
-        window.location.href = '/buddies';
-        break;
-      case 'profile':
-        window.location.href = '/profile';
-        break;
-    }
-  };
-  return (
-    <>
-      <Routes>
-        <Route path="/" element={
-          <>
-            {console.log('🎨 Rendering SplashScreen route')}
-            <SplashScreen onGetStarted={() => {
-              console.log('🎯 Splash button clicked - navigating to /onboarding');
-              navigate('/onboarding');
-            }} />
-          </>
-        } />
-        <Route path="/baseline-welcome" element={<BaselineAssessmentScreen onStartAssessment={() => navigate('/baseline')} />} />
-        <Route path="/onboarding" element={
-          <>
-            {console.log('🎨 Rendering RegistrationScreen route')}
-            <RegistrationScreen
-              onBack={() => {
-                console.log('⬅️ Registration back - navigating to /');
-                navigate('/');
-              }}
-              onComplete={async (createdUserId?: string) => {
-                console.log('✅ Registration complete - saving user data...');
-                console.log('🔍 Passed user ID from registration:', createdUserId);
-                console.log('🔍 Current AuthContext user state:', { user: !!user, userId: user?.id });
-                // Use the user ID from registration if available, otherwise fall back to AuthContext
-                const userIdToSave = createdUserId || user?.id;
-                if (userIdToSave) {
-                  console.log('💾 Saving authenticated user ID to device:', userIdToSave);
-                  await saveUserToDevice(userIdToSave, false);
-                } else {
-                  console.warn('⚠️ No authenticated user found after registration - will use temporary ID');
-                  // Fallback: save a temporary ID that will be replaced when user signs in
-                  const tempId = `temp_${Date.now()}`;
-                  await saveUserToDevice(tempId, false);
-                }
-                navigate('/baseline-welcome');
-              }}
+    // Update activeScreen based on current route
+    React.useEffect(() => {
+      const path = location.pathname;
+      if (path === '/dashboard') {
+        setActiveScreen('dashboard');
+      } else if (path === '/content') {
+        setActiveScreen('content');
+      } else if (path === '/buddies') {
+        setActiveScreen('buddies');
+      } else if (path === '/profile') {
+        setActiveScreen('profile');
+      }
+    }, [location.pathname]);
+
+    const handleScreenChange = (screen: 'dashboard' | 'content' | 'buddies' | 'profile') => {
+      setActiveScreen(screen);
+      switch (screen) {
+        case 'dashboard':
+          window.location.href = '/dashboard';
+          break;
+        case 'content':
+          window.location.href = '/content';
+          break;
+        case 'buddies':
+          window.location.href = '/buddies';
+          break;
+        case 'profile':
+          window.location.href = '/profile';
+          break;
+      }
+    };
+
+    return (
+      <>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={
+              <SplashScreen onGetStarted={() => navigate('/onboarding')} />
+            } />
+            <Route path="/baseline-welcome" element={<BaselineAssessmentScreen onStartAssessment={() => navigate('/baseline')} />} />
+            <Route path="/onboarding" element={
+              <RegistrationScreen
+                onBack={() => navigate('/')}
+                onComplete={async (createdUserId?: string) => {
+                  const userIdToSave = createdUserId || user?.id;
+                  if (userIdToSave) {
+                    await saveUserToDevice(userIdToSave, false);
+                  } else {
+                    const tempId = `temp_${Date.now()}`;
+                    await saveUserToDevice(tempId, false);
+                  }
+                  navigate('/baseline-welcome');
+                }}
+              />
+            } />
+            <Route path="/welcome-back" element={<ReturningSplashScreen onComplete={() => navigate('/dashboard')} />} />
+            <Route path="/baseline" element={<BaselineAssessmentSDK onBack={() => window.history.back()} />} />
+            <Route path="/checkin" element={<CheckinAssessment onBack={() => window.history.back()} />} />
+            <Route path="/dashboard" element={
+              <DashboardScreen
+                onNeedHelp={() => navigate('/help')}
+                onCheckIn={() => navigate('/checkin-welcome')}
+              />
+            } />
+            <Route path="/checkin-welcome" element={<MobileCheckin onNavigateToJodie={() => navigate('/checkin')} />} />
+            <Route path="/buddies" element={<BuddiesScreen />} />
+            <Route path="/buddies/invite" element={<BuddyConsentPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
+            <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+        {/* Only show navigation bar on main app screens, hide on splash/onboarding and assessments */}
+        {(() => {
+          const hideNav = location.pathname === '/' || /^\/(onboarding|welcome-back|baseline-welcome|baseline)$/i.test(location.pathname);
+          return !hideNav;
+        })() && (
+          <div className="fixed bottom-0 left-0 right-0 z-50">
+            <BottomNav
+              activeView={activeScreen === 'dashboard' ? 'home' : activeScreen}
+              onViewChange={(view) => handleScreenChange(view === 'home' ? 'dashboard' : view)}
             />
-          </>
-        } />
-        <Route path="/welcome-back" element={<ReturningSplashScreen onComplete={() => navigate('/dashboard')} />} />
-        {/* TEST ROUTE: Simulate returning user */}
-        <Route path="/test-returning" element={<ReturningSplashScreen onComplete={() => navigate('/dashboard')} />} />
-        <Route path="/baseline" element={<BaselineAssessmentSDK onBack={() => window.history.back()} />} />
-        <Route path="/checkin" element={<CheckinAssessment onBack={() => window.history.back()} />} />
-        <Route path="/dashboard" element={
-          <DashboardScreen
-            onNeedHelp={() => navigate('/help')}
-            onCheckIn={() => navigate('/checkin-welcome')}
-          />
-        } />
-        <Route path="/checkin-welcome" element={<MobileCheckin onNavigateToJodie={() => navigate('/checkin')} />} />
-        <Route path="/buddies" element={<BuddiesScreen />} />
-        <Route path="/help" element={<HelpPage />} />
-        <Route path="/profile" element={<MobileProfile onNavigateBack={() => {}} onNavigateToBaseline={() => navigate('/baseline-welcome')} autoTriggerExport={false} onExportTriggered={() => {}} />} />
-        <Route path="/settings" element={<MobileSettings onNavigateBack={() => {}} />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      {/* Only show navigation bar on main app screens, hide on splash/onboarding and assessments */}
-      {(() => {
-        const hideNav = location.pathname === '/' || /^\/(onboarding|welcome-back|baseline-welcome|baseline)$/i.test(location.pathname);
-        return !hideNav;
-      })() && (
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <BottomNav
-            activeView={activeScreen === 'dashboard' ? 'home' : activeScreen}
-            onViewChange={(view) => handleScreenChange(view === 'home' ? 'dashboard' : view)}
-          />
-        </div>
-      )}
-    </>
-  );
+          </div>
+        )}
+      </>
+    );
   } catch (error) {
-    console.error('❌ Error in MobileAppWrapper:', error);
+    console.error('Error in MobileAppWrapper:', error);
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
         <div className="text-white text-center">

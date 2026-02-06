@@ -7,7 +7,6 @@ interface BuddyCardProps {
     name: string;
     phone: string;
     email: string;
-    relationship: string;
     rank: number;
   };
   onDelete: (id: string) => void;
@@ -24,21 +23,16 @@ export function BuddyCard({ buddy, onDelete, onMove, onAskCheckIn, index }: Budd
   const [{ isDragging }, drag] = useDrag({
     type: ITEM_TYPE,
     item: { index },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
+    collect: (monitor) => ({ isDragging: monitor.isDragging() }),
   });
 
   const [, drop] = useDrop({
     accept: ITEM_TYPE,
     hover: (item: { index: number }) => {
       if (!ref.current) return;
-      
       const dragIndex = item.index;
       const hoverIndex = index;
-
       if (dragIndex === hoverIndex) return;
-
       onMove(dragIndex, hoverIndex);
       item.index = hoverIndex;
     },
@@ -64,7 +58,6 @@ export function BuddyCard({ buddy, onDelete, onMove, onAskCheckIn, index }: Budd
         alignItems: 'center'
       }}
     >
-      {/* Delete Button */}
       <button
         onClick={() => onDelete(buddy.id)}
         style={{
@@ -97,10 +90,8 @@ export function BuddyCard({ buddy, onDelete, onMove, onAskCheckIn, index }: Budd
         ×
       </button>
 
-      {/* Content aligned left */}
       <div style={{ width: '100%', marginBottom: '16px' }}>
-        {/* Priority Badge and Name on same line */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
           <div style={{
             backgroundColor: '#5B8FED',
             color: 'white',
@@ -116,28 +107,22 @@ export function BuddyCard({ buddy, onDelete, onMove, onAskCheckIn, index }: Budd
           }}>
             {buddy.rank}
           </div>
-          
-          <h3 style={{ 
-            fontSize: '20px', 
-            fontWeight: '600', 
-            color: '#0F172A', 
-            margin: 0
-          }}>
+          <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#0F172A', margin: 0, flex: 1 }}>
             {buddy.name}
           </h3>
+          <span style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            color: '#10B981',
+            backgroundColor: '#D1FAE5',
+            padding: '4px 10px',
+            borderRadius: '12px'
+          }}>
+            Active
+          </span>
         </div>
-
-        {/* Relationship - aligned with text above */}
-        {buddy.relationship && (
-          <div style={{ marginLeft: '40px' }}>
-            <span style={{ fontSize: '14px', color: '#64748B' }}>
-              {buddy.relationship}
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Ask for Check-in Button - Centered */}
       <button
         onClick={() => onAskCheckIn(buddy.id)}
         style={{
@@ -152,16 +137,11 @@ export function BuddyCard({ buddy, onDelete, onMove, onAskCheckIn, index }: Budd
           cursor: 'pointer',
           transition: 'all 0.2s'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#4A7FDC';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#5B8FED';
-        }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A7FDC'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#5B8FED'; }}
       >
-        Ask for Check-in
+        Send a nudge
       </button>
     </div>
   );
 }
-

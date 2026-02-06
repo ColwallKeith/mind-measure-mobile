@@ -27,7 +27,6 @@ export class DashboardAssembler {
     checkInId: string,
     userId: string
   ): CheckinDashboardData {
-    console.log('[DashboardAssembler] Assembling dashboard data...');
     
     return {
       // Core identifiers
@@ -124,12 +123,4 @@ export class DashboardAssembler {
     };
   }
 }
-
-
-
-
-
-
-
-
 

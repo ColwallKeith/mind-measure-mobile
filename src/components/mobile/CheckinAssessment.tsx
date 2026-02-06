@@ -16,13 +16,11 @@ export function CheckinAssessment({ onBack }: CheckinAssessmentProps) {
       setScriptLoaded(true);
       return;
     }
-    console.log('Loading ElevenLabs script for check-in...');
     const script = document.createElement('script');
     script.id = id;
     script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed';
     script.async = true;
     script.onload = () => {
-      console.log('✅ ElevenLabs script loaded successfully for check-in');
       setScriptLoaded(true);
     };
     script.onerror = () => {
@@ -39,7 +37,6 @@ export function CheckinAssessment({ onBack }: CheckinAssessmentProps) {
   // Initialize widget when script is loaded
   useEffect(() => {
     if (!scriptLoaded || !widgetRef.current) return;
-    console.log('🚀 Initializing ElevenLabs check-in widget...');
     // Create widget element with check-in agent
     const widget = document.createElement('elevenlabs-convai');
     widget.setAttribute('agent-id', 'agent_7501k3hpgd5gf8ssm3c3530jx8qx'); // Check-in agent
@@ -53,14 +50,11 @@ export function CheckinAssessment({ onBack }: CheckinAssessmentProps) {
     `;
     // Add event listeners
     widget.addEventListener('ready', () => {
-      console.log('✅ ElevenLabs check-in widget ready');
       setWidgetReady(true);
     });
     widget.addEventListener('conversation-started', () => {
-      console.log('🎙️ Check-in conversation started');
     });
     widget.addEventListener('conversation-ended', () => {
-      console.log('🔚 Check-in conversation ended');
     });
     widget.addEventListener('error', (event) => {
       console.error('❌ Check-in widget error:', event);

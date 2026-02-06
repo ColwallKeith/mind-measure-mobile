@@ -80,8 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const sql = `UPDATE ${table} SET ${setClauses.join(', ')} WHERE ${whereClauses.join(' AND ')} RETURNING *`;
-    
-    console.log(`[DB UPDATE] User ${userId} updating ${table}`);
 
     const result = await client.query(sql, params);
     await client.end();

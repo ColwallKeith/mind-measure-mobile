@@ -48,12 +48,10 @@ export class UniversityResolver {
       return null;
     }
 
-    console.log('[UniversityResolver] Resolving domain:', domain);
 
     // Check cache first
     if (this.isCacheValid() && this.cache.has(domain)) {
       const universityId = this.cache.get(domain)!;
-      console.log('[UniversityResolver] ✅ Cache hit:', { domain, universityId });
       return universityId;
     }
 
@@ -64,7 +62,6 @@ export class UniversityResolver {
       );
 
       // Query universities - NOTE: 'domains' column may not exist yet
-      console.log('[UniversityResolver] Querying database for domain:', domain);
       
       const { data: universities, error } = await backendService.database.select(
         'universities',
@@ -84,7 +81,6 @@ export class UniversityResolver {
         return null;
       }
 
-      console.log('[UniversityResolver] 📊 Found', universities.length, 'universities in database');
       
       // For now, we don't have a domains column, so we can't do dynamic mapping
       // Just return null and let the caller use the default
@@ -111,7 +107,6 @@ export class UniversityResolver {
   clearCache(): void {
     this.cache.clear();
     this.cacheExpiry = 0;
-    console.log('[UniversityResolver] Cache cleared');
   }
 
   /**
@@ -147,5 +142,4 @@ export async function resolveUniversityFromEmail(email: string): Promise<string>
   
   return universityId;
 }
-
 

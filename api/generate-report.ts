@@ -118,13 +118,10 @@ function prepareReportData(sessions: any[], periodDays: number) {
   const concerns: string[] = [];
   const transcriptSnippets: string[] = [];
 
-  console.log(`[Report] Processing ${sessions.length} sessions for ${periodDays} day report`);
-
   sessions.forEach((session, index) => {
     // Scores
     if (session.final_score) {
       scores.push(session.final_score);
-      console.log(`[Report] Session ${index + 1}: score=${session.final_score}`);
     }
 
     // Parse analysis
@@ -134,18 +131,14 @@ function prepareReportData(sessions: any[], periodDays: number) {
         : session.analysis;
 
       if (analysis) {
-        console.log(`[Report] Session ${index + 1} analysis keys:`, Object.keys(analysis));
-        
         // Mood scores (check both field name variations)
         const moodScore = analysis.mood_score || analysis.moodScore;
         if (moodScore) {
           moodScores.push(moodScore);
-          console.log(`[Report] Session ${index + 1}: mood_score=${moodScore}`);
         }
 
         // Themes
         if (analysis.themes && Array.isArray(analysis.themes)) {
-          console.log(`[Report] Session ${index + 1}: themes=${analysis.themes.length} found`);
           analysis.themes.forEach((theme: string) => {
             themes[theme] = (themes[theme] || 0) + 1;
           });
@@ -154,14 +147,12 @@ function prepareReportData(sessions: any[], periodDays: number) {
         // Pleasures (positive drivers - check both field name variations)
         const positiveDrivers = analysis.driver_positive || analysis.drivers_positive || analysis.driverPositive;
         if (positiveDrivers && Array.isArray(positiveDrivers)) {
-          console.log(`[Report] Session ${index + 1}: positive_drivers=${positiveDrivers.length} found`);
           pleasures.push(...positiveDrivers);
         }
 
         // Concerns (negative drivers - check both field name variations)
         const negativeDrivers = analysis.driver_negative || analysis.drivers_negative || analysis.driverNegative;
         if (negativeDrivers && Array.isArray(negativeDrivers)) {
-          console.log(`[Report] Session ${index + 1}: negative_drivers=${negativeDrivers.length} found`);
           concerns.push(...negativeDrivers);
         }
 
@@ -169,7 +160,6 @@ function prepareReportData(sessions: any[], periodDays: number) {
         const summary = analysis.conversation_summary || analysis.summary;
         if (summary) {
           transcriptSnippets.push(summary);
-          console.log(`[Report] Session ${index + 1}: summary length=${summary.length} chars`);
         }
       } else {
         console.warn(`[Report] Session ${index + 1}: analysis is null/undefined`);
@@ -178,15 +168,6 @@ function prepareReportData(sessions: any[], periodDays: number) {
       console.error(`[Report] Session ${index + 1}: Failed to parse analysis:`, e);
       // Skip invalid analysis
     }
-  });
-
-  console.log(`[Report] Data summary:`, {
-    totalScores: scores.length,
-    totalMoodScores: moodScores.length,
-    totalThemes: Object.keys(themes).length,
-    totalPleasures: pleasures.length,
-    totalConcerns: concerns.length,
-    totalSnippets: transcriptSnippets.length
   });
 
   return {
@@ -466,6 +447,7 @@ Visit https://mobile.mindmeasure.app to manage your account.
   try {
     const command = new SendEmailCommand({
       Source: 'Mind Measure <noreply@mindmeasure.co.uk>',
+      ReplyToAddresses: ['info@mindmeasure.co.uk'],
       Destination: {
         ToAddresses: [toEmail]
       },
@@ -488,7 +470,6 @@ Visit https://mobile.mindmeasure.app to manage your account.
     });
 
     await sesClient.send(command);
-    console.log(`Report email sent successfully to ${toEmail}`);
   } catch (error) {
     console.error('Failed to send email:', error);
     throw new Error('Failed to send report email');

@@ -48,8 +48,6 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
           setError(confirmError);
         }
       } else {
-        console.log('✅ Email verified successfully');
-        console.log('📧 Email verified - user can now sign in');
         onVerified();
       }
     } catch (err: any) {
@@ -74,7 +72,6 @@ export function EmailVerificationScreen({ email, onVerified, onBack }: EmailVeri
           setError(resendError);
         }
       } else {
-        console.log('✅ Verification code resent');
         setResendCooldown(60); // 60 second cooldown
         setError('New code sent! Check your email.');
         

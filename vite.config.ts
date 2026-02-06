@@ -56,6 +56,10 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
+  esbuild: {
+    pure: ['console.log', 'console.debug'],
+    drop: ['debugger'],
+  },
   build: {
     target: 'esnext',
     outDir: 'dist',

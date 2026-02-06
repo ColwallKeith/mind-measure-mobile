@@ -37,9 +37,6 @@ export class BaselineScoring {
     visualFailed: boolean = false
   ): BaselineScoringBreakdown {
     
-    console.log('[BaselineScoring] Computing dynamic weighted score');
-    console.log('[BaselineScoring] Clinical score:', clinicalScore);
-    console.log('[BaselineScoring] Audio failed:', audioFailed, '| Visual failed:', visualFailed);
     
     // Determine which modalities are available
     const hasAudio = !audioFailed && audioFeatures !== null;
@@ -66,7 +63,6 @@ export class BaselineScoring {
     
     if (hasAudio) {
       audioScore = this.normalizeAudioFeatures(audioFeatures!);
-      console.log('[BaselineScoring] Audio score:', audioScore);
       
       if (isNaN(audioScore)) {
         console.warn('[BaselineScoring] ⚠️ Audio score is NaN, treating as failed');
@@ -76,7 +72,6 @@ export class BaselineScoring {
     
     if (hasVisual) {
       visualScore = this.normalizeVisualFeatures(visualFeatures!);
-      console.log('[BaselineScoring] Visual score:', visualScore);
       
       if (isNaN(visualScore)) {
         console.warn('[BaselineScoring] ⚠️ Visual score is NaN, treating as failed');
@@ -87,8 +82,6 @@ export class BaselineScoring {
     // Case 2: Only audio works → 85% clinical + 15% audio
     if (audioScore !== null && visualScore === null) {
       const finalScore = (clinicalScore * 0.85) + (audioScore * 0.15);
-      console.log('[BaselineScoring] Using audio only: 85% clinical + 15% audio');
-      console.log('[BaselineScoring] Final score:', finalScore);
       
       return {
         clinicalScore: Math.round(clinicalScore),
@@ -105,8 +98,6 @@ export class BaselineScoring {
     // Case 3: Only visual works → 85% clinical + 15% visual
     if (visualScore !== null && audioScore === null) {
       const finalScore = (clinicalScore * 0.85) + (visualScore * 0.15);
-      console.log('[BaselineScoring] Using visual only: 85% clinical + 15% visual');
-      console.log('[BaselineScoring] Final score:', finalScore);
       
       return {
         clinicalScore: Math.round(clinicalScore),
@@ -124,9 +115,6 @@ export class BaselineScoring {
     const multimodalScore = (audioScore! + visualScore!) / 2;
     const finalScore = (clinicalScore * 0.70) + (audioScore! * 0.15) + (visualScore! * 0.15);
     
-    console.log('[BaselineScoring] Both modalities working');
-    console.log('[BaselineScoring] Multimodal score:', multimodalScore);
-    console.log('[BaselineScoring] Final score:', finalScore, '(70% clinical + 15% audio + 15% visual)');
     
     // Validate final score
     if (isNaN(finalScore) || !isFinite(finalScore)) {
@@ -149,7 +137,6 @@ export class BaselineScoring {
       visualFeatures!,
       clinicalScore
     );
-    console.log('[BaselineScoring] Confidence:', confidence);
     
     return {
       clinicalScore: Math.round(clinicalScore),

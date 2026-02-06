@@ -36,14 +36,12 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
     if (!userIdToUse) {
       const { data: user, error: userError } = await backendService.auth.getCurrentUser();
       if (userError || !user) {
-        console.log('No authenticated user:', userError);
         return null;
       }
       userIdToUse = user.sub || user.Username;
     }
     
     if (!userIdToUse) {
-      console.log('No user ID available');
       return null;
     }
     
@@ -55,7 +53,6 @@ export async function getUserUniversityProfile(userId?: string): Promise<MobileU
     
     const profile = profileResponse.data?.[0];
     if (!profile?.university_id) {
-      console.log('No university associated with user');
       return null;
     }
     // Get university data with emergency contacts and help articles

@@ -2,9 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Info } from 'lucide-react';
-import { BuddyCard } from '../../../buddy/BuddyCard';
-import { AddBuddyModal } from '../../../buddy/AddBuddyModal';
-import { PendingInviteCard } from '../../../buddy/PendingInviteCard';
+import { BuddyCard } from './BuddyCard';
+import { AddBuddyModal } from './AddBuddyModal';
+import { PendingInviteCard } from './PendingInviteCard';
 import { buddiesApi, type BuddyDTO, type InviteDTO } from '@/services/buddies-api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -31,11 +31,9 @@ export function SupportCircle() {
     try {
       setLoading(true);
       setError(null);
-      console.log('[Buddies] Using buddiesApi (GET /api/buddies) — new flow');
       const { activeBuddies: a, pendingInvites: p } = await buddiesApi.list();
       setActiveBuddies(a);
       setPendingInvites(p);
-      console.log('[Buddies] Loaded via buddiesApi — active:', a.length, 'pending:', p.length);
     } catch (e) {
       console.error('[Buddies] list error:', e);
       setError(e instanceof Error ? e.message : 'Failed to load buddies');
@@ -133,15 +131,27 @@ export function SupportCircle() {
     );
   }
 
+  const paddingHorizontal = 16;
+  const contentMaxWidth = 768;
+
   return (
     <DndProvider backend={HTML5Backend}>
-      <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          height: '100%',
+          backgroundColor: '#f5f5f5',
+        }}
+      >
         <header
           style={{
+            flex: '0 0 auto',
             background: '#f5f5f5',
             paddingTop: 'max(60px, env(safe-area-inset-top))',
-            paddingLeft: 16,
-            paddingRight: 16,
+            paddingLeft: paddingHorizontal,
+            paddingRight: paddingHorizontal,
             paddingBottom: 0,
           }}
         >
@@ -161,8 +171,9 @@ export function SupportCircle() {
           >
             <button
               type="button"
-              onClick={() => setShowInfo(true)}
+              onClick={() => setShowInfo((s) => !s)}
               aria-label="How Buddies work"
+              aria-pressed={showInfo}
               style={{
                 position: 'absolute',
                 right: 20,
@@ -170,7 +181,7 @@ export function SupportCircle() {
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
-                background: '#6C63FF',
+                background: showInfo ? '#5b52e5' : '#6C63FF',
                 border: 'none',
                 color: '#fff',
                 cursor: 'pointer',
@@ -199,13 +210,73 @@ export function SupportCircle() {
           </div>
         </header>
 
-        {error && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: 16, margin: 16, color: '#dc2626', fontSize: 14 }}>
-            {error}
-          </div>
-        )}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 100,
+          }}
+        >
+          <div style={{ padding: '20px 16px', maxWidth: contentMaxWidth, margin: '0 auto' }}>
+            {showInfo && (
+              <div
+                role="region"
+                aria-label="How Buddies work"
+                style={{
+                  width: '100%',
+                  marginBottom: 20,
+                  border: '2px solid #6C63FF',
+                  borderRadius: 16,
+                  padding: 24,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                  backgroundColor: '#fff',
+                }}
+              >
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1F2937', marginTop: 0, marginBottom: 16 }}>
+                  How Buddies work
+                </h3>
+                <div style={{ fontSize: 14, lineHeight: 1.6, color: '#4B5563' }}>
+                  <p style={{ marginTop: 0, marginBottom: 16 }}>
+                    A Buddy is someone you trust who agrees to be gently reminded to check in with you if things feel harder than usual.
+                  </p>
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginTop: 0, marginBottom: 8 }}>What happens</h4>
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      <li style={{ marginBottom: 4 }}>You choose someone and send them an invite</li>
+                      <li style={{ marginBottom: 4 }}>They can accept or decline, with no explanation needed</li>
+                      <li style={{ marginBottom: 0 }}>If they accept, they may occasionally get a nudge to check in with you</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginTop: 0, marginBottom: 8 }}>What Buddies see</h4>
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      <li style={{ marginBottom: 4 }}>They do not see your scores, check-ins, or activity</li>
+                      <li style={{ marginBottom: 4 }}>They are not alerted in emergencies</li>
+                      <li style={{ marginBottom: 0 }}>They are never expected to provide professional support</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 16 }}>
+                    <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1F2937', marginTop: 0, marginBottom: 8 }}>Your control</h4>
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      <li style={{ marginBottom: 4 }}>Buddies are always optional</li>
+                      <li style={{ marginBottom: 4 }}>You can add or remove them at any time</li>
+                      <li style={{ marginBottom: 0 }}>They can opt out whenever they want</li>
+                    </ul>
+                  </div>
+                  <p style={{ marginTop: 16, marginBottom: 0, fontStyle: 'italic', color: '#6366F1' }}>
+                    Buddies are about staying connected, not monitoring or intervention.
+                  </p>
+                </div>
+              </div>
+            )}
 
-        <div style={{ padding: '20px 16px', maxWidth: 768, margin: '0 auto', paddingBottom: 100 }}>
+            {error && (
+              <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: 16, marginBottom: 16, color: '#dc2626', fontSize: 14 }}>
+                {error}
+              </div>
+            )}
           {isEmpty ? (
             <div>
               <div style={{ ...cardStyle, textAlign: 'center' }}>
@@ -292,6 +363,7 @@ export function SupportCircle() {
               )}
             </>
           )}
+          </div>
         </div>
 
         <AddBuddyModal
@@ -300,210 +372,6 @@ export function SupportCircle() {
           onAdd={handleInvite}
           currentBuddyCount={total}
         />
-
-        {showInfo && (
-          <div
-            role="dialog"
-            aria-label="How Buddies work"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 20,
-            }}
-            onClick={() => setShowInfo(false)}
-          >
-            <div
-              style={{
-                background: '#fff',
-                borderRadius: 24,
-                maxWidth: 440,
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                padding: 24,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 24,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Scrollable info card — purple border, faint shadow (buddy/BuddyReminderModal copy) */}
-              <div
-                style={{
-                  border: '2px solid #6C63FF',
-                  borderRadius: 16,
-                  padding: 24,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-                  maxHeight: '50vh',
-                  overflowY: 'auto',
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: '18px',
-                    fontWeight: 700,
-                    color: '#1F2937',
-                    marginTop: 0,
-                    marginBottom: '16px',
-                  }}
-                >
-                  How Buddies work
-                </h3>
-
-                <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#4B5563' }}>
-                  <p style={{ marginTop: 0, marginBottom: '16px' }}>
-                    A Buddy is someone you trust who agrees to be gently reminded to check in with
-                    you if things feel harder than usual.
-                  </p>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        color: '#1F2937',
-                        marginTop: 0,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      What happens
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                      <li style={{ marginBottom: '4px' }}>
-                        You choose someone and send them an invite
-                      </li>
-                      <li style={{ marginBottom: '4px' }}>
-                        They can accept or decline, with no explanation needed
-                      </li>
-                      <li style={{ marginBottom: 0 }}>
-                        If they accept, they may occasionally get a nudge to check in with you
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        color: '#1F2937',
-                        marginTop: 0,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      What Buddies see
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                      <li style={{ marginBottom: '4px' }}>
-                        They do not see your scores, check-ins, or activity
-                      </li>
-                      <li style={{ marginBottom: '4px' }}>They are not alerted in emergencies</li>
-                      <li style={{ marginBottom: 0 }}>
-                        They are never expected to provide professional support
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4
-                      style={{
-                        fontSize: '14px',
-                        fontWeight: 700,
-                        color: '#1F2937',
-                        marginTop: 0,
-                        marginBottom: '8px',
-                      }}
-                    >
-                      Your control
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                      <li style={{ marginBottom: '4px' }}>Buddies are always optional</li>
-                      <li style={{ marginBottom: '4px' }}>
-                        You can add or remove them at any time
-                      </li>
-                      <li style={{ marginBottom: 0 }}>They can opt out whenever they want</li>
-                    </ul>
-                  </div>
-
-                  <p
-                    style={{
-                      marginTop: '16px',
-                      marginBottom: 0,
-                      fontStyle: 'italic',
-                      color: '#6366F1',
-                    }}
-                  >
-                    Buddies are about staying connected, not monitoring or intervention.
-                  </p>
-                </div>
-              </div>
-
-              {/* Action card — two paragraphs + Invite Your First Buddy */}
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: 16,
-                  padding: 24,
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
-                  border: '1px solid #F0F0F0',
-                }}
-              >
-                <p style={{ fontSize: 15, lineHeight: 1.6, color: '#4B5563', margin: '0 0 16px' }}>
-                  Buddies are trusted people you invite to be gently reminded to check in with you if things feel harder than usual.
-                </p>
-                <p style={{ fontSize: 15, lineHeight: 1.6, color: '#4B5563', margin: '0 0 24px' }}>
-                  They only take part with consent, never see your scores, and you and they can opt out at any time.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setShowInfo(false); setIsModalOpen(true); }}
-                  style={{
-                    width: '100%',
-                    padding: 16,
-                    background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)',
-                    border: 'none',
-                    borderRadius: 12,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: '#fff',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
-                  }}
-                >
-                  Invite Your First Buddy
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowInfo(false)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: '#F3F4F6',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  color: '#6366F1',
-                  cursor: 'pointer',
-                  transition: 'background 200ms ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ height: 80 }} />
       </div>
     </DndProvider>
   );

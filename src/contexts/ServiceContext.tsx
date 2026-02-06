@@ -50,7 +50,6 @@ export function ServiceProvider({
   useEffect(() => {
     const initializeServices = async () => {
       try {
-        console.log('🔧 Initializing ServiceManager...');
         
         // Get configuration from environment or props
         const serviceConfig: ServiceConfig = config || BackendServiceFactory.getEnvironmentConfig();
@@ -61,7 +60,6 @@ export function ServiceProvider({
         // Initialize default service to warm up the system
         await manager.getService('default');
         
-        console.log('✅ ServiceManager initialized successfully');
         setIsInitialized(true);
         setError(null);
       } catch (err) {
@@ -97,7 +95,6 @@ export function ServiceProvider({
   useEffect(() => {
     return () => {
       if (serviceManager) {
-        console.log('🧹 Cleaning up ServiceManager...');
         serviceManager.cleanup();
       }
     };
@@ -121,13 +118,11 @@ export function ServiceProvider({
       if (!serviceManager) return;
       
       try {
-        console.log('🔄 Refreshing services...');
         // Force recreation of services by clearing cache
         serviceManager.cleanup();
         
         // Reinitialize
         await serviceManager.getService('default');
-        console.log('✅ Services refreshed successfully');
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         console.error('❌ Failed to refresh services:', errorMessage);

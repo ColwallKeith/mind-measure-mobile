@@ -35,8 +35,6 @@ export class BaselineAudioExtractor {
       );
     }
 
-    console.log('[AudioExtractor] Extracting features from audio:', 
-      (media.audio.size / 1024).toFixed(2), 'KB');
 
     try {
       // Decode audio blob to AudioBuffer
@@ -49,7 +47,6 @@ export class BaselineAudioExtractor {
       const sampleRate = audioBuffer.sampleRate;
       const fullDuration = audioBuffer.duration;
 
-      console.log('[AudioExtractor] Audio decoded:', fullDuration.toFixed(2), 's,', sampleRate, 'Hz');
 
       // Sample audio chunks if duration exceeds max
       const channelData = this.sampleAudioChunks(
@@ -60,7 +57,6 @@ export class BaselineAudioExtractor {
       );
       const duration = channelData.length / sampleRate;
       
-      console.log(`[AudioExtractor] Processing ${duration.toFixed(2)}s of audio from ${fullDuration.toFixed(2)}s total (${(channelData.length / 1000).toFixed(0)}k samples, max: ${BaselineAudioExtractor.MAX_AUDIO_DURATION_SECONDS}s)`);
 
       // Extract features with timing
       const extractionStartTime = Date.now();
@@ -78,8 +74,6 @@ export class BaselineAudioExtractor {
       };
       const extractionTime = Date.now() - extractionStartTime;
 
-      console.log('[AudioExtractor] ✅ Features extracted:', features);
-      console.log(`[AudioExtractor] ⏱️ Audio extraction time: ${extractionTime}ms (processed ${duration.toFixed(1)}s from ${fullDuration.toFixed(1)}s total)`);
       await audioContext.close();
 
       return features;
@@ -481,12 +475,4 @@ export class BaselineAudioExtractor {
     return result;
   }
 }
-
-
-
-
-
-
-
-
 

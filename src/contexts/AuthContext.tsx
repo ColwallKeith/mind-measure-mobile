@@ -15,7 +15,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; user?: AuthUser }>;
   signUp: (data: { firstName: string; lastName: string; email: string; password: string }) => Promise<{ error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
   updateProfile: (updates: any) => Promise<{ error: string | null }>;
@@ -23,7 +23,10 @@ interface AuthContextType {
   completeBaseline: (sessionId: string) => Promise<{ error: string | null }>;
   confirmEmail: (email: string, code: string) => Promise<{ error: string | null }>;
   resendConfirmation: (email: string) => Promise<{ error: string | null }>;
-  forgotPassword: (email: string) => Promise<{ error: string | null }>;
+  forgotPassword: (email: string) => Promise<{
+    error: string | null;
+    codeDeliveryDetails?: { DeliveryMedium?: string; Destination?: string };
+  }>;
   confirmForgotPassword: (email: string, code: string, newPassword: string) => Promise<{ error: string | null }>;
   refetchUser: () => Promise<void>;
 }
@@ -44,32 +47,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const initializeAuth = async () => {
       try {
-        console.log('🔐 initializeAuth: checking current user');
         const { data, error } = await cognitoApiClient.getUser();
-        console.log('👤 Current user:', data);
-        console.log('🏁 getUser() completed, about to set loading=false');
         
         if (error) {
-          console.log('ℹ️ No authenticated user found:', error);
           setUser(null);
         } else if (data?.user && data.user.email) {
-          console.log('✅ Current user restored:', data.user.email);
           setUser(data.user);
         } else {
-          console.log('ℹ️ No authenticated user found');
           setUser(null);
         }
 
         // Set up auth state listener (simplified - no polling)
         unsubscribe = cognitoApiClient.onAuthStateChange((event, user) => {
-          console.log('🔄 Auth state changed:', event, user?.email);
           setUser(user);
         });
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
         setUser(null);
       } finally {
-        console.log('🔚 Setting loading=false');
         setLoading(false);
       }
     };
@@ -94,7 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
       }
       setUser(result.data.user);
-      return { error: null };
+      return { error: null, user: result.data.user };
     } catch (error) {
       console.error('Sign in error:', error);
       return { error: 'Sign in failed' };
@@ -123,7 +118,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Phase 1: Auth only handles Cognito signup
       // Profile creation will be moved to BaselineAssessment in Phase 2
-      console.log('✅ Cognito user created:', authData.user?.id);
 
       setUser(authData.user);
       return { error: null };
@@ -189,8 +183,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const forgotPassword = async (email: string) => {
     try {
-      const { error } = await cognitoApiClient.resetPassword(email);
-      return { error };
+      const { error, codeDeliveryDetails } = await cognitoApiClient.resetPassword(email);
+      return { error, codeDeliveryDetails };
     } catch (error) {
       console.error('Forgot password error:', error);
       return { error: 'Password reset failed' };

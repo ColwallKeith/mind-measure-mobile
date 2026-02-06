@@ -24,7 +24,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Step 1: Log incoming request with detailed JWT claims
-    const authHeader = req.headers.authorization || req.headers.Authorization;
+    const rawAuth = req.headers.authorization || req.headers.Authorization;
+    const authHeader: string | undefined = Array.isArray(rawAuth) ? rawAuth[0] : (typeof rawAuth === 'string' ? rawAuth : undefined);
     
     // Decode and log JWT claims for debugging
     let tokenClaims: any = null;
@@ -65,14 +66,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.warn('[Lambda Proxy] Could not decode token for claims:', e);
       }
     }
-    
-    console.log('[Lambda Proxy] 📋 Incoming request details:', {
-      hasAuthHeader: !!authHeader,
-      authHeaderFormat: authHeaderFormat,
-      method: req.method,
-      url: req.url,
-      jwtClaims: tokenClaims
-    });
 
     // Step 2: Extract sessionId from request body
     const sessionId = req.body?.sessionId || req.body?.body?.sessionId;
@@ -88,29 +81,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Authorization header required' });
     }
 
-    // Log that we're forwarding (but not validating here)
-    console.log('[Lambda Proxy] 🔄 Forwarding request to Lambda (auth validation by Lambda)');
-    console.log('[Lambda Proxy] 📤 Forwarding Authorization header format:', authHeaderFormat);
-    if (tokenClaims) {
-      console.log('[Lambda Proxy] 📤 Forwarding JWT claims:', {
-        token_use: tokenClaims.token_use,
-        issuer: tokenClaims.iss,
-        audience: tokenClaims.aud,
-        client_id: tokenClaims.client_id,
-        expires: tokenClaims.exp,
-        isExpired: tokenClaims.isExpired,
-        expiresInSeconds: tokenClaims.expiresInSeconds
-      });
-    }
-
-    console.log('[Lambda Proxy] Calling Lambda via API Gateway for session:', sessionId);
-
     // Step 4: Forward request to Lambda via API Gateway with validated token
     const lambdaResponse = await fetch(`${LAMBDA_BASE_URL}/finalize-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader // Forward the validated token
+        'Authorization': authHeader as string // Validated above as Bearer token
       },
       body: JSON.stringify({ sessionId })
     });
@@ -144,21 +120,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.warn('[Lambda Proxy] Lambda response not valid JSON:', responseText);
       responseData = { raw: responseText };
     }
-
-    // Comprehensive upstream response logging
-    console.log('[Lambda Proxy] 📊 Upstream finalize-session response details:', {
-      status: lambdaResponse.status,
-      statusText: lambdaResponse.statusText,
-      headers: {
-        'x-amzn-ErrorType': errorType,
-        'x-amzn-RequestId': requestId,
-        'x-amz-apigw-id': apiGatewayId,
-        'content-type': lambdaResponse.headers.get('content-type'),
-        'all-headers': allHeaders
-      },
-      body: responseData,
-      bodyRaw: responseText.substring(0, 500) // First 500 chars of raw body
-    });
 
     // Determine error source based on headers
     if (!lambdaResponse.ok) {
@@ -203,7 +164,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log('[Lambda Proxy] ✅ Lambda call successful');
     return res.status(200).json(responseData);
 
   } catch (error: any) {

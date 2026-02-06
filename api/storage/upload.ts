@@ -17,25 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  console.log('🔧 Upload API - Environment check:', {
-    region: process.env.AWS_REGION || process.env.VITE_AWS_S3_REGION,
-    bucket: process.env.AWS_S3_BUCKET_NAME || process.env.VITE_AWS_S3_BUCKET_NAME || BUCKET_NAME,
-    hasAccessKey: !!(process.env.AWS_ACCESS_KEY_ID || process.env.VITE_AWS_ACCESS_KEY_ID),
-    hasSecretKey: !!(process.env.AWS_SECRET_ACCESS_KEY || process.env.VITE_AWS_SECRET_ACCESS_KEY),
-    hasSessionToken: !!process.env.AWS_SESSION_TOKEN,
-    accessKeyPreview: (process.env.AWS_ACCESS_KEY_ID || process.env.VITE_AWS_ACCESS_KEY_ID || 'MISSING').substring(0, 8) + '...',
-    secretKeyPreview: (process.env.AWS_SECRET_ACCESS_KEY || process.env.VITE_AWS_SECRET_ACCESS_KEY || 'MISSING').substring(0, 8) + '...'
-  });
-
   // Use AWS SDK default credential resolution (should work with Vercel's AWS environment)
-  console.log('🔧 S3 Client Configuration:', {
-    region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'eu-west-2',
-    bucket: BUCKET_NAME,
-    hasAwsAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
-    hasAwsSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
-    hasSessionToken: !!process.env.AWS_SESSION_TOKEN
-  });
-  
   // Ensure we use the correct region where buckets were created
   const s3Client = new S3Client({
     region: 'eu-west-2' // Fixed region where all university buckets are created
@@ -51,16 +33,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const [fields, files] = await form.parse(req) as [any, any];
-    
-    console.log('📝 Upload API - Parsed data:', {
-      fields: Object.keys(fields),
-      files: Object.keys(files),
-      fileDetails: files.file ? {
-        size: Array.isArray(files.file) ? files.file[0]?.size : files.file?.size,
-        type: Array.isArray(files.file) ? files.file[0]?.mimetype : files.file?.mimetype,
-        name: Array.isArray(files.file) ? files.file[0]?.originalFilename : files.file?.originalFilename
-      } : 'No file'
-    });
     
     const file = Array.isArray(files.file) ? files.file[0] : files.file;
     const filePath = Array.isArray(fields.filePath) ? fields.filePath[0] : fields.filePath;

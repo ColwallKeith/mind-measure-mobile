@@ -87,15 +87,6 @@ export function useDashboardData(): DashboardData {
     if (!user?.id) return;
     
     try {
-      console.log('📊 Fetching dashboard data for user:', user.id);
-      console.log('👤 User details:', {
-        id: user.id,
-        email: user.email,
-        user_metadata: user.user_metadata,
-        given_name: user.user_metadata?.given_name,
-        family_name: user.user_metadata?.family_name,
-        name: user.user_metadata?.name
-      });
       
       setData(prev => ({ ...prev, loading: true, error: null }));
       
@@ -126,7 +117,6 @@ export function useDashboardData(): DashboardData {
         if (createError) {
           throw new Error(`Failed to create profile: ${createError.message}`);
         }
-        console.log('✅ Created new profile:', newProfile);
       }
 
       // Fetch latest assessment data from fusion_outputs (where baseline scores are stored)
@@ -145,7 +135,6 @@ export function useDashboardData(): DashboardData {
         // Don't throw - fail gracefully for baseline users who might not have sessions yet
       }
       
-      console.log('📋 Fetched sessions:', sessions?.length || 0);
 
       // Process the data
       const firstName = user.user_metadata?.given_name || user.user_metadata?.first_name || 'User';
@@ -161,13 +150,6 @@ export function useDashboardData(): DashboardData {
       };
 
       // Debug: Log all sessions data (fusion_outputs format: has score/final_score, analysis JSON)
-      console.log('🔍 All sessions data:', sessions?.map(s => ({
-        id: s.id,
-        created_at: s.created_at,
-        score: s.score,
-        final_score: s.final_score,
-        analysis: s.analysis
-      })));
 
       // Get latest session with score (use score or final_score from fusion_outputs)
       // This is used for the score card display - can be baseline or check-in
@@ -175,15 +157,6 @@ export function useDashboardData(): DashboardData {
       let latestScore = null;
       let latestSession = null;
       
-      console.log('🎯 Latest session with score:', latestSessionWithScore ? {
-        id: latestSessionWithScore.id,
-        created_at: latestSessionWithScore.created_at,
-        score: latestSessionWithScore.score,
-        final_score: latestSessionWithScore.final_score,
-        raw_date: latestSessionWithScore.created_at,
-        parsed_date: new Date(latestSessionWithScore.created_at),
-        formatted_date: new Date(latestSessionWithScore.created_at).toLocaleDateString('en-GB')
-      } : 'No session with score found');
       
       if (latestSessionWithScore) {
         const currentScore = latestSessionWithScore.final_score || latestSessionWithScore.score;
@@ -227,11 +200,6 @@ export function useDashboardData(): DashboardData {
         return analysisData.assessment_type === 'checkin';
       });
       
-      console.log('🔍 Latest check-in found:', latestCheckIn ? {
-        id: latestCheckIn.id,
-        created_at: latestCheckIn.created_at,
-        score: latestCheckIn.final_score || latestCheckIn.score
-      } : 'No check-ins found');
       
       if (latestCheckIn) {
         const checkInScore = latestCheckIn.final_score || latestCheckIn.score;
@@ -246,13 +214,6 @@ export function useDashboardData(): DashboardData {
           console.warn('Failed to parse check-in analysis:', e);
         }
         
-        console.log('🔍 Check-in details:', { 
-          assessment_type: analysisData.assessment_type,
-          has_conversation_summary: !!analysisData.conversation_summary,
-          themes_count: analysisData.themes?.length || 0,
-          positives_count: (analysisData.driver_positive || analysisData.drivers_positive || []).length,
-          negatives_count: (analysisData.driver_negative || analysisData.drivers_negative || []).length
-        });
         
         latestSession = {
           id: latestCheckIn.id,
@@ -264,13 +225,6 @@ export function useDashboardData(): DashboardData {
           driverNegative: analysisData.driver_negative || analysisData.drivers_negative || [],
         };
         
-        console.log('📊 Latest check-in loaded:', {
-          summary: latestSession.summary?.substring(0, 50),
-          themes: latestSession.themes,
-          moodScore: latestSession.moodScore,
-          driverPositive: latestSession.driverPositive,
-          driverNegative: latestSession.driverNegative
-        });
       }
       
       // Recent activity from all sessions (parse analysis to get assessment_type)
@@ -315,7 +269,6 @@ export function useDashboardData(): DashboardData {
         error: null,
       });
       
-      console.log('✅ Dashboard data loaded:', { hasData, sessionsCount: sessions?.length });
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
       setData(prev => ({

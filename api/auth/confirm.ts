@@ -53,8 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   
   try {
-    console.log('📧 Confirming email via API:', email);
-    
     // Confirm with Cognito
     const { isSignUpComplete } = await confirmSignUp({
       username: email as string,
@@ -64,8 +62,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isSignUpComplete) {
       throw new Error('Email confirmation incomplete');
     }
-    
-    console.log('✅ Email confirmed successfully via API');
     
     // Success - redirect to app or show success page
     const redirectUrl = redirect as string;

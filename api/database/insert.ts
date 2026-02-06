@@ -76,8 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
     
     const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders}) RETURNING *`;
-    
-    console.log(`[DB INSERT] User ${userId} inserting into ${table}`);
 
     const result = await client.query(sql, values);
     await client.end();

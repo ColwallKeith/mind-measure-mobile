@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { ChevronLeft, Mail, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png';
@@ -7,16 +7,22 @@ import mindMeasureLogo from '../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b
 interface ForgotPasswordScreenProps {
   onBack: () => void;
   onComplete?: () => void;
+  /** Prefill email when coming from RegistrationFlow "Lost password?" */
+  prefilledEmail?: string;
 }
 
-export function ForgotPasswordScreen({ onBack, onComplete }: ForgotPasswordScreenProps) {
-  const [email, setEmail] = useState('');
+export function ForgotPasswordScreen({ onBack, onComplete, prefilledEmail = '' }: ForgotPasswordScreenProps) {
+  const [email, setEmail] = useState(prefilledEmail);
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [step, setStep] = useState<'email' | 'code' | 'success'>('email');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (prefilledEmail.trim()) setEmail(prefilledEmail.trim());
+  }, [prefilledEmail]);
   
   const { forgotPassword, confirmForgotPassword } = useAuth();
 

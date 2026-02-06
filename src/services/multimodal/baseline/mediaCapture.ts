@@ -30,7 +30,6 @@ export class MediaCapture {
    * Request permissions and start capturing media
    */
   async start(): Promise<void> {
-    console.log('[MediaCapture] Starting capture with config:', this.config);
     
     try {
       // Request permissions
@@ -61,7 +60,6 @@ export class MediaCapture {
       }
 
       this.startTime = Date.now();
-      console.log('[MediaCapture] ✅ Capture started successfully');
       
     } catch (error) {
       console.error('[MediaCapture] ❌ Failed to start capture:', error);
@@ -100,7 +98,6 @@ export class MediaCapture {
       };
 
       this.mediaRecorder.start(1000); // Collect data every second
-      console.log('[MediaCapture] 🎤 Audio recording started');
       
     } catch (error) {
       console.error('[MediaCapture] ❌ Audio recording failed:', error);
@@ -138,7 +135,6 @@ export class MediaCapture {
           this.captureFrame(video, ctx);
         }, intervalMs);
 
-        console.log('[MediaCapture] 📹 Video capture started at', this.config.videoFrameRate, 'fps');
       };
 
     } catch (error) {
@@ -166,7 +162,6 @@ export class MediaCapture {
    * Stop capturing and return collected media
    */
   async stop(): Promise<CapturedMedia> {
-    console.log('[MediaCapture] Stopping capture...');
     const endTime = Date.now();
 
     // Stop audio recording
@@ -195,14 +190,10 @@ export class MediaCapture {
 
     if (this.audioChunks.length > 0) {
       capturedMedia.audio = new Blob(this.audioChunks, { type: 'audio/webm' });
-      console.log('[MediaCapture] ✅ Audio captured:', 
-        (capturedMedia.audio.size / 1024).toFixed(2), 'KB');
     }
 
     if (this.videoFrames.length > 0) {
       capturedMedia.videoFrames = this.videoFrames;
-      console.log('[MediaCapture] ✅ Video frames captured:', 
-        this.videoFrames.length, 'frames');
     }
 
     // Cleanup
@@ -241,7 +232,6 @@ export class MediaCapture {
    * Cancel capture and cleanup
    */
   cancel(): void {
-    console.log('[MediaCapture] Cancelling capture...');
     
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();

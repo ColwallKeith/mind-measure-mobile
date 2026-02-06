@@ -1,13 +1,12 @@
 import mindMeasureLogo from "../../assets/66710e04a85d98ebe33850197f8ef41bd28d8b84.png";
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { BackendServiceFactory } from '@/services/database/BackendServiceFactory';
 import {
   User,
   Mail,
@@ -117,61 +116,37 @@ export function RegistrationScreen({ onBack, onComplete, onUserExists }: Registr
   };
   const handleNext = async () => {
     if (validateStep()) {
-      // Step 2: After email entry, check if user exists
+      // Step 2: After email entry, check if user exists via public check-email API (no auth)
       if (step === 2) {
         setIsLoading(true);
         setError(null);
-        
+        const email = formData.email.trim().toLowerCase();
         try {
-          console.log('🔍 Checking if user exists:', { email: formData.email, firstName: formData.firstName, lastName: formData.lastName });
-          
-          // Check profiles table for matching name and email
-          const backendService = BackendServiceFactory.createService(
-            BackendServiceFactory.getEnvironmentConfig()
-          );
-          
-          const { data: profiles, error: profileError } = await backendService.database.select('profiles', {
-            filters: {
-              email: formData.email.toLowerCase().trim(),
-              first_name: formData.firstName.trim(),
-              last_name: formData.lastName.trim()
-            },
-            columns: 'user_id, email, first_name, last_name'
+          console.log('🔍 Checking if user exists:', { email, firstName: formData.firstName, lastName: formData.lastName });
+          const base = (import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
+          const res = await fetch(`${base}/api/auth/check-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
           });
-          
-          if (profileError) {
-            console.error('❌ Error checking user:', profileError);
-            // Continue to password creation on error (safer for new users)
-            setStep(3);
+          const data = await res.json().catch(() => ({}));
+          const exists = res.ok && data.exists === true;
+
+          if (exists && onUserExists) {
+            console.log('✅ User exists - routing to sign-in');
             setIsLoading(false);
+            onUserExists(email, formData.firstName.trim(), formData.lastName.trim());
             return;
           }
-          
-          // If user found with matching name and email, route to sign-in
-          if (profiles && profiles.length > 0) {
-            console.log('✅ User found in database - routing to sign-in');
-            setIsLoading(false);
-            if (onUserExists) {
-              onUserExists(formData.email, formData.firstName, formData.lastName);
-            } else {
-              // Fallback: continue to password if callback not provided
-              setStep(3);
-            }
-            return;
-          }
-          
-          // No matching user found - continue to password creation
-          console.log('🆕 No matching user found - continuing to password creation');
+          console.log(exists ? '🆕 User exists but no onUserExists callback - continuing to password' : '🆕 No matching user - continuing to password creation');
           setStep(3);
-          setIsLoading(false);
-          return;
-        } catch (error) {
-          console.error('❌ Error checking user existence:', error);
-          // On error, continue to password creation (safer for new users)
+        } catch (err) {
+          console.error('❌ Error checking user existence:', err);
           setStep(3);
+        } finally {
           setIsLoading(false);
-          return;
         }
+        return;
       }
       
       // Step 1: Just move to next step

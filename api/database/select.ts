@@ -134,8 +134,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       params.push(limit);
     }
 
-    console.log(`[DB SELECT] User ${userId} querying ${table} (${params.length} params)`);
-
     const result = await client.query(sql, params);
     await client.end();
 

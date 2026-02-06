@@ -26,10 +26,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
 
-    console.log('🔧 Signup - Region:', region);
-    console.log('🔧 Signup - Client ID exists:', !!clientId);
-    console.log('🔧 Signup - Credentials exist:', !!accessKeyId && !!secretAccessKey);
-
     if (!clientId || !accessKeyId || !secretAccessKey) {
       console.error('❌ Missing required environment variables');
       return res.status(500).json({ error: 'Server configuration error' });

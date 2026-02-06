@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 import { Preferences } from '@capacitor/preferences';
@@ -615,9 +615,11 @@ export function BaselineAssessmentSDK({ onBack, onComplete }: BaselineAssessment
 
       console.log('[SDK] 🎉 Baseline assessment completed successfully!');
 
-      // Reload the app to force useUserAssessmentHistory to re-query
-      // This ensures the dashboard access gate sees the new baseline assessment
-      window.location.reload();
+      setIsSaving(false);
+      // Transition to Complete Profile screen (no reload – parent handles flow)
+      if (onComplete) {
+        onComplete();
+      }
 
     } catch (error) {
       console.error('[SDK] ❌ Error saving assessment:', error);

@@ -90,10 +90,6 @@ export class BaselineEnrichmentService {
     const startTime = Date.now();
     const warnings: string[] = [];
     
-    console.log('[EnrichmentService] 🎯 Starting baseline enrichment...');
-    console.log('[EnrichmentService] Clinical score:', input.clinicalScore);
-    console.log('[EnrichmentService] Has audio:', !!input.audioBlob);
-    console.log('[EnrichmentService] Has video:', !!input.videoFrames?.length);
 
     let audioFeatures: BaselineAudioFeatures | null = null;
     let visualFeatures: BaselineVisualFeatures | null = null;
@@ -111,11 +107,9 @@ export class BaselineEnrichmentService {
       // Extract audio features (if available)
       if (input.audioBlob) {
         try {
-          console.log('[EnrichmentService] 🎤 Extracting audio features...');
           const audioStartTime = Date.now();
           audioFeatures = await this.audioExtractor.extract(capturedMedia);
           const audioTime = Date.now() - audioStartTime;
-          console.log(`[EnrichmentService] ✅ Audio features extracted in ${audioTime}ms`);
         } catch (error) {
           console.warn('[EnrichmentService] ⚠️ Audio extraction failed:', error);
           warnings.push('Audio feature extraction failed - using clinical score only');
@@ -127,11 +121,9 @@ export class BaselineEnrichmentService {
       // Extract visual features (if available)
       if (input.videoFrames && input.videoFrames.length > 0) {
         try {
-          console.log('[EnrichmentService] 📹 Extracting visual features...');
           const visualStartTime = Date.now();
           visualFeatures = await this.visualExtractor.extract(capturedMedia);
           const visualTime = Date.now() - visualStartTime;
-          console.log(`[EnrichmentService] ✅ Visual features extracted in ${visualTime}ms`);
         } catch (error) {
           console.warn('[EnrichmentService] ⚠️ Visual extraction failed:', error);
           warnings.push('Visual feature extraction failed - using clinical score only');
@@ -141,7 +133,6 @@ export class BaselineEnrichmentService {
       }
 
       // Compute final score with dynamic reweighting
-      console.log('[EnrichmentService] 📊 Computing dynamically weighted score...');
       
       const audioFailed = !audioFeatures;
       const visualFailed = !visualFeatures;
@@ -157,10 +148,8 @@ export class BaselineEnrichmentService {
       // Round to whole number
       scoringBreakdown.finalScore = Math.round(scoringBreakdown.finalScore);
       
-      console.log('[EnrichmentService] ✅ Final score:', scoringBreakdown.finalScore);
 
       const processingTimeMs = Date.now() - startTime;
-      console.log('[EnrichmentService] ✅ Enrichment complete in', processingTimeMs, 'ms');
 
       return {
         originalScore: input.clinicalScore,

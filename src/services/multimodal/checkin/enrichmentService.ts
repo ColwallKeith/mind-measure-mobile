@@ -200,7 +200,6 @@ export class CheckinEnrichmentService {
       
       // 4. Minimal logging: timings and modalities
       const processingTime = Date.now() - startTime;
-      console.log(`[CheckinEnrichment] mode=${ENRICHMENT_MODE}, modalities=${modalitiesUsed.join('+')}, audio=${audioSecondsProcessed}s, frames=${framesAnalyzed}, time=${processingTime}ms`);
       
       // 5. Assemble result
       

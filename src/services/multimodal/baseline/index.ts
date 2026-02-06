@@ -20,24 +20,11 @@
  * // result.finalScore = 79 (whole number, 70/30 weighted)
  * ```
  * 
- * LEGACY API (for direct capture):
- * ```typescript
- * import { BaselineMultimodal } from '@/services/multimodal/baseline';
- * 
- * const baseline = new BaselineMultimodal();
- * await baseline.startCapture();
- * // ... conversation happens ...
- * const result = await baseline.stopAndProcess(clinicalScore);
- * ```
  */
 
 // Export enrichment service (primary API)
 export { BaselineEnrichmentService } from './enrichmentService';
 export type { EnrichmentInput, EnrichmentResult } from './enrichmentService';
-
-// Export legacy direct capture API
-export { BaselineMultimodal } from './legacy';
-export type { BaselineResult } from './legacy';
 
 // Export types
 export type {

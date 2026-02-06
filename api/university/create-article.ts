@@ -96,7 +96,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const newArticle = insertResult.rows[0];
-    console.log(`Created original article ${newArticle.id} for university ${universityId}`);
 
     await client.end();
 

@@ -48,7 +48,6 @@ export async function analyzeTextWithBedrock(
   transcript: string,
   context: TextAnalysisContext
 ): Promise<TextAnalysisResult> {
-  console.log('[BedrockTextAnalyzer] Starting analysis...');
   
   // Handle empty/short transcripts
   if (!transcript || transcript.trim().length < 10) {
@@ -57,7 +56,6 @@ export async function analyzeTextWithBedrock(
   }
   
   try {
-    console.log('[BedrockTextAnalyzer] Calling Bedrock API...');
     
     // Call server-side API
     const response = await fetch('/api/bedrock/analyze-text', {
@@ -82,12 +80,6 @@ export async function analyzeTextWithBedrock(
       return getEmptyResult("Text analysis did not return usable content for this check in.");
     }
     
-    console.log('[BedrockTextAnalyzer] ✅ Analysis complete:', {
-      score: result.data.text_score,
-      uncertainty: result.data.uncertainty,
-      risk_level: result.data.risk_level,
-      themes: result.data.themes.length
-    });
     
     return result.data as TextAnalysisResult;
     

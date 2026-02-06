@@ -1,0 +1,30 @@
+# Git hooks (development only)
+.husky/
+
+# AWS infrastructure (deployed separately)
+aws/
+
+# Root-level database migrations (not src/services/database/)
+/database/
+/migrations/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# iOS native build (Capacitor - not needed for web deploy)
+ios/
+
+# Scripts and tooling
+scripts/
+
+# Tests
+tests/
+
+# Misc
+*.sql
+*.sh
+capacitor.config.ts
+playwright.config.ts
+test-lambda.html

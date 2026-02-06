@@ -122,14 +122,6 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
           // Set university name
           setUniversityName(university.name || 'your university');
           
-          console.log('[HelpPage] University data loaded:', {
-            id: university.id,
-            name: university.name,
-            emergencyContactsCount: university.emergency_contacts?.length || 0,
-            mentalHealthServicesCount: university.mental_health_services?.length || 0,
-            localResourcesCount: university.local_resources?.length || 0,
-            nationalResourcesCount: university.national_resources?.length || 0
-          });
 
           // Map emergency contacts from CMS
           if (university.emergency_contacts && Array.isArray(university.emergency_contacts)) {
@@ -140,10 +132,8 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
               website: contact.website || '',
               isEmergency: contact.isPrimary || contact.is24Hour || false
             }));
-            console.log('[HelpPage] Mapped emergency contacts:', emergencyMapped.length);
             setEmergencyResources(emergencyMapped.length > 0 ? emergencyMapped : defaultEmergency);
           } else {
-            console.log('[HelpPage] No emergency contacts in CMS, using defaults');
             setEmergencyResources(defaultEmergency);
           }
 
@@ -156,10 +146,8 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
               website: service.website || '',
               isEmergency: false
             }));
-            console.log('[HelpPage] Mapped mental health services:', mentalHealthMapped.length);
             setMentalHealthServices(mentalHealthMapped);
           } else {
-            console.log('[HelpPage] No mental health services in CMS');
             setMentalHealthServices([]);
           }
 
@@ -173,10 +161,8 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
               website: resource.website || '',
               availability: resource.hours || resource.availability || ''
             }));
-            console.log('[HelpPage] Mapped local resources:', localMapped.length);
             setLocalSupport(localMapped.length > 0 ? localMapped : defaultLocal);
           } else {
-            console.log('[HelpPage] No local resources in CMS, using defaults');
             setLocalSupport(defaultLocal);
           }
 
@@ -193,11 +179,8 @@ export function HelpScreen({ onNavigateBack }: HelpPageProps) {
               phone: resource.phones?.[0] || resource.phone || '',
               website: resource.website || ''
             }));
-            console.log('[HelpPage] Mapped national resources:', nationalMapped.length);
-            console.log('[HelpPage] National resources detail:', nationalMapped);
             setNationalResources(nationalMapped.length > 0 ? nationalMapped : defaultNational);
           } else {
-            console.log('[HelpPage] No national resources in CMS, using defaults');
             setNationalResources(defaultNational);
           }
         } else {

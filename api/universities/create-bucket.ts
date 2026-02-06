@@ -18,9 +18,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Generate bucket name: mindmeasure-{slug}
     const bucketName = `mindmeasure-${universitySlug.toLowerCase()}`;
 
-    console.log(`🏗️ Creating S3 bucket for university: ${universityName || universitySlug}`);
-    console.log(`📦 Bucket name: ${bucketName}`);
-
     // Configure S3 client
     const s3Client = new S3Client({
       region: REGION
@@ -35,7 +32,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     await s3Client.send(createCommand);
-    console.log('✅ Bucket created successfully');
 
     // 2. Configure CORS for web uploads
     const corsCommand = new PutBucketCorsCommand({
@@ -59,7 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     await s3Client.send(corsCommand);
-    console.log('✅ CORS configuration applied');
 
     // 3. Enable versioning
     const versioningCommand = new PutBucketVersioningCommand({
@@ -70,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     await s3Client.send(versioningCommand);
-    console.log('✅ Versioning enabled');
 
     // 4. Enable server-side encryption
     const encryptionCommand = new PutBucketEncryptionCommand({
@@ -88,7 +82,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     await s3Client.send(encryptionCommand);
-    console.log('✅ Server-side encryption enabled');
 
     // 5. Block public access (security best practice)
     const publicAccessCommand = new PutPublicAccessBlockCommand({
@@ -102,7 +95,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     await s3Client.send(publicAccessCommand);
-    console.log('✅ Public access blocked (security configured)');
 
     // Return success response
     res.status(200).json({

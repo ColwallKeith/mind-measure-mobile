@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -32,11 +32,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   
   // Fetch active nudges
   useEffect(() => {
-    console.log('[Dashboard] Profile for nudges:', {
-      hasProfile: !!profile,
-      universityId: profile?.university_id,
-      profileData: profile
-    });
   }, [profile]);
   
   const { pinned, rotated, loading: nudgesLoading } = useActiveNudges(profile?.university_id);
@@ -48,7 +43,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   const handleLogoClick = async () => {
     const newCount = logoClickCount + 1;
     setLogoClickCount(newCount);
-    console.log(`🎯 Logo clicked ${newCount} times`);
 
     // Reset counter after 2 seconds of inactivity
     if (clickTimeoutRef.current) {
@@ -60,7 +54,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
 
     // Trigger reset on 5th click
     if (newCount === 5) {
-      console.log('🔄 Developer mode: 5 clicks detected');
       setLogoClickCount(0);
       
       // Show confirmation popup
@@ -72,14 +65,12 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
       
       if (confirmed) {
         // User clicked OK - trigger baseline retake
-        console.log('✅ User confirmed baseline reset');
         if (onRetakeBaseline) {
           onRetakeBaseline();
         } else {
           console.warn('⚠️ onRetakeBaseline prop not provided');
         }
       } else {
-        console.log('❌ User cancelled baseline reset');
       }
     }
   };
@@ -92,13 +83,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   const isPostBaselineView = recentActivity.length > 0 && 
     recentActivity.every(activity => activity.type === 'baseline');
   
-  console.log('[Dashboard] Render state:', {
-    isPostBaselineView,
-    hasLatestSession: !!latestSession,
-    latestSessionSummary: latestSession?.summary?.substring(0, 50),
-    recentActivityCount: recentActivity.length,
-    recentActivityTypes: recentActivity.map(a => a.type)
-  });
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -125,11 +109,6 @@ export function DashboardScreen({ onNeedHelp, onCheckIn, onRetakeBaseline }: Das
   const getGreeting = () => {
     const now = new Date();
     const hour = now.getHours();
-    console.log('🕐 Current time debug:', {
-      fullDate: now.toString(),
-      hour: hour,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    });
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
